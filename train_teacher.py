@@ -1,4 +1,4 @@
-''''This just trains a model Doesn't even have to be a teacher'''
+''''This just trains a model. Doesn't even have to be a teacher'''
 from __future__ import print_function
 import torch
 import torch.nn as nn
@@ -11,28 +11,40 @@ import torchvision.transforms as transforms
 import json
 import argparse
 from torch.autograd import Variable
+import os
+import models.wide_resnet as wide_resnet
 
 parser = argparse.ArgumentParser(description='Training a CIFAR10 teacher')
-parser.add_argument('--GPU', default='2', type=str,
-                    help='which GPU to use')
-parser.add_argument('--lr', default=0.1, type=float, help='initial learning rate')
-parser.add_argument('--optimizer', default='sgd', type=str, help='optimizer [sgd or adam for now]')
-parser.add_argument('--lr_decay_ratio', default=0.2, type=float, help='learning rate decay')
-parser.add_argument('--wrn_depth', default=16, type=int, help='depth for WRN')
-parser.add_argument('--wrn_width', default=2, type=int, help='width for WRN')
-parser.add_argument('--teacher_checkpoint', '-t', default='/disk/scratch/ecrowley/torch/checkpoints/teacher_state.t7',
-                    help='checkpoint that teacher is saved to/loaded from')
-parser.add_argument('--test_every', default=10, type=float, help='test (and save) every N epochs')
-parser.add_argument('--resume', '-r', action='store_true', help='resume training from checkpoint')
+
+# System params
+parser.add_argument('--GPU', default='3', type=str, help='GPU to use')
+parser.add_argument('--teacher_checkpoint', '-t',
+                    default='/disk/scratch/ecrowley/torch/checkpoints/teacher_state.t7', type=str,
+                    help='checkpoint to load in teacher')
+
+# Network params
+parser.add_argument('--wrn_depth', default=16, type=float, help='depth for WRN')
+parser.add_argument('--wrn_width', default=2, type=float, help='width for WRN')
+
+# Mode params
+parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
 parser.add_argument('--eval', '-e', action='store_true', help='evaluate rather than train')
-parser.add_argument('--epoch_step', default='[60,120,160]', type=str,help='json list with epochs to drop lr on')
+
+# Learning params
+parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
+parser.add_argument('--lr_decay_ratio', default=0.2, type=float, help='learning rate decay')
+parser.add_argument('--temperature', default=4, type=float, help='temp for KD')
+parser.add_argument('--alpha', default=0.9, type=float, help='alpha for KD')
+parser.add_argument('--epoch_step', default='[60,120,160]', type=str,
+                    help='json list with epochs to drop lr on')
 parser.add_argument('--epochs', default=200, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--weightDecay', default=0.0005, type=float)
-args = parser.parse_args()
+parser.add_argument('--test_every', default=10, type=float, help='test every N epochs')
 
-import os
-os.environ["CUDA_VISIBLE_DEVICES"]= args.GPU
+args = parser.parse_args()
+print (vars(args))
+os.environ["CUDA_VISIBLE_DEVICES"] = args.GPU
 
 use_cuda = torch.cuda.is_available()
 assert use_cuda, 'Error: No CUDA!'
@@ -61,9 +73,9 @@ trainloader = torch.utils.data.DataLoader(trainset, batch_size=128, shuffle=True
 testset = torchvision.datasets.CIFAR10(root='/disk/scratch/datasets/cifar', train=False, download=True, transform=transform_test)
 testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
 
-import models.wide_resnet as wide_resnet
 
-#Load checkpoint if we are resuming training or evaluating.
+# Load checkpoint if we are resuming training or evaluating.
+
 if args.resume or args.eval:
     print('==> Resuming from checkpoint..')
     checkpoint = torch.load(args.teacher_checkpoint)
@@ -86,15 +98,11 @@ def create_optimizer(lr, mode='sgd'):
         print('ADAM. Using fixed params')
         return torch.optim.Adam(net.parameters(), weight_decay=args.weightDecay)
 
-optimizer = create_optimizer(args.lr,mode=args.optimizer)
-#Just work these out, it's CIFAR
-no_iterations_train =  391#len(list(trainloader))
-no_iterations_test =  100#len(list(testloader))
-
-print(no_iterations_train)
-print(no_iterations_test)
+optimizer = create_optimizer(args.lr ,mode=args.optimizer)
 
 # Training
+
+
 def train(epoch):
     print('\nEpoch: %d' % epoch)
     net.train()
@@ -116,9 +124,9 @@ def train(epoch):
         total += targets.size(0)
         correct += predicted.eq(targets.data).cpu().sum()
 
-        if batch_idx == no_iterations_train-1:
-            print('\nTrain Loss: %.3f | Acc: %.3f%% (%d/%d)'
-            % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
+    print('\nTrain Loss: %.3f | Acc: %.3f%% (%d/%d)'
+    % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
+
 
 def test(epoch):
     global best_acc
@@ -138,9 +146,8 @@ def test(epoch):
         total += targets.size(0)
         correct += predicted.eq(targets.data).cpu().sum()
 
-        if batch_idx == no_iterations_test-1:
-            print('\nTest Loss: %.3f | Acc: %.3f%% (%d/%d)'
-                % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
+        print('\nTest Loss: %.3f | Acc: %.3f%% (%d/%d)'
+            % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
     # Save checkpoint.
     if not args.eval:
@@ -152,8 +159,6 @@ def test(epoch):
                 'acc': acc,
                 'epoch': epoch,
             }
-            # if not os.path.isdir('checkpoints'):
-            #     os.mkdir('checkpoints')
             print('SAVED!')
             torch.save(state, args.teacher_checkpoint)
             best_acc = acc
