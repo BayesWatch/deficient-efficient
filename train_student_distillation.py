@@ -11,13 +11,13 @@ import torchvision.transforms as transforms
 import json
 import argparse
 from torch.autograd import Variable
-import wide_resnet
+import models.wide_resnet as wide_resnet
 import os
 
 parser = argparse.ArgumentParser(description='Training a CIFAR10 student')
 
 # System params
-parser.add_argument('--GPU', default='0,1', type=str,help='GPU to use')
+parser.add_argument('--GPU', default='3', type=str,help='GPU to use')
 parser.add_argument('--student_checkpoint', '-s', default='/disk/scratch/ecrowley/torch/checkpoints/student_statelya.t7',type=str, help='checkpoint to save/load student')
 parser.add_argument('--teacher_checkpoint', '-t', default='/disk/scratch/ecrowley/torch/checkpoints/teacher_state.t7',type=str, help='checkpoint to load in teacher')
 
@@ -87,22 +87,21 @@ else:
     net = wide_resnet.WideResNet(args.wrn_depth, 10, args.wrn_width, dropRate=0)
 
 # Load teacher checkpoint.
-if not args.eval:
-    print('==> Loading teacher from checkpoint..')
-    assert os.path.isfile(args.teacher_checkpoint), 'Error: no checkpoint found!'
-    checkpoint = torch.load(args.teacher_checkpoint)
+print('==> Loading teacher from checkpoint..')
+assert os.path.isfile(args.teacher_checkpoint), 'Error: no checkpoint found!'
+checkpoint = torch.load(args.teacher_checkpoint)
 
-    teach = wide_resnet.WideResNet(16, 10, 2, dropRate=0)
-    teach.load_state_dict(checkpoint['state_dict'])
-    print ('==> Loaded teacher..')
+teach = wide_resnet.WideResNet(16, 10, 2, dropRate=0)
+teach.load_state_dict(checkpoint['state_dict'])
+print ('==> Loaded teacher..')
 
-    teach = teach.cuda(0)
+teach = teach.cuda()
 
-    for param in teach.parameters():
-        param.requires_grad = False
+for param in teach.parameters():
+    param.requires_grad = False
 
 
-net = net.cuda(1)
+net = net.cuda()
 criterion = nn.CrossEntropyLoss()
 
 
@@ -138,10 +137,10 @@ def train(epoch):
     correct = 0
     total = 0
     for batch_idx, (inputs, targets) in enumerate(tqdm(trainloader)):
-        inputs_teacher, inputs_student = Variable(inputs.cuda(0)), Variable(inputs.cuda(1))
-        targets = Variable(targets.cuda(1))
-        outputs_student = net(inputs_student)
-        outputs_teacher = Variable(teach(inputs_teacher).data.cuda(1))
+        inputs = Variable(inputs.cuda())
+        targets = Variable(targets.cuda())
+        outputs_student = net(inputs)
+        outputs_teacher = teach(inputs)
         loss = distillation(outputs_student, outputs_teacher, targets, args.temperature, args.alpha)
 
         optimizer.zero_grad()
@@ -166,7 +165,7 @@ def test():
     total = 0
     for batch_idx, (inputs, targets) in enumerate(testloader):
 
-        inputs, targets = inputs.cuda(1), targets.cuda(1)
+        inputs, targets = inputs.cuda(), targets.cuda()
         inputs, targets = Variable(inputs, volatile=True), Variable(targets)
         outputs = net(inputs)
         loss = criterion(outputs, targets)
@@ -176,7 +175,7 @@ def test():
         total += targets.size(0)
         correct += predicted.eq(targets.data).cpu().sum()
 
-    print('Loss: %.3f | Acc: %.3f%% (%d/%d)' % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
+        print('Loss: %.3f | Acc: %.3f%% (%d/%d)' % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
     # Save checkpoint.
     if not args.eval:
@@ -201,7 +200,7 @@ def test_teacher():
     total = 0
     for batch_idx, (inputs, targets) in enumerate(testloader):
         if use_cuda:
-            inputs, targets = inputs.cuda(0), targets.cuda(0)
+            inputs, targets = inputs.cuda(), targets.cuda()
         inputs, targets = Variable(inputs, volatile=True), Variable(targets)
         outputs = teach(inputs)
         loss = criterion(outputs, targets)
@@ -211,8 +210,8 @@ def test_teacher():
         total += targets.size(0)
         correct += predicted.eq(targets.data).cpu().sum()
 
-    print('Loss: %.3f | Acc: %.3f%% (%d/%d)'
-        % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
+        print('Loss: %.3f | Acc: %.3f%% (%d/%d)'
+            % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
 
 if not args.eval:
@@ -228,5 +227,5 @@ if not args.eval:
         if (epoch + 1) % args.test_every == 0 or epoch == 0:
             test()
 else:
-    print('Evaluating student...')
+    print('Evaluating...')
     test()

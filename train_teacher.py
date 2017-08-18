@@ -61,7 +61,7 @@ trainloader = torch.utils.data.DataLoader(trainset, batch_size=128, shuffle=True
 testset = torchvision.datasets.CIFAR10(root='/disk/scratch/datasets/cifar', train=False, download=True, transform=transform_test)
 testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
 
-import wide_resnet
+import models.wide_resnet as wide_resnet
 
 #Load checkpoint if we are resuming training or evaluating.
 if args.resume or args.eval:
