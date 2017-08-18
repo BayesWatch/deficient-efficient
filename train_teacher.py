@@ -12,17 +12,18 @@ import json
 import argparse
 from torch.autograd import Variable
 import os
-import models.wide_resnet as wide_resnet
+import models
 
 parser = argparse.ArgumentParser(description='Training a CIFAR10 teacher')
 
 # System params
-parser.add_argument('--GPU', default='3', type=str, help='GPU to use')
+parser.add_argument('--GPU', default='2', type=str, help='GPU to use')
 parser.add_argument('--teacher_checkpoint', '-t',
-                    default='/disk/scratch/ecrowley/torch/checkpoints/teacher_state.t7', type=str,
+                    default='checkpoints/teacher_vgg16.t7', type=str,
                     help='checkpoint to load in teacher')
 
 # Network params
+parser.add_argument('--net', default='WRN', type=str, help='network type (WRN, VGG..)')
 parser.add_argument('--wrn_depth', default=16, type=float, help='depth for WRN')
 parser.add_argument('--wrn_width', default=2, type=float, help='width for WRN')
 
@@ -31,6 +32,7 @@ parser.add_argument('--resume', '-r', action='store_true', help='resume from che
 parser.add_argument('--eval', '-e', action='store_true', help='evaluate rather than train')
 
 # Learning params
+parser.add_argument('--optimizer', default='sgd', type=str, help='optimizer (sgd+mom or adam')
 parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
 parser.add_argument('--lr_decay_ratio', default=0.2, type=float, help='learning rate decay')
 parser.add_argument('--temperature', default=4, type=float, help='temp for KD')
@@ -76,18 +78,25 @@ testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False,
 
 # Load checkpoint if we are resuming training or evaluating.
 
+if args.net == 'WRN':
+    net = models.WideResNet(args.wrn_depth,10, args.wrn_width, dropRate=0)
+elif args.net == 'VGG16':
+    net = models.VGG('VGG16')
+elif args.net == 'VGG11':
+    net = models.VGG('VGG11')
+
+
 if args.resume or args.eval:
     print('==> Resuming from checkpoint..')
     checkpoint = torch.load(args.teacher_checkpoint)
-    net = wide_resnet.WideResNet(args.wrn_depth,10, args.wrn_width, dropRate=0)
     net.load_state_dict(checkpoint['state_dict'])
 else:
     print('==> Building model..')
-    net = wide_resnet.WideResNet(args.wrn_depth,10, args.wrn_width, dropRate=0)
 
 
 net = torch.nn.DataParallel(net, device_ids=range(torch.cuda.device_count()))
 criterion = nn.CrossEntropyLoss()
+
 
 def create_optimizer(lr, mode='sgd'):
     print('creating optimizer with lr = %0.5f' % lr)
@@ -98,7 +107,7 @@ def create_optimizer(lr, mode='sgd'):
         print('ADAM. Using fixed params')
         return torch.optim.Adam(net.parameters(), weight_decay=args.weightDecay)
 
-optimizer = create_optimizer(args.lr ,mode=args.optimizer)
+optimizer = create_optimizer(args.lr, mode=args.optimizer)
 
 # Training
 
@@ -152,16 +161,18 @@ def test(epoch):
     # Save checkpoint.
     if not args.eval:
         acc = 100.*correct/total
-        if acc > best_acc:
+        # Removing this bit as it is overfitting. Tut tut.
+        # if acc > best_acc:
+        if 1:
             print('Saving..')
             state = {
-                'net': net.module if use_cuda else net,
+                'net': net,
                 'acc': acc,
                 'epoch': epoch,
             }
             print('SAVED!')
             torch.save(state, args.teacher_checkpoint)
-            best_acc = acc
+            #best_acc = acc
 
 
 if not args.eval:

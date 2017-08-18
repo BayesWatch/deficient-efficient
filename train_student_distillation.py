@@ -11,17 +11,18 @@ import torchvision.transforms as transforms
 import json
 import argparse
 from torch.autograd import Variable
-import models.wide_resnet as wide_resnet
+import models
 import os
 
 parser = argparse.ArgumentParser(description='Training a CIFAR10 student')
 
 # System params
 parser.add_argument('--GPU', default='3', type=str,help='GPU to use')
-parser.add_argument('--student_checkpoint', '-s', default='/disk/scratch/ecrowley/torch/checkpoints/student_statelya.t7',type=str, help='checkpoint to save/load student')
-parser.add_argument('--teacher_checkpoint', '-t', default='/disk/scratch/ecrowley/torch/checkpoints/teacher_state.t7',type=str, help='checkpoint to load in teacher')
+parser.add_argument('--student_checkpoint', '-s', default='checkpoints/student_vgg11.t7',type=str, help='checkpoint to save/load student')
+parser.add_argument('--teacher_checkpoint', '-t', default='checkpoints/teacher_vgg.t7',type=str, help='checkpoint to load in teacher')
 
 # Network params
+parser.add_argument('--net', default='VGG11', type=str, help='network type (WRN, VGG11,VGG16..)')
 parser.add_argument('--wrn_depth', default=16, type=float, help='depth for WRN')
 parser.add_argument('--wrn_width', default=1, type=float, help='width for WRN')
 
@@ -84,15 +85,20 @@ if args.resume or args.eval:
     start_epoch = checkpoint['epoch']
 else:
     print('==> Building model..')
-    net = wide_resnet.WideResNet(args.wrn_depth, 10, args.wrn_width, dropRate=0)
+    if args.net == 'WRN':
+        net = models.WideResNet(args.wrn_depth, 10, args.wrn_width, dropRate=0)
+    elif args.net == 'VGG16':
+        net = models.VGG('VGG16')
+    elif args.net == 'VGG11':
+        net = models.VGG('VGG11')
 
 # Load teacher checkpoint.
+
 print('==> Loading teacher from checkpoint..')
 assert os.path.isfile(args.teacher_checkpoint), 'Error: no checkpoint found!'
 checkpoint = torch.load(args.teacher_checkpoint)
+teach = checkpoint['net']
 
-teach = wide_resnet.WideResNet(16, 10, 2, dropRate=0)
-teach.load_state_dict(checkpoint['state_dict'])
 print ('==> Loaded teacher..')
 
 teach = teach.cuda()
@@ -180,7 +186,7 @@ def test():
     # Save checkpoint.
     if not args.eval:
         acc = 100.*correct/total
-        if acc > best_acc:
+        if 1:#acc > best_acc:
             print('Saving..')
             state = {
                 'net': net,
@@ -189,7 +195,7 @@ def test():
             }
             print('SAVED!')
             torch.save(state, args.student_checkpoint)
-            best_acc = acc
+            #best_acc = acc
 
 
 def test_teacher():
