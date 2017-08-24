@@ -13,14 +13,15 @@ import argparse
 from torch.autograd import Variable
 import os
 import models
+import utils.plot as plot
 
 parser = argparse.ArgumentParser(description='Training a CIFAR10 teacher')
 
 # System params
 parser.add_argument('--GPU', default='2', type=str, help='GPU to use')
 parser.add_argument('--teacher_checkpoint', '-t',
-                    default='checkpoints/teacher_vgg16.t7', type=str,
-                    help='checkpoint to load in teacher')
+                    default='teacher_vgg16', type=str,
+                    help='checkpoint to load in teacher. Will be a t7 located in the checkpoints folder')
 
 # Network params
 parser.add_argument('--net', default='WRN', type=str, help='network type (WRN, VGG..)')
@@ -42,7 +43,7 @@ parser.add_argument('--epoch_step', default='[60,120,160]', type=str,
 parser.add_argument('--epochs', default=200, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--weightDecay', default=0.0005, type=float)
-parser.add_argument('--test_every', default=10, type=float, help='test every N epochs')
+parser.add_argument('--test_every', default=1, type=float, help='test every N epochs')
 
 args = parser.parse_args()
 print (vars(args))
@@ -88,8 +89,12 @@ elif args.net == 'VGG11':
 
 if args.resume or args.eval:
     print('==> Resuming from checkpoint..')
-    checkpoint = torch.load(args.teacher_checkpoint)
-    net.load_state_dict(checkpoint['state_dict'])
+    print('==> Loading student from checkpoint..')
+    checkpoint = torch.load('checkpoints/%s.t7' % args.teacher_checkpoint)
+    net = checkpoint['net']
+    best_acc = checkpoint['acc']
+    start_epoch = checkpoint['epoch']
+
 else:
     print('==> Building model..')
 
@@ -135,6 +140,8 @@ def train(epoch):
 
     print('\nTrain Loss: %.3f | Acc: %.3f%% (%d/%d)'
     % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
+    plot.plot('train loss', train_loss/(batch_idx+1))
+
 
 
 def test(epoch):
@@ -155,8 +162,12 @@ def test(epoch):
         total += targets.size(0)
         correct += predicted.eq(targets.data).cpu().sum()
 
-        print('\nTest Loss: %.3f | Acc: %.3f%% (%d/%d)'
-            % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
+    print('\nTest Loss: %.3f | Acc: %.3f%% (%d/%d)'
+        % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
+    plot.plot('test loss', test_loss/(batch_idx+1))
+    plot.plot('test acc', 100.*correct/total)
+
+
 
     # Save checkpoint.
     if not args.eval:
@@ -171,7 +182,7 @@ def test(epoch):
                 'epoch': epoch,
             }
             print('SAVED!')
-            torch.save(state, args.teacher_checkpoint)
+            torch.save(state, 'checkpoints/%s.t7' % args.teacher_checkpoint)
             #best_acc = acc
 
 
@@ -181,9 +192,9 @@ if not args.eval:
             lr = optimizer.param_groups[0]['lr']
             optimizer = create_optimizer(lr * args.lr_decay_ratio, mode=args.optimizer)
         train(epoch)
-        if (epoch +1)% args.test_every==0  or epoch==0: #Test after the first epoch to make sure the test script works
-            test(epoch)
-            print('saving model at epoch %d' % epoch)
+        test(epoch)
+        plot.flush('checkpoints/%s_' % args.teacher_checkpoint)
+        plot.tick()
 else:
     print('Evaluating...')
     test(0)
