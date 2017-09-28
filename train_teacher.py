@@ -20,11 +20,12 @@ parser = argparse.ArgumentParser(description='Training a CIFAR10 teacher')
 # System params
 parser.add_argument('--GPU', default='2', type=str, help='GPU to use')
 parser.add_argument('--teacher_checkpoint', '-t',
-                    default='teacher_vgg16', type=str,
-                    help='checkpoint to load in teacher. Will be a t7 located in the checkpoints folder')
+                    default='mobilenet_nocu', type=str,
+                    help='checkpoint to load in teacher. Will be a t7 located in the checkpoints folder.'
+                         'Plots are also written here.')
 
 # Network params
-parser.add_argument('--net', default='WRN', type=str, help='network type (WRN, VGG..)')
+parser.add_argument('--net', default='mobilenet', type=str, help='network type (WRN, mobilenet, VGG..)')
 parser.add_argument('--wrn_depth', default=16, type=float, help='depth for WRN')
 parser.add_argument('--wrn_width', default=2, type=float, help='width for WRN')
 
@@ -85,6 +86,10 @@ elif args.net == 'VGG16':
     net = models.VGG('VGG16')
 elif args.net == 'VGG11':
     net = models.VGG('VGG11')
+elif args.net == 'mobilenet':
+    net = models.MobileNet()
+elif args.net =='mobilenetcu':
+    net = models.MobileNet(cublock=True)
 
 
 if args.resume or args.eval:
@@ -99,7 +104,7 @@ else:
     print('==> Building model..')
 
 
-net = torch.nn.DataParallel(net, device_ids=range(torch.cuda.device_count()))
+net = net.cuda()#.half()
 criterion = nn.CrossEntropyLoss()
 
 
@@ -141,6 +146,8 @@ def train(epoch):
     print('\nTrain Loss: %.3f | Acc: %.3f%% (%d/%d)'
     % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
     plot.plot('train loss', train_loss/(batch_idx+1))
+    plot.plot('train acc', 100.*correct/total)
+
 
 
 
