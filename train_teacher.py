@@ -25,26 +25,25 @@ parser.add_argument('--teacher_checkpoint', '-t',
                          'Plots are also written here.')
 
 # Network params
-parser.add_argument('--net', default='mobilenet', type=str, help='network type (WRN, mobilenet, VGG..)')
+parser.add_argument('net', choices=['WRN','VGG16','VGG11','mobilenet','mobilenetcu'], type=str, help='Choose net')
 parser.add_argument('--wrn_depth', default=16, type=float, help='depth for WRN')
 parser.add_argument('--wrn_width', default=2, type=float, help='width for WRN')
 
-# Mode params
-parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
-parser.add_argument('--eval', '-e', action='store_true', help='evaluate rather than train')
+#WRN params
+parser.add_argument('--wrn_depth', default=16, type=float, help='depth for WRN')
+parser.add_argument('--wrn_width', default=1, type=float, help='width for WRN')
+
 
 # Learning params
-parser.add_argument('--optimizer', default='sgd', type=str, help='optimizer (sgd+mom or adam')
 parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
 parser.add_argument('--lr_decay_ratio', default=0.2, type=float, help='learning rate decay')
-parser.add_argument('--temperature', default=4, type=float, help='temp for KD')
-parser.add_argument('--alpha', default=0.9, type=float, help='alpha for KD')
+
 parser.add_argument('--epoch_step', default='[60,120,160]', type=str,
                     help='json list with epochs to drop lr on')
 parser.add_argument('--epochs', default=200, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--weightDecay', default=0.0005, type=float)
-parser.add_argument('--test_every', default=1, type=float, help='test every N epochs')
+
 
 args = parser.parse_args()
 print (vars(args))
@@ -108,16 +107,11 @@ net = net.cuda()#.half()
 criterion = nn.CrossEntropyLoss()
 
 
-def create_optimizer(lr, mode='sgd'):
-    print('creating optimizer with lr = %0.5f' % lr)
-    if mode == 'sgd':
+def create_optimizer(lr):
         print('SGD')
         return torch.optim.SGD(net.parameters(), lr, 0.9, weight_decay=args.weightDecay)
-    elif mode == 'adam':
-        print('ADAM. Using fixed params')
-        return torch.optim.Adam(net.parameters(), weight_decay=args.weightDecay)
 
-optimizer = create_optimizer(args.lr, mode=args.optimizer)
+optimizer = create_optimizer(args.lr)
 
 # Training
 
@@ -151,7 +145,7 @@ def train(epoch):
 
 
 
-def test(epoch):
+def test(epoch=None):
     global best_acc
     net.eval()
     test_loss = 0
@@ -197,7 +191,7 @@ if not args.eval:
     for epoch in tqdm(range(args.epochs)):
         if epoch in epoch_step:
             lr = optimizer.param_groups[0]['lr']
-            optimizer = create_optimizer(lr * args.lr_decay_ratio, mode=args.optimizer)
+            optimizer = create_optimizer(lr * args.lr_decay_ratio)
         train(epoch)
         test(epoch)
         plot.flush('checkpoints/%s_' % args.teacher_checkpoint)
