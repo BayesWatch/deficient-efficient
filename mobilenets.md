@@ -14,7 +14,7 @@ where (X,Y) describes each layer. X is the number of filters and Y is the stride
 
 Let's do parameter comparison for this structure with dw-sep convs and regular.
 
-(Note that I have chosen not to print batch norm params as they are insignficant).
+(Note that I have chosen not to print batch norm params as they are insignificant).
 
 dw-sep:
 ```conv1.weight has 864 params
@@ -94,3 +94,12 @@ For w =3 (massive channels!) C has 28519242 params (99% the number of D)
 for w=.338 D has 3239114 params (100.2% the number of C)
 
 The reduced D model actually does better than the depthwise seperable model, with an acc of 91.71%
+
+Table time:
+
+| Model      | Conv Type | No. Params (M) | Acc.     | 
+|------------|-----------|----------------|----------|
+| Mobilenet  | C         |   3.24         | 90.45%   |
+| Mobilenet  | D         |  28.23         | 93.84%   |
+| Mobilenet  | C         |  28.52         | 91.07%   |
+| Mobilenet  | D         |   3.24         | 91.39%   |
