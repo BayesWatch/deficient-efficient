@@ -80,8 +80,17 @@ conv3x3DW --> BN --> ***DEBATABLE RELU*** --> conv1x1 --> BN --> RELU
 
 When we do this we actually get a lower acc of 89.86%, so this seems inconclusive.
 
+I'm going to now call the two nets C and D (conv and depthwise-sep) because I'm tired of typing depthwise-sep.
 
+Let's evaluate: C when it has D no. params
+            and D when it has C no. params
+            
+We just introduce a multiplier w that is applied to each channel size
 
+64*w, (128*w,2), etc.
 
-```
+For w =3 (massive channels!) C has 28519242 params (99% the number of D)
+
+for w=.338 D has 3239114 params (100.2% the number of C)
+
 
