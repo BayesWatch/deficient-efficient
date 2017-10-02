@@ -96,4 +96,4 @@ class WideResNetInt(WideResNet):
         out = F.avg_pool2d(out, 8)
         out = out.view(-1, self.nChannels)
         out  = self.fc(out)
-        return out, block1_out,block2_out,block3_out
+        return out, (block1_out,block2_out,block3_out)

@@ -30,7 +30,7 @@ class CuBlock(nn.Module):
         self.bn2 = nn.BatchNorm2d(out_planes)
 
     def forward(self, x):
-        out = F.relu(self.bn1(self.conv1(x)))
+        out = (self.bn1(self.conv1(x)))
         out = F.relu(self.bn2(self.conv2(out)))
         return out
 

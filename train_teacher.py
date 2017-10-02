@@ -26,13 +26,15 @@ parser.add_argument('--teacher_checkpoint', '-t',
 
 # Network params
 parser.add_argument('net', choices=['WRN','VGG16','VGG11','mobilenet','mobilenetcu'], type=str, help='Choose net')
-parser.add_argument('--wrn_depth', default=16, type=float, help='depth for WRN')
-parser.add_argument('--wrn_width', default=2, type=float, help='width for WRN')
+
 
 #WRN params
 parser.add_argument('--wrn_depth', default=16, type=float, help='depth for WRN')
 parser.add_argument('--wrn_width', default=1, type=float, help='width for WRN')
 
+# Mode params
+parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
+parser.add_argument('--eval', '-e', action='store_true', help='evaluate rather than train')
 
 # Learning params
 parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
