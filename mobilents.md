@@ -12,80 +12,72 @@ A CIFAR10 version of mobilenet is provided in https://github.com/kuangliu/pytorc
 
 where (X,Y) describes each layer. X is the number of filters and Y is the stride (most often 1, and ommited).
 
-Let's do paramter comparison for this structure with dw-sep convs and regular.
+Let's do parameter comparison for this structure with dw-sep convs and regular.
 
-Regular:
+(Note that I have chosen not to print batch norm params as they are insignficant).
+
+dw-sep:
 ```conv1.weight has 864 params
-bn1.weight has 32 params
-bn1.bias has 32 params
-bn1.running_mean has 32 params
-bn1.running_var has 32 params
-layers.0.conv1.weight has 18432 params
-layers.0.bn1.weight has 64 params
-layers.0.bn1.bias has 64 params
-layers.0.bn1.running_mean has 64 params
-layers.0.bn1.running_var has 64 params
-layers.1.conv1.weight has 73728 params
-layers.1.bn1.weight has 128 params
-layers.1.bn1.bias has 128 params
-layers.1.bn1.running_mean has 128 params
-layers.1.bn1.running_var has 128 params
-layers.2.conv1.weight has 147456 params
-layers.2.bn1.weight has 128 params
-layers.2.bn1.bias has 128 params
-layers.2.bn1.running_mean has 128 params
-layers.2.bn1.running_var has 128 params
-layers.3.conv1.weight has 294912 params
-layers.3.bn1.weight has 256 params
-layers.3.bn1.bias has 256 params
-layers.3.bn1.running_mean has 256 params
-layers.3.bn1.running_var has 256 params
-layers.4.conv1.weight has 589824 params
-layers.4.bn1.weight has 256 params
-layers.4.bn1.bias has 256 params
-layers.4.bn1.running_mean has 256 params
-layers.4.bn1.running_var has 256 params
-layers.5.conv1.weight has 1179648 params
-layers.5.bn1.weight has 512 params
-layers.5.bn1.bias has 512 params
-layers.5.bn1.running_mean has 512 params
-layers.5.bn1.running_var has 512 params
-layers.6.conv1.weight has 2359296 params
-layers.6.bn1.weight has 512 params
-layers.6.bn1.bias has 512 params
-layers.6.bn1.running_mean has 512 params
-layers.6.bn1.running_var has 512 params
-layers.7.conv1.weight has 2359296 params
-layers.7.bn1.weight has 512 params
-layers.7.bn1.bias has 512 params
-layers.7.bn1.running_mean has 512 params
-layers.7.bn1.running_var has 512 params
-layers.8.conv1.weight has 2359296 params
-layers.8.bn1.weight has 512 params
-layers.8.bn1.bias has 512 params
-layers.8.bn1.running_mean has 512 params
-layers.8.bn1.running_var has 512 params
-layers.9.conv1.weight has 2359296 params
-layers.9.bn1.weight has 512 params
-layers.9.bn1.bias has 512 params
-layers.9.bn1.running_mean has 512 params
-layers.9.bn1.running_var has 512 params
-layers.10.conv1.weight has 2359296 params
-layers.10.bn1.weight has 512 params
-layers.10.bn1.bias has 512 params
-layers.10.bn1.running_mean has 512 params
-layers.10.bn1.running_var has 512 params
-layers.11.conv1.weight has 4718592 params
-layers.11.bn1.weight has 1024 params
-layers.11.bn1.bias has 1024 params
-layers.11.bn1.running_mean has 1024 params
-layers.11.bn1.running_var has 1024 params
-layers.12.conv1.weight has 9437184 params
-layers.12.bn1.weight has 1024 params
-layers.12.bn1.bias has 1024 params
-layers.12.bn1.running_mean has 1024 params
-layers.12.bn1.running_var has 1024 params
+layers.0.conv1.weight has 288 params
+layers.0.conv2.weight has 2048 params
+layers.1.conv1.weight has 576 params
+layers.1.conv2.weight has 8192 params
+layers.2.conv1.weight has 1152 params
+layers.2.conv2.weight has 16384 params
+layers.3.conv1.weight has 1152 params
+layers.3.conv2.weight has 32768 params
+layers.4.conv1.weight has 2304 params
+layers.4.conv2.weight has 65536 params
+layers.5.conv1.weight has 2304 params
+layers.5.conv2.weight has 131072 params
+layers.6.conv1.weight has 4608 params
+layers.6.conv2.weight has 262144 params
+layers.7.conv1.weight has 4608 params
+layers.7.conv2.weight has 262144 params
+layers.8.conv1.weight has 4608 params
+layers.8.conv2.weight has 262144 params
+layers.9.conv1.weight has 4608 params
+layers.9.conv2.weight has 262144 params
+layers.10.conv1.weight has 4608 params
+layers.10.conv2.weight has 262144 params
+layers.11.conv1.weight has 4608 params
+layers.11.conv2.weight has 524288 params
+layers.12.conv1.weight has 9216 params
+layers.12.conv2.weight has 1048576 params
 linear.weight has 10240 params
 linear.bias has 10 params
-Net has 28291306 params in total
+Net has 3239114 params in total
 ```
+normal:
+```conv1.weight has 864 params
+layers.0.conv1.weight has 288 params
+layers.0.conv2.weight has 2048 params
+layers.1.conv1.weight has 576 params
+layers.1.conv2.weight has 8192 params
+layers.2.conv1.weight has 1152 params
+layers.2.conv2.weight has 16384 params
+layers.3.conv1.weight has 1152 params
+layers.3.conv2.weight has 32768 params
+layers.4.conv1.weight has 2304 params
+layers.4.conv2.weight has 65536 params
+layers.5.conv1.weight has 2304 params
+layers.5.conv2.weight has 131072 params
+layers.6.conv1.weight has 4608 params
+layers.6.conv2.weight has 262144 params
+layers.7.conv1.weight has 4608 params
+layers.7.conv2.weight has 262144 params
+layers.8.conv1.weight has 4608 params
+layers.8.conv2.weight has 262144 params
+layers.9.conv1.weight has 4608 params
+layers.9.conv2.weight has 262144 params
+layers.10.conv1.weight has 4608 params
+layers.10.conv2.weight has 262144 params
+layers.11.conv1.weight has 4608 params
+layers.11.conv2.weight has 524288 params
+layers.12.conv1.weight has 9216 params
+layers.12.conv2.weight has 1048576 params
+linear.weight has 10240 params
+linear.bias has 10 params
+Net has 3239114 params in total
+```
+
