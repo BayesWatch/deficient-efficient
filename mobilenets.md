@@ -93,4 +93,4 @@ For w =3 (massive channels!) C has 28519242 params (99% the number of D)
 
 for w=.338 D has 3239114 params (100.2% the number of C)
 
-
+The reduced D model actually does better than the depthwise seperable model, with an acc of 91.71%
