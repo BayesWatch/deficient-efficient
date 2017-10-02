@@ -50,34 +50,38 @@ Net has 3239114 params in total
 ```
 normal:
 ```conv1.weight has 864 params
-layers.0.conv1.weight has 288 params
-layers.0.conv2.weight has 2048 params
-layers.1.conv1.weight has 576 params
-layers.1.conv2.weight has 8192 params
-layers.2.conv1.weight has 1152 params
-layers.2.conv2.weight has 16384 params
-layers.3.conv1.weight has 1152 params
-layers.3.conv2.weight has 32768 params
-layers.4.conv1.weight has 2304 params
-layers.4.conv2.weight has 65536 params
-layers.5.conv1.weight has 2304 params
-layers.5.conv2.weight has 131072 params
-layers.6.conv1.weight has 4608 params
-layers.6.conv2.weight has 262144 params
-layers.7.conv1.weight has 4608 params
-layers.7.conv2.weight has 262144 params
-layers.8.conv1.weight has 4608 params
-layers.8.conv2.weight has 262144 params
-layers.9.conv1.weight has 4608 params
-layers.9.conv2.weight has 262144 params
-layers.10.conv1.weight has 4608 params
-layers.10.conv2.weight has 262144 params
-layers.11.conv1.weight has 4608 params
-layers.11.conv2.weight has 524288 params
-layers.12.conv1.weight has 9216 params
-layers.12.conv2.weight has 1048576 params
+layers.0.conv1.weight has 18432 params
+layers.1.conv1.weight has 73728 params
+layers.2.conv1.weight has 147456 params
+layers.3.conv1.weight has 294912 params
+layers.4.conv1.weight has 589824 params
+layers.5.conv1.weight has 1179648 params
+layers.6.conv1.weight has 2359296 params
+layers.7.conv1.weight has 2359296 params
+layers.8.conv1.weight has 2359296 params
+layers.9.conv1.weight has 2359296 params
+layers.10.conv1.weight has 2359296 params
+layers.11.conv1.weight has 4718592 params
+layers.12.conv1.weight has 9437184 params
 linear.weight has 10240 params
 linear.bias has 10 params
-Net has 3239114 params in total
+Net has 28291306 params in total
+```
+So the normal one has 8.7x more parameters. Ouch.
+
+Let's do a quick performance comparison on CIFAR 10. We (dumbly) train both in the same manner. 200 epochs, a learning rate of 0.1 that is multiplied by 0.2 at epochs 60,120, and 160. 
+
+Normal: 93.84%
+dw-sep: 90.45%
+
+An aside: in https://arxiv.org/abs/1610.02357 Choolet finds things improve when we remove the intermediate RELU in the depthwise sep module
+
+conv3x3DW --> BN --> ***DEBATABLE RELU*** --> conv1x1 --> BN --> RELU
+
+When we do this we actually get a lower acc of 89.86%, so this seems inconclusive.
+
+
+
+
 ```
 
