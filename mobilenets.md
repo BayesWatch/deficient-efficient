@@ -74,7 +74,7 @@ Let's do a quick performance comparison on CIFAR 10. We (dumbly) train both in t
 Normal: 93.84%
 dw-sep: 90.45%
 
-An aside: in https://arxiv.org/abs/1610.02357 Choolet finds things improve when we remove the intermediate RELU in the depthwise sep module
+An aside: in https://arxiv.org/abs/1610.02357 Chollet finds things improve when we remove the intermediate RELU in the depthwise sep module
 
 conv3x3DW --> BN --> ***DEBATABLE RELU*** --> conv1x1 --> BN --> RELU
 
