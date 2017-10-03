@@ -9,6 +9,8 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from pyinn.modules import Conv2dDepthwise
 
+import math
+
 class Block(nn.Module):
     '''Standard block'''
     def __init__(self, in_planes, out_planes, stride=1):
@@ -24,7 +26,7 @@ class CuBlock(nn.Module):
     '''Depthwise conv + Pointwise conv with faster depthwise block'''
     def __init__(self, in_planes, out_planes, stride=1):
         super(CuBlock, self).__init__()
-        self.conv1 = Conv2dDepthwise(channels=in_planes, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.conv1 = Conv2dDepthwise(channels=in_planes, kernel_size=2, stride=stride, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(in_planes)
         self.conv2 = nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=1, padding=0, bias=False)
         self.bn2 = nn.BatchNorm2d(out_planes)
@@ -39,17 +41,16 @@ class MobileNet(nn.Module):
     # (128,2) means conv planes=128, conv stride=2, by default conv stride=1
     cfg = [64, (128,2), 128, (256,2), 256, (512,2), 512, 512, 512, 512, 512, (1024,2), 1024]
 
-    def __init__(self, num_classes=10, cublock=False):
+    def __init__(self, num_classes=10, cublock=False, width_factor=1):
         super(MobileNet, self).__init__()
 
         self.cublock = cublock
+        self.width_factor = width_factor
 
-        myblock = CuBlock if cublock else Block
-
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=2, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(32)
         self.layers = self._make_layers(in_planes=32)
-        self.linear = nn.Linear(1024, num_classes)
+        self.linear = nn.Linear(int(math.floor(self.cfg[-1]*width_factor)), num_classes)
 
     def _make_layers(self, in_planes):
         myblock = CuBlock if self.cublock else Block
@@ -57,6 +58,7 @@ class MobileNet(nn.Module):
         layers = []
         for x in self.cfg:
             out_planes = x if isinstance(x, int) else x[0]
+            out_planes = int(math.floor(out_planes * self.width_factor))
             stride = 1 if isinstance(x, int) else x[1]
             layers.append(myblock(in_planes, out_planes, stride))
             in_planes = out_planes

@@ -14,23 +14,28 @@ from torch.autograd import Variable
 import os
 import models
 import utils.plot as plot
+from utils.misc import *
 
 parser = argparse.ArgumentParser(description='Training a CIFAR10 teacher')
 
 # System params
 parser.add_argument('--GPU', default='2', type=str, help='GPU to use')
-parser.add_argument('--teacher_checkpoint', '-t',
-                    default='mobilenet_nocu', type=str,
+parser.add_argument('--teacher_checkpoint', '-t', type=str,
                     help='checkpoint to load in teacher. Will be a t7 located in the checkpoints folder.'
                          'Plots are also written here.')
 
 # Network params
-parser.add_argument('net', choices=['WRN','VGG16','VGG11','mobilenet','mobilenetcu'], type=str, help='Choose net')
+parser.add_argument('net', choices=['WRN','WRNsep','VGG16','VGG11','mobilenet','mobilenetcu',
+                                    'mobileresnet', 'mobileresnetcu'], type=str, help='Choose net')
 
 
 #WRN params
-parser.add_argument('--wrn_depth', default=16, type=float, help='depth for WRN')
+parser.add_argument('--wrn_depth', default=16, type=int, help='depth for WRN')
 parser.add_argument('--wrn_width', default=1, type=float, help='width for WRN')
+
+#Mobilenet params
+parser.add_argument('--width_factor', default=1, type=float, help='channel multiplier for mobilenet')
+
 
 # Mode params
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
@@ -53,6 +58,8 @@ os.environ["CUDA_VISIBLE_DEVICES"] = args.GPU
 
 use_cuda = torch.cuda.is_available()
 assert use_cuda, 'Error: No CUDA!'
+
+assert args.teacher_checkpoint, 'Error: You must specify a save location (use -t BLAH)'
 
 best_acc = 0  # best test accuracy
 start_epoch = 0  # start from epoch 0 or last checkpoint epoch
@@ -83,14 +90,20 @@ testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False,
 
 if args.net == 'WRN':
     net = models.WideResNet(args.wrn_depth,10, args.wrn_width, dropRate=0)
+elif args.net == 'WRNsep':
+    net = models.WideResNet(args.wrn_depth, 10, args.wrn_width, dropRate=0, separable=True)
 elif args.net == 'VGG16':
     net = models.VGG('VGG16')
 elif args.net == 'VGG11':
     net = models.VGG('VGG11')
 elif args.net == 'mobilenet':
-    net = models.MobileNet()
+    net = models.MobileNet(cublock=False, width_factor=args.width_factor)
 elif args.net =='mobilenetcu':
-    net = models.MobileNet(cublock=True)
+    net = models.MobileNet(cublock=True, width_factor=args.width_factor)
+elif args.net =='mobileresnet':
+    net = models.MobileResNet(cublock=False)
+elif args.net =='mobileresnetcu':
+    net = models.MobileResNet(cublock=True)
 
 
 if args.resume or args.eval:
@@ -104,6 +117,7 @@ if args.resume or args.eval:
 else:
     print('==> Building model..')
 
+get_no_params(net)
 
 net = net.cuda()#.half()
 criterion = nn.CrossEntropyLoss()
