@@ -17,6 +17,17 @@ class Conv(nn.Module):
     def forward(self, x):
         return self.conv(x)
 
+class Conv2x2(nn.Module):
+    def __init__(self, in_planes, out_planes, stride=1, kernel_size=2, padding=1, bias=False):
+        super(Conv2x2, self).__init__()
+        # Dilated 2x2 convs
+        self.conv = nn.Conv2d(in_planes, out_planes, kernel_size=2,
+                              stride=stride, padding=padding, bias=bias, dilation=2)
+
+    def forward(self, x):
+        return self.conv(x)
+
+
 class DConv(nn.Module):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
         super(DConv, self).__init__()
@@ -70,10 +81,10 @@ class NetworkBlock(nn.Module):
         return self.layer(x)
 
 class WideResNet(nn.Module):
-    def __init__(self, depth, num_classes, widen_factor=1, dropRate=0.0, separable=False):
+    def __init__(self, depth, num_classes, widen_factor=1, dropRate=0.0, separable=False, twobytwo=False):
         super(WideResNet, self).__init__()
 
-        conv = DConv if separable else Conv
+        conv = DConv if separable else (Conv2x2 if twobytwo else Conv)
 
         nChannels = [16, 16*widen_factor, 32*widen_factor, 64*widen_factor]
         nChannels = [int(a) for a in nChannels]

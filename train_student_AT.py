@@ -19,16 +19,17 @@ import utils.plot as plot
 parser = argparse.ArgumentParser(description='Training a CIFAR10 student')
 
 # System params
-parser.add_argument('--GPU', default='3', type=str,help='GPU to use')
-parser.add_argument('--student_checkpoint', '-s', default='student_mobile',type=str, help='checkpoint to save/load student')
-parser.add_argument('--teacher_checkpoint', '-t', default='mobilenet_nocu',type=str, help='checkpoint to load in teacher')
+parser.add_argument('--GPU', default='2', type=str,help='GPU to use')
+parser.add_argument('--student_checkpoint', '-s', default='wrn_40_2_sep_int',type=str, help='checkpoint to save/load student')
+parser.add_argument('--teacher_checkpoint', '-t', default='wrn_40_2_int',type=str, help='checkpoint to load in teacher')
 
 # Network params
-parser.add_argument('net', choices=['WRN','VGG16','VGG11','mobilenet','mobilenetcu'], type=str, help='Choose net')
+parser.add_argument('net', choices=['WRN','WRNsep','WRN2x2','VGG16','VGG11','mobilenet','mobilenetcu',
+                                    'mobileresnet', 'mobileresnetcu'], type=str, help='Choose net')
 
 #WRN params
-parser.add_argument('--wrn_depth', default=16, type=float, help='depth for WRN')
-parser.add_argument('--wrn_width', default=1, type=float, help='width for WRN')
+parser.add_argument('--wrn_depth', default=40, type=int, help='depth for WRN')
+parser.add_argument('--wrn_width', default=2, type=float, help='width for WRN')
 
 # Mode params
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
@@ -39,6 +40,8 @@ parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
 parser.add_argument('--lr_decay_ratio', default=0.2, type=float, help='learning rate decay')
 parser.add_argument('--temperature', default=4, type=float, help='temp for KD')
 parser.add_argument('--alpha', default=0.9, type=float, help='alpha for KD')
+parser.add_argument('--beta', default=1e3, type=float, help='beta for KD')
+
 parser.add_argument('--epoch_step', default='[60,120,160]', type=str,
                     help='json list with epochs to drop lr on')
 parser.add_argument('--epochs', default=200, type=int, metavar='N',
@@ -89,15 +92,24 @@ if args.resume or args.eval:
 else:
     print('==> Building model..')
     if args.net == 'WRN':
-        net = models.WideResNet(args.wrn_depth, 10, args.wrn_width, dropRate=0)
-    elif args.net == 'VGG16':
-        net = models.VGG('VGG16')
-    elif args.net == 'VGG11':
-        net = models.VGG('VGG11')
-    elif args.net == 'mobilenet':
-        net = models.MobileNet()
-    elif args.net == 'mobilenetcu':
-        net = models.MobileNet(cublock=True)
+        net = models.WideResNetInt(args.wrn_depth, 10, args.wrn_width, dropRate=0)
+    elif args.net == 'WRNsep':
+        net = models.WideResNetInt(args.wrn_depth, 10, args.wrn_width, dropRate=0, separable=True)
+    elif args.net == 'WRN2x2':
+        net = models.WideResNetInt(args.wrn_depth, 10, args.wrn_width, dropRate=0, twobytwo=True)
+    #
+    # elif args.net == 'VGG16':
+    #     net = models.VGG('VGG16')
+    # elif args.net == 'VGG11':
+    #     net = models.VGG('VGG11')
+    # elif args.net == 'mobilenet':
+    #     net = models.MobileNet(cublock=False, width_factor=args.width_factor)
+    # elif args.net == 'mobilenetcu':
+    #     net = models.MobileNet(cublock=True, width_factor=args.width_factor)
+    # elif args.net == 'mobileresnet':
+    #     net = models.MobileResNet(cublock=False)
+    # elif args.net == 'mobileresnetcu':
+    #     net = models.MobileResNet(cublock=True)
 
 
 # Load teacher checkpoint.
@@ -161,7 +173,7 @@ def train(epoch):
 
         #Add an attention tranfer loss for each intermediate.
         for i in range(len(ints_student)):
-            loss += at_loss(ints_student[i], ints_teacher[i])
+            loss += args.beta * at_loss(ints_student[i], ints_teacher[i])
 
         optimizer.zero_grad()
         loss.backward()
@@ -187,7 +199,7 @@ def test(epoch=None):
 
         inputs, targets = inputs.cuda(), targets.cuda()
         inputs, targets = Variable(inputs, volatile=True), Variable(targets)
-        outputs = net(inputs)
+        outputs,_ = net(inputs)
         loss = criterion(outputs, targets)
 
         test_loss += loss.data[0]
@@ -225,7 +237,7 @@ def test_teacher():
         if use_cuda:
             inputs, targets = inputs.cuda(), targets.cuda()
         inputs, targets = Variable(inputs, volatile=True), Variable(targets)
-        outputs = teach(inputs)
+        outputs,_ = teach(inputs)
         loss = criterion(outputs, targets)
 
         test_loss += loss.data[0]

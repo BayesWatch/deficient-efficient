@@ -19,14 +19,15 @@ parser = argparse.ArgumentParser(description='Training a CIFAR10 student')
 
 # System params
 parser.add_argument('--GPU', default='3', type=str,help='GPU to use')
-parser.add_argument('--student_checkpoint', '-s', default='student_mobile',type=str, help='checkpoint to save/load student')
-parser.add_argument('--teacher_checkpoint', '-t', default='mobilenet_nocu',type=str, help='checkpoint to load in teacher')
+parser.add_argument('--student_checkpoint', '-s', default='wrn_40_2_student_KT',type=str, help='checkpoint to save/load student')
+parser.add_argument('--teacher_checkpoint', '-t', default='wrn_40_2',type=str, help='checkpoint to load in teacher')
 
 # Network params
-parser.add_argument('net', choices=['WRN','VGG16','VGG11','mobilenet','mobilenetcu'], type=str, help='Choose net')
+parser.add_argument('net', choices=['WRN','WRNsep','WRN2x2','VGG16','VGG11','mobilenet','mobilenetcu',
+                                    'mobileresnet', 'mobileresnetcu'], type=str, help='Choose net')
 
 #WRN params
-parser.add_argument('--wrn_depth', default=16, type=float, help='depth for WRN')
+parser.add_argument('--wrn_depth', default=16, type=int, help='depth for WRN')
 parser.add_argument('--wrn_width', default=1, type=float, help='width for WRN')
 
 # Mode params
@@ -89,15 +90,23 @@ else:
     print('==> Building model..')
     if args.net == 'WRN':
         net = models.WideResNet(args.wrn_depth, 10, args.wrn_width, dropRate=0)
+    elif args.net == 'WRNsep':
+        net = models.WideResNet(args.wrn_depth, 10, args.wrn_width, dropRate=0, separable=True)
+    elif args.net == 'WRN2x2':
+        net = models.WideResNet(args.wrn_depth, 10, args.wrn_width, dropRate=0, twobytwo=True)
+
     elif args.net == 'VGG16':
         net = models.VGG('VGG16')
     elif args.net == 'VGG11':
         net = models.VGG('VGG11')
     elif args.net == 'mobilenet':
-        net = models.MobileNet()
+        net = models.MobileNet(cublock=False, width_factor=args.width_factor)
     elif args.net == 'mobilenetcu':
-        net = models.MobileNet(cublock=True)
-
+        net = models.MobileNet(cublock=True, width_factor=args.width_factor)
+    elif args.net == 'mobileresnet':
+        net = models.MobileResNet(cublock=False)
+    elif args.net == 'mobileresnetcu':
+        net = models.MobileResNet(cublock=True)
 
 # Load teacher checkpoint.
 
