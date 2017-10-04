@@ -1,0 +1,21 @@
+Mobilenets are stupid, and only seperable convolutions should be taken away from them.
+
+As such, I'm going to perform some similar experiments but on a better (smaller!) network.
+
+Wideresnets (which are deceptively often thinner than normal resnets) look like:
+
+| group | output size | filters in block  | no. blocks |
+|-------|-------------|-------------------|------------| 
+| conv1 | 32x32       | 16                |  1         |
+| conv2 | 32x32       |[16k 16k]          |  N         |
+| conv3 | 16x16       |[32k 32k]          |  N         |
+| conv4 | 8x8         |[64k 64k]          |  N         |
+
+so for a net denoted as WRN-depth-width
+
+k = width
+
+and 
+
+N = (depth - 4) / 6
+
