@@ -21,7 +21,9 @@ N = (depth - 4) / 6
 
 | Model      | Conv Type | No. Params (M) | Acc.     | 
 |------------|-----------|----------------|----------|
-| WRN-40-2   | 3x3       | 2248954        | 94.94%   |
-| WRN-40-2   | 2x2_d2    | 1012474        | 93.42%   |
-| WRN-40-2   | 3x3DW+1x1 | 304074         | 91.49%   |
+| WRN-40-2   | 3x3       | 2248954        | 94.94%   | (a)
+| WRN-40-2   | 2x2_d2    | 1012474        | 93.42%   | (b)
+| WRN-40-2   | 3x3DW+1x1 | 304074         | 91.49%   | (c)
+
+When we use knowledge distillation with the teacher as (a), and (c) learnt from scratch we get an increased acc of 92.0%
     
