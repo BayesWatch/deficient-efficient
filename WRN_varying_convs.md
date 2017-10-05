@@ -31,9 +31,14 @@ Let's train some networks for different types of convolutions.
 -2x2_d2 refers to a 2x2 kernel with dilation 2 (i.e. a 3x3 kernel with only the corners non-zero)
 -3x3DW+1x1 refers to the separable convolution used in mobilenet.
 
-Now let's experiment with knowledge distillation and attention tranfer where the teacher is (a), and the student is (a),(b) or (c) (See extra columns above).
+Now let's experiment with knowledge distillation and attention transfer where the teacher is (a), and the student is (a),(b) or (c) (See extra columns above).
 
 Note that doing knowledge distillation "with itself" was put in for curiosity.
+
+Observations:
+- A model gets better if it is taught by literally the same architecture. This is effectively an ensemble.
+- Attention transfer lets us get almost identical results using 2x2 kernels, so a drop in parameters of over a half for nothing!
+- It is pretty good for depthwise convolutions as well.
 
 
     
