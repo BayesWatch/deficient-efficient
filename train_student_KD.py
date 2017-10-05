@@ -14,6 +14,7 @@ from torch.autograd import Variable
 import models
 import os
 import utils.plot as plot
+from utils.misc import *
 
 parser = argparse.ArgumentParser(description='Training a CIFAR10 student')
 
@@ -29,6 +30,9 @@ parser.add_argument('net', choices=['WRN','WRNsep','WRN2x2','VGG16','VGG11','mob
 #WRN params
 parser.add_argument('--wrn_depth', default=16, type=int, help='depth for WRN')
 parser.add_argument('--wrn_width', default=1, type=float, help='width for WRN')
+
+#Mobilenet params
+parser.add_argument('--width_factor', default=1, type=float, help='channel multiplier for mobilenet')
 
 # Mode params
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
@@ -107,6 +111,8 @@ else:
         net = models.MobileResNet(cublock=False)
     elif args.net == 'mobileresnetcu':
         net = models.MobileResNet(cublock=True)
+
+get_no_params(net)
 
 # Load teacher checkpoint.
 
