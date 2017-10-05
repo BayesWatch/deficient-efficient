@@ -189,18 +189,18 @@ def test(epoch=None):
     # Save checkpoint.
     if not args.eval:
         acc = 100.*correct/total
-        # Removing this bit as it is overfitting. Tut tut.
-        # if acc > best_acc:
-        if 1:
-            print('Saving..')
-            state = {
-                'net': net,
-                'acc': acc,
-                'epoch': epoch,
-            }
-            print('SAVED!')
-            torch.save(state, 'checkpoints/%s.t7' % args.teacher_checkpoint)
-            #best_acc = acc
+        if acc > best_acc:
+            best_acc = acc
+
+        print('Saving..')
+        state = {
+            'net': net,
+            'acc': acc,
+            'epoch': epoch,
+            'best_acc': best_acc
+        }
+        print('SAVED!')
+        torch.save(state, 'checkpoints/%s.t7' % args.teacher_checkpoint)
 
 
 if not args.eval:

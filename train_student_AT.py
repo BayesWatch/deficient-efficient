@@ -215,16 +215,18 @@ def test(epoch=None):
     # Save checkpoint.
     if not args.eval:
         acc = 100.*correct/total
-        if 1:#acc > best_acc:
-            print('Saving..')
-            state = {
-                'net': net,
-                'acc': acc,
-                'epoch': epoch,
-            }
-            print('SAVED!')
-            torch.save(state, 'checkpoints/%s.t7' % args.student_checkpoint)
-            #best_acc = acc
+        if acc > best_acc:
+            best_acc = acc
+
+        print('Saving..')
+        state = {
+            'net': net,
+            'acc': acc,
+            'epoch': epoch,
+            'best_acc': best_acc
+        }
+        print('SAVED!')
+        torch.save(state, 'checkpoints/%s.t7' % args.student_checkpoint)
 
 
 def test_teacher():
