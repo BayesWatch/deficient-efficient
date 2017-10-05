@@ -21,17 +21,17 @@ N = (depth - 4) / 6
 
 Let's train some networks for different types of convolutions.
 
-| Model         | Conv Type | No. Params (M) | Acc.     | 
-|---------------|-----------|----------------|----------|
+| Model         | Conv Type | No. Params (M) | Acc.     | KD w(a) | AT w(a) |
+|---------------|-----------|----------------|----------|---------|---------|
 |(a) WRN-40-2   | 3x3       | 2248954        | 94.94%   | 
-|(b) WRN-40-2   | 2x2_d2    | 1012474        | 93.42%   | 
-|(c) WRN-40-2   | 3x3DW+1x1 | 304074         | 91.49%   | 
+|(b) WRN-40-2   | 2x2_d2    | 1012474        | 93.42%   | 93.94%  | 
+|(c) WRN-40-2   | 3x3DW+1x1 | 304074         | 91.49%   | 92.00%  |
 
 -3x3 is vanilla
 -2x2_d2 refers to a 2x2 kernel with dilation 2 (i.e. a 3x3 kernel with only the corners non-zero)
 -3x3DW+1x1 refers to the separable convolution used in mobilenet.
 
-Now let's experiment with knowledge distillation and attenion tranfer where the teacher is (a), and the student is 
+Now let's experiment with knowledge distillation and attention tranfer where the teacher is (a), and the student is 
 
 When we use knowledge distillation with the teacher as (a), and (c) learnt from scratch we get an increased acc of 92.0%
     
