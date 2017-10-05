@@ -99,7 +99,7 @@ Table time:
 
 | Model      | Conv Type | No. Params (M) | Acc.     | 
 |------------|-----------|----------------|----------|
-| Mobilenet  | C         |   3.24         | 90.45%   |
-| Mobilenet  | D         |  28.23         | 93.84%   |
-| Mobilenet  | C         |  28.52         | 91.07%   |
-| Mobilenet  | D         |   3.24         | 91.39%   |
+| Mobilenet  | D         |   3.24         | 90.45%   |
+| Mobilenet  | C         |  28.23         | 93.84%   |
+| Mobilenet  | D         |  28.52         | 91.07%   |
+| Mobilenet  | C         |   3.24         | 91.39%   |
