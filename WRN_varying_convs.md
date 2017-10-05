@@ -31,7 +31,9 @@ Let's train some networks for different types of convolutions.
 -2x2_d2 refers to a 2x2 kernel with dilation 2 (i.e. a 3x3 kernel with only the corners non-zero)
 -3x3DW+1x1 refers to the separable convolution used in mobilenet.
 
-Now let's experiment with knowledge distillation and attention tranfer where the teacher is (a), and the student is 
+Now let's experiment with knowledge distillation and attention tranfer where the teacher is (a), and the student is (a),(b) or (c) (See extra columns above).
 
-When we use knowledge distillation with the teacher as (a), and (c) learnt from scratch we get an increased acc of 92.0%
+Note that doing knowledge distillation "with itself" was put in for curiosity.
+
+
     
