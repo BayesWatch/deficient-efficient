@@ -24,7 +24,7 @@ Let's train some networks for different types of convolutions.
 | Model         | Conv Type | No. Params (M) | Acc.     | KD w(a) | AT w(a) |
 |---------------|-----------|----------------|----------|---------|---------|
 |(a) WRN-40-2   | 3x3       | 2248954        | 94.94%   | 
-|(b) WRN-40-2   | 2x2_d2    | 1012474        | 93.42%   | 93.94%  | 
+|(b) WRN-40-2   | 2x2_d2    | 1012474        | 93.42%   | 93.94%  | 94.69%  |
 |(c) WRN-40-2   | 3x3DW+1x1 | 304074         | 91.49%   | 92.00%  | 93.52%  |
 
 -3x3 is vanilla
