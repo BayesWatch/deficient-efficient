@@ -97,9 +97,25 @@ The reduced D model actually does better than the depthwise seperable model, wit
 
 Table time:
 
-| Model      | Conv Type | No. Params (M) | Acc.     | 
-|------------|-----------|----------------|----------|
-| Mobilenet  | D         |   3.24         | 90.45%   |
-| Mobilenet  | C         |  28.23         | 93.84%   |
-| Mobilenet  | D         |  28.52         | 91.07%   |
-| Mobilenet  | C         |   3.24         | 91.39%   |
+| Model         | Conv Type | No. Params (M) | Acc.     | 
+|---------------|-----------|----------------|----------|
+| Mobilenet(a)  | C         |  28.23         | 93.84%   |
+| Mobilenet(b)  | D         |   3.24         | 90.45%   |
+| Mobilenet(c)  | C         |   3.24         | 91.39%   |
+| Mobilenet(d)  | D         |  28.52         | 91.07%   |
+
+
+Let's now try some KD experiments where the teacher is our best performing net (a)
+
+| Student | Teacher | Acc.   |
+|---------|---------|--------|
+| (b)     | (a)     | 90.89% | 
+| (c)     | (a)     |
+| (d)     | (a)     |
+
+
+
+
+
+
+
