@@ -23,15 +23,22 @@ Let's train some networks for different types of convolutions.
 
 | Model         | Conv Type | No. Params (M) | Acc.     | KD w(a) | AT w(a) |
 |---------------|-----------|----------------|----------|---------|---------|
-|(a) WRN-40-2   | 3x3       | 2248954        | 94.94%   | 
-|(b) WRN-40-2   | 2x2_d2    | 1012474        | 93.42%   | 93.94%  | 
-|(c) WRN-40-2   | 3x3DW+1x1 | 304074         | 91.49%   | 92.00%  |
+|(a) WRN-40-2   | 3x3       | 2248954        | 94.94%   | 95.32%  | 95.00%  |
+|(b) WRN-40-2   | 2x2_d2    | 1012474        | 93.42%   | 93.94%  | 94.85%  |
+|(c) WRN-40-2   | 3x3DW+1x1 | 304074         | 91.49%   | 92.00%  | 93.52%  |
 
 -3x3 is vanilla
 -2x2_d2 refers to a 2x2 kernel with dilation 2 (i.e. a 3x3 kernel with only the corners non-zero)
 -3x3DW+1x1 refers to the separable convolution used in mobilenet.
 
-Now let's experiment with knowledge distillation and attention tranfer where the teacher is (a), and the student is 
+Now let's experiment with knowledge distillation and attention transfer where the teacher is (a), and the student is (a),(b) or (c) (See extra columns above).
 
-When we use knowledge distillation with the teacher as (a), and (c) learnt from scratch we get an increased acc of 92.0%
+Note that doing knowledge distillation "with itself" was put in for curiosity.
+
+Observations:
+- A model gets better if it is taught by literally the same architecture. This is effectively an ensemble.
+- Attention transfer lets us get almost identical results using 2x2 kernels, so a drop in parameters of over a half for nothing!
+- It is pretty good for depthwise convolutions as well.
+
+
     
