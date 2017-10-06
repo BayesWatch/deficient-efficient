@@ -33,11 +33,11 @@ Let's train some networks for different types of convolutions.
 |---------------|-----------|----------------|----------| KD w(g) | AT w(g) |
 |(g) WRN-16-2   | 3x3       | 693498         | 93.47%   |         |         |
 |(h) WRN-16-2   | 2x2_d2    | 317178         | 92.29%   |         | 93.29%  |
-|(i) WRN-16-2   | 3x3DW+1x1 | 101578         | 90.61%   |         |         |
+|(i) WRN-16-2   | 3x3DW+1x1 | 101578         | 90.61%   | 92.55%  | 92.42%  |
 |---------------|-----------|----------------|----------| KD w(j) | AT w(j) |
 |(j) WRN-16-1   | 3x3       | 175994         | 91.19%   |         |         |
 |(k) WRN-16-1   | 2x2_d2    | 81274          | 88.51%   |         | 88.70%  |
-|(l) WRN-16-1   | 3x3DW+1x1 | 29642          | 86.78%   |         |         |
+|(l) WRN-16-1   | 3x3DW+1x1 | 29642          | 86.78%   | 88.94%  | 88.65%  |
 
 
 
@@ -50,7 +50,7 @@ Now let's experiment with knowledge distillation and attention transfer where th
 Note that doing knowledge distillation "with itself" was put in for curiosity.
 
 Observations:
-- A model gets better if it is taught by literally the same architecture. This is effectively an ensemble.
+- A model gets better if it is taught by literally the same architecture. This is effectively an ensemble. *EDIT: probably not an ensemble*
 - Attention transfer lets us get almost identical results using 2x2 kernels, so a drop in parameters of over a half for nothing!
 - It is pretty good for depthwise convolutions as well.
 
@@ -78,12 +78,12 @@ Sanity check table:
 
 
 
-| Student          | Teacher         | student | KD     | AT     | teacher  |
-|------------------|-----------------|---------|--------|--------|----------|
-|WRN-40-2_sep 0.3M | WRN-40-2 2.2M   | 91.49   | 92.00  | 93.52  | 94.94    |
-|WRN-40-2_2x2 1M   | WRN-40-2 2.2M   | 93.42   | 93.94  | 94.85  | 94.94    |
----------------------------------------------------------------------------- 
-|WRN-40-1_sep 0.3M | WRN-40-2 2.2M   | 
-|WRN-40-1_2x2 0.3M | WRN-40-2 2.2M   | 
+%| Student          | Teacher         | student | KD     | AT     | teacher  |
+%|------------------|-----------------|---------|--------|--------|----------|
+%|WRN-40-2_sep 0.3M | WRN-40-2 2.2M   | 91.49   | 92.00  | 93.52  | 94.94    |
+%|WRN-40-2_2x2 1M   | WRN-40-2 2.2M   | 93.42   | 93.94  | 94.85  | 94.94    |
+%---------------------------------------------------------------------------- 
+%|WRN-40-1_sep 0.3M | WRN-40-2 2.2M   | 
+%|WRN-40-1_2x2 0.3M | WRN-40-2 2.2M   | 
 
     
