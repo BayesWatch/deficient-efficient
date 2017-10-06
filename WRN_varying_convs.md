@@ -26,6 +26,8 @@ Let's train some networks for different types of convolutions.
 |(a) WRN-40-2   | 3x3       | 2248954        | 94.94%   | 95.32%  | 95.00%  |
 |(b) WRN-40-2   | 2x2_d2    | 1012474        | 93.42%   | 93.94%  | 94.85%  |
 |(c) WRN-40-2   | 3x3DW+1x1 | 304074         | 91.49%   | 92.00%  | 93.52%  |
+|(d) WRN-16-2   | 2x2_d2    | 317178         | 92.29%   |         |         |
+
 
 -3x3 is vanilla
 -2x2_d2 refers to a 2x2 kernel with dilation 2 (i.e. a 3x3 kernel with only the corners non-zero)
@@ -50,6 +52,8 @@ I will redo and extend table 1 of https://arxiv.org/abs/1612.03928:
 |------------------|-----------------|---------|--------|--------|----------|
 |WRN-40-2_sep 0.3M | WRN-40-2 2.2M   | 91.49   | 92.00  | 93.52  | 94.94    |
 |WRN-40-2_2x2 1M   | WRN-40-2 2.2M   | 93.42   | 93.94  | 94.85  | 94.94    |
-
+---------------------------------------------------------------------------- 
+|WRN-40-1_sep 0.3M | WRN-40-2 2.2M   | 
+|WRN-40-1_2x2 0.3M | WRN-40-2 2.2M   | 
 
     
