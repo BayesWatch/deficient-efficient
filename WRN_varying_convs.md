@@ -46,5 +46,10 @@ What we want to demonstrate is when we use attention transfer to reduce kernel s
 I will redo and extend table 1 of https://arxiv.org/abs/1612.03928:
 
 
+| Student          | Teacher         | student | KD     | AT     | teacher  |
+|------------------|-----------------|---------|--------|--------|----------|
+|WRN-40-2_sep 0.3M | WRN-40-2 2.2M   | 91.49   | 92.00  | 93.52  | 94.94    |
+|WRN-40-2_2x2 1M   | WRN-40-2 2.2M   | 93.42   | 93.94  | 94.85  | 94.94    |
+
 
     
