@@ -60,6 +60,24 @@ What we want to demonstrate is when we use attention transfer to reduce kernel s
 I will redo and extend table 1 of https://arxiv.org/abs/1612.03928:
 
 
+Sanity check table:
+
+
+| Experiment | Student       | Teacher        | student | KD     | AT     | teacher  |
+|------------|---------------|----------------|---------|--------|--------|----------|
+| Original   | WRN-16-1 0.2M | WRN-16-2 0.7M  | 91.23   | 92.59  | 92.07  | 93.69    | 
+| Ours       | WRN-16-1 0.2M | WRN-16-2 0.7M  | 91.19   | 92.21  | 92.28  | 93.47    | 
+|            |               |                |         |        |        |          |     
+| Original   | WRN-16-1 0.2M | WRN-40-1 0.6M  | 91.23   | 91.61  | 91.75  | 93.42    | 
+| Ours       | WRN-16-1 0.2M | WRN-40-1 0.6M  | 91.19   | 91.90  | 91.81  | 93.52    | 
+|            |               |                |         |        |        |          |     
+| Original   | WRN-16-2 0.7M | WRN-40-2 2.2M  | 93.69   | 93.92  | 94.15  | 94.77    |
+| Ours       | WRN-16-2 0.7M | WRN-40-2 2.2M  | 93.47   |        |        | 94.94    |
+
+
+
+
+
 | Student          | Teacher         | student | KD     | AT     | teacher  |
 |------------------|-----------------|---------|--------|--------|----------|
 |WRN-40-2_sep 0.3M | WRN-40-2 2.2M   | 91.49   | 92.00  | 93.52  | 94.94    |
