@@ -40,5 +40,11 @@ Observations:
 - Attention transfer lets us get almost identical results using 2x2 kernels, so a drop in parameters of over a half for nothing!
 - It is pretty good for depthwise convolutions as well.
 
+--------------------
+
+What we want to demonstrate is when we use attention transfer to reduce kernel size it is superior to reducing depth/width given a parameter budget.
+I will redo and extend table 1 of https://arxiv.org/abs/1612.03928:
+
+
 
     
