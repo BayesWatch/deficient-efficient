@@ -25,7 +25,7 @@ parser.add_argument('--teacher_checkpoint', '-t', type=str,
                          'Plots are also written here.')
 
 # Network params
-parser.add_argument('net', choices=['WRN','WRNsep','VGG16','VGG11','mobilenet','mobilenetcu',
+parser.add_argument('net', choices=['WRN','WRNsep','WRN2x2','VGG16','VGG11','mobilenet','mobilenetcu',
                                     'mobileresnet', 'mobileresnetcu'], type=str, help='Choose net')
 
 
@@ -92,6 +92,8 @@ if args.net == 'WRN':
     net = models.WideResNet(args.wrn_depth,10, args.wrn_width, dropRate=0)
 elif args.net == 'WRNsep':
     net = models.WideResNet(args.wrn_depth, 10, args.wrn_width, dropRate=0, separable=True)
+elif args.net == 'WRN2x2':
+    net = models.WideResNet(args.wrn_depth, 10, args.wrn_width, dropRate=0, twobytwo=True)
 elif args.net == 'VGG16':
     net = models.VGG('VGG16')
 elif args.net == 'VGG11':
