@@ -24,8 +24,9 @@ parser.add_argument('--student_checkpoint', '-s', default='wrn_40_2_sep_int',typ
 parser.add_argument('--teacher_checkpoint', '-t', default='wrn_40_2_int',type=str, help='checkpoint to load in teacher')
 
 # Network params
-parser.add_argument('net', choices=['WRN','WRNsep','WRN2x2','VGG16','VGG11','mobilenet','mobilenetcu',
-                                    'mobileresnet', 'mobileresnetcu'], type=str, help='Choose net')
+parser.add_argument('net', choices=['WRN','WRNsep','WRN2x2'], type=str, help='Choose net')
+parser.add_argument('no_attention', choices=[3,6], type=int, help='No. of intermediates for AT loss')
+
 
 #WRN params
 parser.add_argument('--wrn_depth', default=40, type=int, help='depth for WRN')
@@ -91,12 +92,21 @@ if args.resume or args.eval:
     start_epoch = checkpoint['epoch']
 else:
     print('==> Building model..')
+
+    if args.no_attention == 3:
+        model_function = models.WideResNetInt
+    elif args.no_attention == 6:
+        model_function = models.WideResNet6Int
+    else:
+        assert 0, 'No. attention must be 3 or 6 for now'
+
+
     if args.net == 'WRN':
-        net = models.WideResNetInt(args.wrn_depth, 10, args.wrn_width, dropRate=0)
+        net = model_function(args.wrn_depth, 10, args.wrn_width, dropRate=0)
     elif args.net == 'WRNsep':
-        net = models.WideResNetInt(args.wrn_depth, 10, args.wrn_width, dropRate=0, separable=True)
+        net = model_function(args.wrn_depth, 10, args.wrn_width, dropRate=0, separable=True)
     elif args.net == 'WRN2x2':
-        net = models.WideResNetInt(args.wrn_depth, 10, args.wrn_width, dropRate=0, twobytwo=True)
+        net = model_function(args.wrn_depth, 10, args.wrn_width, dropRate=0, twobytwo=True)
     #
     # elif args.net == 'VGG16':
     #     net = models.VGG('VGG16')

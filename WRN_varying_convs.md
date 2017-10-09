@@ -26,6 +26,20 @@ Let's train some networks for different types of convolutions.
 |(a) WRN-40-2   | 3x3       | 2248954        | 94.94%   | 95.32%  | 95.00%  |
 |(b) WRN-40-2   | 2x2_d2    | 1012474        | 93.42%   | 93.94%  | 94.85%  |
 |(c) WRN-40-2   | 3x3DW+1x1 | 304074         | 91.49%   | 92.00%  | 93.52%  |
+|---------------|-----------|----------------|----------| KD w(d) | AT w(d) |
+|(d) WRN-40-1   | 3x3       | 566650         | 93.52%   | 93.35%  | 93.78%  |
+|(e) WRN-40-1   | 2x2_d2    | 256890         | 91.28%   | 92.12%  | 92.78%  |
+|(f) WRN-40-1   | 3x3DW+1x1 | 87882          | 89.25%   | 90.12%  | 90.86%  |
+|---------------|-----------|----------------|----------| KD w(g) | AT w(g) |
+|(g) WRN-16-2   | 3x3       | 693498         | 93.47%   | 94.02%  | 93.63%  |
+|(h) WRN-16-2   | 2x2_d2    | 317178         | 92.29%   | 93.29%  | 93.29%  |
+|(i) WRN-16-2   | 3x3DW+1x1 | 101578         | 90.61%   | 92.55%  | 92.42%  |
+|---------------|-----------|----------------|----------| KD w(j) | AT w(j) |
+|(j) WRN-16-1   | 3x3       | 175994         | 91.19%   | 92.08%  | 91.21%  |
+|(k) WRN-16-1   | 2x2_d2    | 81274          | 88.51%   | 90.09%  | 88.70%  |
+|(l) WRN-16-1   | 3x3DW+1x1 | 29642          | 86.78%   | 88.94%  | 88.65%  |
+
+
 
 -3x3 is vanilla
 -2x2_d2 refers to a 2x2 kernel with dilation 2 (i.e. a 3x3 kernel with only the corners non-zero)
@@ -36,9 +50,30 @@ Now let's experiment with knowledge distillation and attention transfer where th
 Note that doing knowledge distillation "with itself" was put in for curiosity.
 
 Observations:
-- A model gets better if it is taught by literally the same architecture. This is effectively an ensemble.
+- A model gets better if it is taught by literally the same architecture. This is effectively an ensemble. *EDIT: probably not an ensemble*
 - Attention transfer lets us get almost identical results using 2x2 kernels, so a drop in parameters of over a half for nothing!
 - It is pretty good for depthwise convolutions as well.
+
+--------------------
+
+What we want to demonstrate is when we use attention transfer to reduce kernel size it is superior to reducing depth/width given a parameter budget.
+I will redo and extend table 1 of https://arxiv.org/abs/1612.03928:
+
+
+Sanity check table:
+
+
+| Experiment | Student       | Teacher        | student | KD     | AT     | teacher  |
+|------------|---------------|----------------|---------|--------|--------|----------|
+| Original   | WRN-16-1 0.2M | WRN-16-2 0.7M  | 91.23   | 92.59  | 92.07  | 93.69    | 
+| Ours       | WRN-16-1 0.2M | WRN-16-2 0.7M  | 91.19   | 92.21  | 92.28  | 93.47    | 
+|            |               |                |         |        |        |          |     
+| Original   | WRN-16-1 0.2M | WRN-40-1 0.6M  | 91.23   | 91.61  | 91.75  | 93.42    | 
+| Ours       | WRN-16-1 0.2M | WRN-40-1 0.6M  | 91.19   | 91.90  | 91.81  | 93.52    | 
+|            |               |                |         |        |        |          |     
+| Original   | WRN-16-2 0.7M | WRN-40-2 2.2M  | 93.69   | 93.92  | 94.15  | 94.77    |
+| Ours       | WRN-16-2 0.7M | WRN-40-2 2.2M  | 93.47   | 94.25  | 94.37  | 94.94    |
+
 
 
     
