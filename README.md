@@ -16,7 +16,7 @@ Training with attention transfer is more painful as you need to be able to extra
 
 I've added a class to in models/wide_resnet.py called WideResNetInt that explicitly returns the output and three intermediate activations.
 
-To turn a standard model into this format, you'll have to load it, and copy its state_dict to one of these.
+To turn a standard model into this format, you'll have to load it, and copy its state_dict to one of these. This can be done with the functions "convert_to_int" and "convert_to_6int" in utils/misc.py
 
 Then you can use train_student_AT.py in the same manner as above.
 
