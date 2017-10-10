@@ -130,7 +130,6 @@ checkpoint = torch.load('checkpoints/%s.t7' % args.teacher_checkpoint)
 teach = checkpoint['net']
 
 print ('==> Loaded teacher..')
-se_loss
 teach = teach.cuda()
 
 for param in teach.parameters():
