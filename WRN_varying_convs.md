@@ -71,6 +71,17 @@ Sanity check table:
 | Original   | WRN-16-2 0.7M | WRN-40-2 2.2M  | 93.69   | 93.92  | 94.15  | 94.77    |
 | Ours       | WRN-16-2 0.7M | WRN-40-2 2.2M  | 93.47   | 94.25  | 94.37  | 94.94    |
 
+Update: Looks like for AT we had alpha set to 0.9 (so it was KD + AT...) let's do it again with alpha set to 0:
 
 
+| Experiment | Student       | Teacher        | student | KD     | AT     | teacher  |
+|------------|---------------|----------------|---------|--------|--------|----------|
+| Original   | WRN-16-1 0.2M | WRN-16-2 0.7M  | 91.23   | 92.59  | 92.07  | 93.69    | 
+| Ours       | WRN-16-1 0.2M | WRN-16-2 0.7M  | 91.19   | 92.21  | 92.28  | 93.47    | 
+|            |               |                |         |        |        |          |     
+| Original   | WRN-16-1 0.2M | WRN-40-1 0.6M  | 91.23   | 91.61  | 91.75  | 93.42    | 
+| Ours       | WRN-16-1 0.2M | WRN-40-1 0.6M  | 91.19   | 91.90  | 91.81  | 93.52    | 
+|            |               |                |         |        |        |          |     
+| Original   | WRN-16-2 0.7M | WRN-40-2 2.2M  | 93.69   | 93.92  | 94.15  | 94.77    |
+| Ours       | WRN-16-2 0.7M | WRN-40-2 2.2M  | 93.47   | 94.25  | 94.37  | 94.94    |
     
