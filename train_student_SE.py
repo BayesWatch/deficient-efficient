@@ -56,7 +56,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = args.GPU
 
 use_cuda = torch.cuda.is_available()
 assert use_cuda, 'Error: No CUDA!'
-
+#
 best_acc = 0  # best test accuracy
 start_epoch = 0  # start from epoch 0 or last checkpoint epoch
 epoch_step = json.loads(args.epoch_step)
