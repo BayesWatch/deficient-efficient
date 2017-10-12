@@ -73,6 +73,7 @@ Sanity check table:
 
 
 Some more experiments where everything is taught by the best model (WRN-40-2-3x3)
+
 | Student | type| KD    | AD    | AD6   | ADKD  | ADKD6 |
 |---------|-----|-------|-------|-------|-------|-------|
 |WRN_40_1 | 3x3 | 93.43 | 94.27 | 94.56 | 93.87 | 93.98 |
