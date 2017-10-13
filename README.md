@@ -2,22 +2,22 @@
 
 Student-teacher toolbox for pytorch.
 
-To use this you will have to install tqdm (e.g. pip install tqdm), torch, and pyinn (pip install git+https://github.com/szagoruyko/pyinn.git@master), then make a directory called "checkpoints"
+To use, install pytorch then
+- pip install tqdm
+- pip install git+https://github.com/szagoruyko/pyinn.git@master
 
-train_teacher.py trains a teacher.
+To train a teacher:
 
-`python teacher_train.py <MODEL_TYPE> -t <PLACE TO SAVE TEACHER> --GPU  <WHICH GPU TO USE> --wrn_depth <Depth of your WRN> --wrn_width <Width of your WRN>`
+python main.py teacher <CONV-TYPE> -t <TEACHER_CHECKPOINT> --wrn_depth <TEACHER_DEPTH> --wrn_width <TEACHER_WIDTH>
 
-Then to train a student model via knowledge distillation use train_student_KT.py
+To train a student using KD:
 
-`python train_student_KD.py <MODEL_TYPE> -s <PLACE TO SAVE STUDENT> -t <TEACHER NETWORK TO LEARN WITH> --GPU  <WHICH GPU TO USE> --wrn_depth <Depth of your student WRN> --wrn_width <Width of your student WRN>`
+python main.py KD <CONV-TYPE> -t <EXISTING TEACHER CHECKPOINT> -s <STUDENT CHECKPOINT> --wrn_depth <STUDENT_DEPTH> --wrn_width <STUDENT_WIDTH>
+  
+To train a student using AT:
 
-Training with attention transfer is more painful as you need to be able to extract intermediate activations from the networks.
-
-I've added a class to in models/wide_resnet.py called WideResNetInt that explicitly returns the output and three intermediate activations.
-
-To turn a standard model into this format, you'll have to load it, and copy its state_dict to one of these. This can be done with the functions "convert_to_int" and "convert_to_6int" in utils/misc.py
-
-Then you can use train_student_AT.py in the same manner as above.
-
-`python train_student_KD.py <MODEL_TYPE> -s <PLACE TO SAVE STUDENT> -t <TEACHER NETWORK OF CLASS WIDERESNETINT TO LEARN WITH> --GPU  <WHICH GPU TO USE> --wrn_depth <Depth of your student WRN> --wrn_width <Width of your student WRN>`
+python main.py AT <CONV-TYPE> -t <EXISTING TEACHER CHECKPOINT> -s <STUDENT CHECKPOINT> --wrn_depth <STUDENT_DEPTH> --wrn_width <STUDENT_WIDTH>
+  
+the AT method uses KD by default, so to turn it off, set alpha to 0
+  
+    
