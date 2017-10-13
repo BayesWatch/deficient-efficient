@@ -8,3 +8,5 @@ go.sh
 test.sh
 get_accs.py
 
+# all python caches
+__pycache__
