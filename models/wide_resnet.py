@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from torch.autograd import Variable
+
 from pyinn.modules import Conv2dDepthwise
 
 import math
@@ -74,6 +76,22 @@ class DConvB8(DConvBottleneck):
                 bias=bias)
 
 
+class DConv3D(nn.Module):
+    def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
+        super(DConv3D, self).__init__()
+        # Separable conv approximating the 1x1 with a 3x3 conv3d
+        self.convdw = Conv2dDepthwise(channels=in_planes, kernel_size=kernel_size, stride=stride, padding=padding,
+                                      bias=bias)
+        self.bn = nn.BatchNorm2d(in_planes)
+        self.conv3d = nn.Conv3d(1, out_planes, kernel_size=(3,1,1), stride=1, padding=(1,0,0), bias=bias)
+
+    def forward(self, x):
+        o = F.relu(self.bn(self.convdw(x)))
+        o = o.unsqueeze(1)
+        #n, c, d, w, h = o.size()
+        return self.conv3d(o).mean(2)
+
+
 class BasicBlock(nn.Module):
     def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=Conv):
         super(BasicBlock, self).__init__()
@@ -129,13 +147,14 @@ class WideResNet(nn.Module):
             conv = DConvB4
         elif convtype =='DConvB8':
             conv = DConvB8
-
+        elif convtype =='DConv3D':
+            conv = DConv3D
 
 
         nChannels = [16, 16*widen_factor, 32*widen_factor, 64*widen_factor]
         nChannels = [int(a) for a in nChannels]
         assert((depth - 4) % 6 == 0)
-        n = (depth - 4) / 6
+        n = (depth - 4) // 6
         block = BasicBlock
         # 1st conv before any network block
         self.conv1 = nn.Conv2d(3, nChannels[0], kernel_size=3, stride=1,
@@ -263,3 +282,13 @@ class WideResNetInt(WideResNet):
 #         out = out.view(-1, self.nChannels)
 #         out = self.fc(out)
 #         return out, (out1,out1a,out2,out2a,out3,out3a)
+
+
+def test():
+    net = WideResNet(40,2, convtype='DConv3D')
+    x = torch.randn(1,3,32,32)
+    y = net(Variable(x))
+    print(y.size())
+
+if __name__ == '__main__':
+    test()
