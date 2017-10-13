@@ -28,6 +28,7 @@ parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
 parser.add_argument('--lr_decay_ratio', default=0.2, type=float, help='learning rate decay')
 parser.add_argument('--temperature', default=4, type=float, help='temp for KD')
 parser.add_argument('--alpha', default=0.9, type=float, help='alpha for KD')
+parser.add_argument('--beta', default=1e3, type=float, help='beta for AT')
 parser.add_argument('--epoch_step', default='[60,120,160]', type=str,
                     help='json list with epochs to drop lr on')
 parser.add_argument('--epochs', default=200, type=int, metavar='N',
@@ -99,7 +100,7 @@ def train_teacher(net):
     return train_loss/(batch_idx+1),
 
 
-def train_student(net, teach):
+def train_student_KD(net, teach):
     net.train()
     teach.eval()
     train_loss = 0
@@ -111,6 +112,38 @@ def train_student(net, teach):
         outputs_student = net(inputs)
         outputs_teacher = teach(inputs)
         loss = distillation(outputs_student, outputs_teacher, targets, args.temperature, args.alpha)
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        train_loss += loss.data[0]
+        _, predicted = torch.max(outputs_student.data, 1)
+        total += targets.size(0)
+        correct += predicted.eq(targets.data).cpu().sum()
+
+    print('\nLoss: %.3f | Acc: %.3f%% (%d/%d)\n' % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
+
+
+# Training the student
+def train_student_AT(net, teach):
+    net.train()
+    teach.eval()
+    train_loss = 0
+    correct = 0
+    total = 0
+    for batch_idx, (inputs, targets) in enumerate(tqdm(trainloader)):
+        inputs = Variable(inputs.cuda())
+        targets = Variable(targets.cuda())
+        outputs_student, ints_student = net(inputs)
+        outputs_teacher, ints_teacher = teach(inputs)
+
+        # If alpha is 0 then this loss is just a cross entropy.
+        loss = distillation(outputs_student, outputs_teacher, targets, args.temperature, args.alpha)
+
+        #Add an attention tranfer loss for each intermediate.
+        for i in range(len(ints_student)):
+            loss += args.beta * at_loss(ints_student[i], ints_teacher[i])
 
         optimizer.zero_grad()
         loss.backward()
@@ -227,7 +260,7 @@ elif args.mode == 'KD':
         print('Learning rate is %s' % [v['lr'] for v in optimizer.param_groups][0])
         if epoch in epoch_step:
             optimizer = decay_optimizer_lr(optimizer, args.lr_decay_ratio)
-        train_student(student, teach)
+        train_student_KD(student, teach)
         test(student, args.student_checkpoint)
 
 
@@ -253,7 +286,7 @@ elif args.mode == 'AT':
         student = student_checkpoint['net'].cuda()
     else:
         print('Mode Student: Making a student network from scratch and training it...')
-        student = WideResNet(args.wrn_depth, 10, args.wrn_width, dropRate=0, convtype=args.conv).cuda()
+        student = WideResNetInt(args.wrn_depth, args.wrn_width, dropRate=0, convtype=args.conv).cuda()
     optimizer = optim.SGD(student.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
     # This bit is stupid but we need to decay the learning rate depending on the epoch
     for e in range(0, start_epoch):
