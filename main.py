@@ -168,6 +168,9 @@ def test(net, checkpoint=None):
         inputs, targets = inputs.cuda(), targets.cuda()
         inputs, targets = Variable(inputs, volatile=True), Variable(targets)
         outputs = net(inputs)
+        if isinstance(outputs,tuple):
+            outputs = outputs[0]
+
         loss = criterion(outputs, targets)
 
         test_loss += loss.data[0]
@@ -236,7 +239,8 @@ if args.mode == 'teacher':
 elif args.mode == 'KD':
     print('Mode Student: First, load a teacher network and check it performs decently...,')
     teach_checkpoint = torch.load('checkpoints/%s.t7' % args.teacher_checkpoint)
-    teach = teach_checkpoint['net'].cuda()
+    teach = teach_checkpoint['net']
+    teach = teach.cuda()
     # Very important to explicitly say we require no gradients for the teacher network
     for param in teach.parameters():
         param.requires_grad = False
@@ -245,10 +249,11 @@ elif args.mode == 'KD':
         print('KD: Loading student and continuing training...')
         student_checkpoint = torch.load('checkpoints/%s.t7' % args.student_checkpoint)
         start_epoch = student_checkpoint['epoch']
-        student = student_checkpoint['net'].cuda()
+        student = student_checkpoint['net']
     else:
         print('KD: Making a student network from scratch and training it...')
         student = WideResNet(args.wrn_depth, args.wrn_width, dropRate=0, convtype=args.conv)
+    student = student.cuda()
     optimizer = optim.SGD(student.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
     # This bit is stupid but we need to decay the learning rate depending on the epoch
     for e in range(0, start_epoch):
@@ -265,29 +270,29 @@ elif args.mode == 'KD':
 
 
 elif args.mode == 'AT':
-    print('AT (+optional KD): First, load a teacher network and check it performs decently...,')
+    print('AT (+optional KD): First, load a teacher network and convert for attention transfer')
     teach_checkpoint = torch.load('checkpoints/%s.t7' % args.teacher_checkpoint)
-    teach = teach_checkpoint['net'].cuda()
+    state_dict = teach_checkpoint['net'].state_dict()
+    teach = WideResNetInt(teach_checkpoint['depth'], teach_checkpoint['width'])
+    teach.load_state_dict(state_dict)
+    teach = teach.cuda()
     # Very important to explicitly say we require no gradients for the teacher network
     for param in teach.parameters():
         param.requires_grad = False
     test(teach)
 
-    print('Now convert the teacher for attention transfer:')
-    # Get
-    state_dict = teach.state_dict()
-    teach = WideResNetInt(teach_checkpoint['depth'], teach_checkpoint['width'])
-    teach.load_state_dict(state_dict)
-
     if args.resume:
         print('Mode Student: Loading student and continuing training...')
         student_checkpoint = torch.load('checkpoints/%s.t7' % args.student_checkpoint)
         start_epoch = student_checkpoint['epoch']
-        student = student_checkpoint['net'].cuda()
+        student = student_checkpoint['net']
     else:
         print('Mode Student: Making a student network from scratch and training it...')
         student = WideResNetInt(args.wrn_depth, args.wrn_width, dropRate=0, convtype=args.conv).cuda()
+
+    student = student.cuda()
     optimizer = optim.SGD(student.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
+
     # This bit is stupid but we need to decay the learning rate depending on the epoch
     for e in range(0, start_epoch):
         if e in epoch_step:
@@ -298,7 +303,7 @@ elif args.mode == 'AT':
         print('Learning rate is %s' % [v['lr'] for v in optimizer.param_groups][0])
         if epoch in epoch_step:
             optimizer = decay_optimizer_lr(optimizer, args.lr_decay_ratio)
-        train_student(student, teach)
+        train_student_AT(student, teach)
         test(student, args.student_checkpoint)
 
 

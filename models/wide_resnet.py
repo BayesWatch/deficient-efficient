@@ -187,79 +187,145 @@ class WideResNetInt(WideResNet):
         return out, (block1_out,block2_out,block3_out)
 
 
+WideResNetAT3 = WideResNetInt
 
 
-# class WideResNet6(nn.Module):
-#     def __init__(self, depth, num_classes, widen_factor=1, dropRate=0.0, separable=False, twobytwo=False):
-#         super(WideResNet6, self).__init__()
-#         #This is the same as a normal wideresnet expect the 3 blocks are each split in two to allow us to pick out
-#         #extra activations with ease..
-#
-#         conv = DConv if separable else (Conv2x2 if twobytwo else Conv)
-#
-#         nChannels = [16, 16*widen_factor, 32*widen_factor, 64*widen_factor]
-#         nChannels = [int(a) for a in nChannels]
-#         assert((depth - 4) % 6 == 0)
-#         n = (depth - 4) / 6
-#         n = n/2
-#         block = BasicBlock
-#         # 1st conv before any network block
-#         self.conv1 = nn.Conv2d(3, nChannels[0], kernel_size=3, stride=1,
-#                                padding=1, bias=False)
-#         # 1st block
-#         self.block1 = NetworkBlock(n, nChannels[0], nChannels[1], block, 1, dropRate, conv)
-#         self.block1a = NetworkBlock(n, nChannels[1], nChannels[1], block, 1, dropRate, conv)
-#
-#         # 2nd block
-#         self.block2 = NetworkBlock(n, nChannels[1], nChannels[2], block, 2, dropRate, conv)
-#         self.block2a = NetworkBlock(n, nChannels[2], nChannels[2], block, 1, dropRate, conv)
-#
-#         # 3rd block
-#         self.block3 = NetworkBlock(n, nChannels[2], nChannels[3], block, 2, dropRate, conv)
-#         self.block3a = NetworkBlock(n, nChannels[3], nChannels[3], block, 1, dropRate, conv)
-#
-#         # global average pooling and classifier
-#         self.bn1 = nn.BatchNorm2d(nChannels[3])
-#         self.relu = nn.ReLU(inplace=True)
-#         self.fc = nn.Linear(nChannels[3], num_classes)
-#         self.nChannels = nChannels[3]
-#
-#         for m in self.modules():
-#             if isinstance(m, nn.Conv2d):
-#                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-#                 m.weight.data.normal_(0, math.sqrt(2. / n))
-#             elif isinstance(m, nn.BatchNorm2d):
-#                 m.weight.data.fill_(1)
-#                 m.bias.data.zero_()
-#             elif isinstance(m, nn.Linear):
-#                 m.bias.data.zero_()
-#     def forward(self, x):
-#         out = self.conv1(x)
-#         out = self.block1(out)
-#         out = self.block1a(out)
-#         out = self.block2(out)
-#         out = self.block2a(out)
-#         out = self.block3(out)
-#         out = self.block3a(out)
-#         out = self.relu(self.bn1(out))
-#         out = F.avg_pool2d(out, 8)
-#         out = out.view(-1, self.nChannels)
-#         return self.fc(out)
-#
-#
-# class WideResNet6Int(WideResNet6):
-#     # def __init__(self, depth, num_classes, widen_factor=1, dropRate=0.0):
-#     #     super(WideResNet, self).__init__(depth, num_classes, widen_factor, dropRate)
-#     def forward(self, x):
-#         out = self.conv1(x)
-#         out1 = self.block1(out)
-#         out1a = self.block1a(out1)
-#         out2 = self.block2(out1a)
-#         out2a = self.block2a(out2)
-#         out3 = self.block3(out2a)
-#         out3a = self.block3a(out3)
-#         out = self.relu(self.bn1(out3a))
-#         out = F.avg_pool2d(out, 8)
-#         out = out.view(-1, self.nChannels)
-#         out = self.fc(out)
-#         return out, (out1,out1a,out2,out2a,out3,out3a)
+class WideResNetAT6(nn.Module):
+    def __init__(self, depth, widen_factor=1, num_classes=10, dropRate=0.0, convtype='Conv'):
+        super(WideResNetAT6, self).__init__()
+        #This is the same as a normal wideresnet expect the 3 blocks are each split in two to allow us to pick out
+        #extra activations with ease..
+
+        if convtype =='Conv':
+            conv = Conv
+        elif convtype =='DConv':
+            conv = DConv
+        elif convtype =='Conv2x2':
+            conv = Conv2x2
+        elif convtype =='DConvB2':
+            conv = DConvB2
+        elif convtype =='DConvB4':
+            conv = DConvB4
+        elif convtype =='DConvB8':
+            conv = DConvB8
+
+
+        nChannels = [16, 16*widen_factor, 32*widen_factor, 64*widen_factor]
+        nChannels = [int(a) for a in nChannels]
+        assert((depth - 4) % 6 == 0)
+        n = (depth - 4) / 6
+        block = BasicBlock
+        # 1st conv before any network block
+        self.conv1 = nn.Conv2d(3, nChannels[0], kernel_size=3, stride=1,
+                               padding=1, bias=False)
+        # 1st block
+        self.block1 = NetworkBlock(n, nChannels[0], nChannels[1], block, 1, dropRate, conv)
+        self.block1a = NetworkBlock(n, nChannels[1], nChannels[1], block, 1, dropRate, conv)
+
+        # 2nd block
+        self.block2 = NetworkBlock(n, nChannels[1], nChannels[2], block, 2, dropRate, conv)
+        self.block2a = NetworkBlock(n, nChannels[2], nChannels[2], block, 1, dropRate, conv)
+
+        # 3rd block
+        self.block3 = NetworkBlock(n, nChannels[2], nChannels[3], block, 2, dropRate, conv)
+        self.block3a = NetworkBlock(n, nChannels[3], nChannels[3], block, 1, dropRate, conv)
+
+        # global average pooling and classifier
+        self.bn1 = nn.BatchNorm2d(nChannels[3])
+        self.relu = nn.ReLU(inplace=True)
+        self.fc = nn.Linear(nChannels[3], num_classes)
+        self.nChannels = nChannels[3]
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                m.weight.data.normal_(0, math.sqrt(2. / n))
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
+            elif isinstance(m, nn.Linear):
+                m.bias.data.zero_()
+    def forward(self, x):
+        out = self.conv1(x)
+        out1 = self.block1(out)
+        out1a = self.block1a(out1)
+        out2 = self.block2(out1a)
+        out2a = self.block2a(out2)
+        out3 = self.block3(out2a)
+        out3a = self.block3a(out3)
+        out = self.relu(self.bn1(out3a))
+        out = F.avg_pool2d(out, 8)
+        out = out.view(-1, self.nChannels)
+        out = self.fc(out)
+        return out, (out1,out1a,out2,out2a,out3,out3a)
+
+
+class WideResNetAT9(nn.Module):
+    def __init__(self, depth, widen_factor=1, num_classes=10, dropRate=0.0, convtype='Conv'):
+        super(WideResNetAT9, self).__init__()
+        #This is the same as a normal wideresnet expect the 3 blocks are each split into three to allow us to pick out
+        #extra activations with ease..
+
+        if convtype =='Conv':
+            conv = Conv
+        elif convtype =='DConv':
+            conv = DConv
+        elif convtype =='Conv2x2':
+            conv = Conv2x2
+        elif convtype =='DConvB2':
+            conv = DConvB2
+        elif convtype =='DConvB4':
+            conv = DConvB4
+        elif convtype =='DConvB8':
+            conv = DConvB8
+
+
+        nChannels = [16, 16*widen_factor, 32*widen_factor, 64*widen_factor]
+        nChannels = [int(a) for a in nChannels]
+        assert((depth - 4) % 6 == 0)
+        n = (depth - 4) / 6
+        block = BasicBlock
+        # 1st conv before any network block
+        self.conv1 = nn.Conv2d(3, nChannels[0], kernel_size=3, stride=1,
+                               padding=1, bias=False)
+        # 1st block
+        self.block1 = NetworkBlock(n, nChannels[0], nChannels[1], block, 1, dropRate, conv)
+        self.block1a = NetworkBlock(n, nChannels[1], nChannels[1], block, 1, dropRate, conv)
+
+        # 2nd block
+        self.block2 = NetworkBlock(n, nChannels[1], nChannels[2], block, 2, dropRate, conv)
+        self.block2a = NetworkBlock(n, nChannels[2], nChannels[2], block, 1, dropRate, conv)
+
+        # 3rd block
+        self.block3 = NetworkBlock(n, nChannels[2], nChannels[3], block, 2, dropRate, conv)
+        self.block3a = NetworkBlock(n, nChannels[3], nChannels[3], block, 1, dropRate, conv)
+
+        # global average pooling and classifier
+        self.bn1 = nn.BatchNorm2d(nChannels[3])
+        self.relu = nn.ReLU(inplace=True)
+        self.fc = nn.Linear(nChannels[3], num_classes)
+        self.nChannels = nChannels[3]
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                m.weight.data.normal_(0, math.sqrt(2. / n))
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
+            elif isinstance(m, nn.Linear):
+                m.bias.data.zero_()
+    def forward(self, x):
+        out = self.conv1(x)
+        out1 = self.block1(out)
+        out1a = self.block1a(out1)
+        out2 = self.block2(out1a)
+        out2a = self.block2a(out2)
+        out3 = self.block3(out2a)
+        out3a = self.block3a(out3)
+        out = self.relu(self.bn1(out3a))
+        out = F.avg_pool2d(out, 8)
+        out = out.view(-1, self.nChannels)
+        out = self.fc(out)
+        return out, (out1,out1a,out2,out2a,out3,out3a)
+
