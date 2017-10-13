@@ -10,3 +10,7 @@ get_accs.py
 
 # all python caches
 __pycache__
+
+# don't commit working scripts
+utils/
+bash/

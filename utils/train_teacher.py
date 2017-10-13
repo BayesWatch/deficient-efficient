@@ -91,9 +91,9 @@ testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False,
 if args.net == 'WRN':
     net = models.WideResNet(args.wrn_depth,10, args.wrn_width, dropRate=0)
 elif args.net == 'WRNsep':
-    net = models.WideResNet(args.wrn_depth, 10, args.wrn_width, dropRate=0, separable=True)
+    net = models.WideResNet(args.wrn_depth, 10, args.wrn_width, dropRate=0, conv_type=DConv)
 elif args.net == 'WRN2x2':
-    net = models.WideResNet(args.wrn_depth, 10, args.wrn_width, dropRate=0, twobytwo=True)
+    net = models.WideResNet(args.wrn_depth, 10, args.wrn_width, dropRate=0, conv_type=)
 elif args.net == 'VGG16':
     net = models.VGG('VGG16')
 elif args.net == 'VGG11':
