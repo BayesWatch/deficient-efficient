@@ -25,7 +25,7 @@ parser.add_argument('--teacher_checkpoint', '-t', default='wrn_40_2',type=str, h
 #network stuff
 parser.add_argument('--wrn_depth', default=16, type=int, help='depth for WRN')
 parser.add_argument('--wrn_width', default=1, type=float, help='width for WRN')
-parser.add_argument('conv', choices=['Conv','DConv','Conv2x2','DConvB2','DConvB4','DConvB8'], type=str, help='Conv type')
+parser.add_argument('conv', choices=['Conv','DConv','Conv2x2','DConvB2','DConvB4','DConvB8','DConv3D'], type=str, help='Conv type')
 parser.add_argument('--AT_split', default=1, type=float, help='group splitting for AT loss')
 
 #learning stuff
@@ -226,6 +226,8 @@ if args.mode == 'teacher':
         print('Mode Teacher: Making a teacher network from scratch and training it...')
         teach = WideResNet(args.wrn_depth, args.wrn_width, dropRate=0, convtype=args.conv).cuda()
 
+
+    get_no_params(teach)
     optimizer = optim.SGD(teach.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
 
     # This bit is stupid but we need to decay the learning rate depending on the epoch
