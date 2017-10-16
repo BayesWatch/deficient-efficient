@@ -65,13 +65,13 @@ class DConvB2(DConvBottleneck):
 
 class DConvB4(DConvBottleneck):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
-        super(DConvB2, self).__init__(in_planes, out_planes, out_planes/4,
+        super(DConvB4, self).__init__(in_planes, out_planes, out_planes/4,
                 stride=stride, kernel_size=kernel_size, padding=padding,
                 bias=bias)
 
 class DConvB8(DConvBottleneck):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
-        super(DConvB2, self).__init__(in_planes, out_planes, out_planes/8,
+        super(DConvB8, self).__init__(in_planes, out_planes, out_planes/8,
                 stride=stride, kernel_size=kernel_size, padding=padding,
                 bias=bias)
 
