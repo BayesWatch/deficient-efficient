@@ -12,8 +12,8 @@ import argparse
 from torch.autograd import Variable
 import models
 import os
-import utils.plot as plot
-from utils.misc import *
+import misc.plot as plot
+from misc.misc import *
 from funcs import *
 parser = argparse.ArgumentParser(description='Student/teacher training')
 parser.add_argument('mode', choices=['KD','AT','teacher'], type=str, help='Learn with KD, AT, or train a teacher')
@@ -26,7 +26,7 @@ parser.add_argument('--teacher_checkpoint', '-t', default='wrn_40_2',type=str, h
 parser.add_argument('--wrn_depth', default=16, type=int, help='depth for WRN')
 parser.add_argument('--wrn_width', default=1, type=float, help='width for WRN')
 parser.add_argument('conv', choices=['Conv','DConv','Conv2x2','DConvB2','DConvB4','DConvB8','DConv3D'], type=str, help='Conv type')
-parser.add_argument('--AT_split', default=1, type=float, help='group splitting for AT loss')
+parser.add_argument('--AT_split', default=1, type=int, help='group splitting for AT loss')
 
 #learning stuff
 parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
@@ -146,9 +146,13 @@ def train_student_AT(net, teach):
         # If alpha is 0 then this loss is just a cross entropy.
         loss = distillation(outputs_student, outputs_teacher, targets, args.temperature, args.alpha)
 
-        #Add an attention tranfer loss for each intermediate.
+        #Add an attention tranfer loss for each intermediate. Let's assume the default is three (as in the original
+        #paper) and adjust the beta term accordingly.
+
+        adjusted_beta = (args.beta*3)/len(ints_student)
+
         for i in range(len(ints_student)):
-            loss += args.beta * at_loss(ints_student[i], ints_teacher[i])
+            loss += adjusted_beta * at_loss(ints_student[i], ints_teacher[i])
 
         optimizer.zero_grad()
         loss.backward()
