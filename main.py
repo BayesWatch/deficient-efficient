@@ -10,7 +10,7 @@ import torchvision.transforms as transforms
 import json
 import argparse
 from torch.autograd import Variable
-import models
+from models.wide_resnet import*
 import os
 from funcs import *
 parser = argparse.ArgumentParser(description='Student/teacher training')
