@@ -12,7 +12,6 @@ import argparse
 from torch.autograd import Variable
 import models
 import os
-import misc.plot as plot
 from misc.misc import *
 from funcs import *
 parser = argparse.ArgumentParser(description='Student/teacher training')
