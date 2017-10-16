@@ -209,7 +209,7 @@ class WideResNetInt(WideResNet):
 WideResNetAT3 = WideResNetInt
 
 class WideResNetAT(nn.Module):
-    def __init__(self, depth, widen_factor=1, num_classes=10, dropRate=0.0, convtype='Conv', s = 2):
+    def __init__(self, depth, widen_factor=1, num_classes=10, dropRate=0.0, convtype='Conv', s = 1):
         super(WideResNetAT, self).__init__()
 
         if convtype == 'Conv':

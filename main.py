@@ -21,9 +21,14 @@ parser.add_argument('--resume', '-r', action='store_true', help='resume from che
 parser.add_argument('--GPU', default='3', type=str,help='GPU to use')
 parser.add_argument('--student_checkpoint', '-s', default='wrn_40_2_student_KT',type=str, help='checkpoint to save/load student')
 parser.add_argument('--teacher_checkpoint', '-t', default='wrn_40_2',type=str, help='checkpoint to load in teacher')
+
+#network stuff
 parser.add_argument('--wrn_depth', default=16, type=int, help='depth for WRN')
 parser.add_argument('--wrn_width', default=1, type=float, help='width for WRN')
 parser.add_argument('conv', choices=['Conv','DConv','Conv2x2','DConvB2','DConvB4','DConvB8'], type=str, help='Conv type')
+parser.add_argument('--AT_split', default=1, type=float, help='group splitting for AT loss')
+
+#learning stuff
 parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
 parser.add_argument('--lr_decay_ratio', default=0.2, type=float, help='learning rate decay')
 parser.add_argument('--temperature', default=4, type=float, help='temp for KD')
@@ -272,9 +277,16 @@ elif args.mode == 'KD':
 elif args.mode == 'AT':
     print('AT (+optional KD): First, load a teacher network and convert for attention transfer')
     teach_checkpoint = torch.load('checkpoints/%s.t7' % args.teacher_checkpoint)
-    state_dict = teach_checkpoint['net'].state_dict()
-    teach = WideResNetInt(teach_checkpoint['depth'], teach_checkpoint['width'])
-    teach.load_state_dict(state_dict)
+    state_dict_old = teach_checkpoint['net'].state_dict()
+    teach = WideResNetAT(teach_checkpoint['depth'], teach_checkpoint['width'], s=args.AT_split)
+    state_dict_new = teach.state_dict()
+    old_keys = [v for v in state_dict_old]
+    new_keys = [v for v in state_dict_new]
+    for i,_ in enumerate(state_dict_old):
+        state_dict_new[new_keys[i]] = state_dict_old[old_keys[i]]
+
+
+    teach.load_state_dict(state_dict_new)
     teach = teach.cuda()
     # Very important to explicitly say we require no gradients for the teacher network
     for param in teach.parameters():
@@ -288,7 +300,8 @@ elif args.mode == 'AT':
         student = student_checkpoint['net']
     else:
         print('Mode Student: Making a student network from scratch and training it...')
-        student = WideResNetInt(args.wrn_depth, args.wrn_width, dropRate=0, convtype=args.conv).cuda()
+        student = WideResNetAT(args.wrn_depth, args.wrn_width, dropRate=0, convtype=args.conv,
+                               s=args.AT_split).cuda()
 
     student = student.cuda()
     optimizer = optim.SGD(student.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
