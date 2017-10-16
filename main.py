@@ -12,7 +12,6 @@ import argparse
 from torch.autograd import Variable
 import models
 import os
-from misc.misc import *
 from funcs import *
 parser = argparse.ArgumentParser(description='Student/teacher training')
 parser.add_argument('mode', choices=['KD','AT','teacher'], type=str, help='Learn with KD, AT, or train a teacher')
