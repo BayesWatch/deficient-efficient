@@ -23,7 +23,9 @@ parser.add_argument('--teacher_checkpoint', '-t', default='wrn_40_2',type=str, h
 #network stuff
 parser.add_argument('--wrn_depth', default=16, type=int, help='depth for WRN')
 parser.add_argument('--wrn_width', default=1, type=float, help='width for WRN')
-parser.add_argument('conv', choices=['Conv','DConv','Conv2x2','DConvB2','DConvB4','DConvB8','DConv3D'], type=str, help='Conv type')
+parser.add_argument('conv',
+                    choices=['Conv','ConvB2','ConvB4','ConvB8','DConv','Conv2x2','DConvB2','DConvB4','DConvB8','DConv3D'],
+                    type=str, help='Conv type')
 parser.add_argument('--AT_split', default=1, type=int, help='group splitting for AT loss')
 
 #learning stuff

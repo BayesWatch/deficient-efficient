@@ -20,6 +20,46 @@ class Conv(nn.Module):
     def forward(self, x):
         return self.conv(x)
 
+
+class ConvBottleneck(nn.Module):
+    def __init__(self, in_planes, out_planes, bottleneck, stride=1, kernel_size=3, padding=1, bias=False):
+        super(ConvBottleneck, self).__init__()
+        self.conv1x1_down = nn.Conv2d(in_planes, bottleneck, kernel_size=1, stride=1, padding=0, bias=bias)
+        self.bn1 = nn.BatchNorm2d(bottleneck)
+        self.conv = nn.Conv2d(channels=bottleneck, kernel_size=kernel_size, stride=stride, padding=padding,
+                                      bias=bias)
+        self.bn2= nn.BatchNorm2d(bottleneck)
+        self.conv1x1_up = nn.Conv2d(bottleneck, out_planes, kernel_size=1, stride=1, padding=0, bias=bias)
+
+    def forward(self, x):
+        out = F.relu(self.bn1(self.conv1x1_down(x)))
+        out = F.relu(self.bn2(self.conv(out)))
+        out = self.conv1x1_up(out)
+        return out
+
+
+class ConvB2(ConvBottleneck):
+    def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
+        super(ConvB2, self).__init__(in_planes, out_planes, out_planes/2,
+                stride=stride, kernel_size=kernel_size, padding=padding,
+                bias=bias)
+
+
+class ConvB4(ConvBottleneck):
+    def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
+        super(ConvB4, self).__init__(in_planes, out_planes, out_planes/4,
+                stride=stride, kernel_size=kernel_size, padding=padding,
+                bias=bias)
+
+
+class ConvB8(ConvBottleneck):
+    def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
+        super(ConvB8, self).__init__(in_planes, out_planes, out_planes/8,
+                stride=stride, kernel_size=kernel_size, padding=padding,
+                bias=bias)
+
+
+
 class Conv2x2(nn.Module):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=2, padding=1, bias=False):
         super(Conv2x2, self).__init__()
@@ -145,6 +185,12 @@ class WideResNet(nn.Module):
             conv = DConv
         elif convtype =='Conv2x2':
             conv = Conv2x2
+        elif convtype =='ConvB2':
+            conv = ConvB2
+        elif convtype =='ConvB4':
+            conv = ConvB4
+        elif convtype =='ConvB8':
+            conv = ConvB8
         elif convtype =='DConvB2':
             conv = DConvB2
         elif convtype =='DConvB4':
