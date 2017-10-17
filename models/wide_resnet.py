@@ -26,7 +26,7 @@ class ConvBottleneck(nn.Module):
         super(ConvBottleneck, self).__init__()
         self.conv1x1_down = nn.Conv2d(in_planes, bottleneck, kernel_size=1, stride=1, padding=0, bias=bias)
         self.bn1 = nn.BatchNorm2d(bottleneck)
-        self.conv = nn.Conv2d(channels=bottleneck, kernel_size=kernel_size, stride=stride, padding=padding,
+        self.conv = nn.Conv2d(bottleneck, bottleneck, kernel_size=kernel_size, stride=stride, padding=padding,
                                       bias=bias)
         self.bn2= nn.BatchNorm2d(bottleneck)
         self.conv1x1_up = nn.Conv2d(bottleneck, out_planes, kernel_size=1, stride=1, padding=0, bias=bias)
