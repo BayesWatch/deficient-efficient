@@ -8,7 +8,7 @@ To use, install pytorch then
 - pip install tqdm
 - pip install git+https://github.com/szagoruyko/pyinn.git@master
 
-Note that for pyinn, stuff gets written to the home directory, which on AFS is bad and leads to errors. A workaround is (assuming you installed with conda) to modify `<CONDA_PATH>/envs/torch/cupy/cuda/lib/python2.7/site-packages/cupy/cuda/compile.py` and change the line with `_default_cache_dir`
+Note that for pyinn, stuff gets written to the home directory, which on AFS is bad and leads to errors. A workaround is (assuming you installed with conda) to modify `<CONDA_PATH>/envs/torch/lib/python2.7/site-packages/cupy/cuda/compile.py` and change the line with `_default_cache_dir`
 
 To train a teacher:
 
