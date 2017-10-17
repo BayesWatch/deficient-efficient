@@ -48,14 +48,18 @@ class DConv(nn.Module):
 class DConvBottleneck(nn.Module):
     def __init__(self, in_planes, out_planes, bottleneck, stride=1, kernel_size=3, padding=1, bias=False):
         super(DConvBottleneck, self).__init__()
-        self.convdw = Conv2dDepthwise(channels=in_planes, kernel_size=kernel_size, stride=stride, padding=padding,
-                                      bias=bias)
-        self.bn = nn.BatchNorm2d(in_planes)
         self.conv1x1_down = nn.Conv2d(in_planes, bottleneck, kernel_size=1, stride=1, padding=0, bias=bias)
+        self.bn1 = nn.BatchNorm2d(bottleneck)
+        self.convdw = Conv2dDepthwise(channels=bottleneck, kernel_size=kernel_size, stride=stride, padding=padding,
+                                      bias=bias)
+        self.bn2= nn.BatchNorm2d(bottleneck)
         self.conv1x1_up = nn.Conv2d(bottleneck, out_planes, kernel_size=1, stride=1, padding=0, bias=bias)
 
     def forward(self, x):
-        return self.conv1x1_up(self.conv1x1_down(F.relu(self.bn(self.convdw(x)))))
+        out = F.relu(self.bn1(self.conv1x1_down(x)))
+        out = F.relu(self.bn2(self.convdw(out)))
+        out = self.conv1x1_up(out)
+        return out
 
 class DConvB2(DConvBottleneck):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
