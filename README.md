@@ -2,9 +2,17 @@
 
 Student-teacher toolbox for pytorch.
 
-To use, install pytorch then
+I installed requirements as follows by creating a conda environment with miniconda2:
+
+- conda create -n torch python=2
+- source activate torch
+- conda install pytorch torchvision cuda80 -c soumith
 - pip install tqdm
 - pip install git+https://github.com/szagoruyko/pyinn.git@master
+
+Pyinn uses cupy which annoyingly writes to the home directory by default (which on AFS leads to errors). I found setting the cache dir using the recommended environmental variable didn't work.
+
+A crude workaround is instead to modify `<CONDA_PATH>/envs/torch/lib/python2.7/site-packages/cupy/cuda/compiler.py` and change the line (103) to `_default_cache_dir = <SOMEWHERE ON SCRATCH>`
 
 To train a teacher:
 
