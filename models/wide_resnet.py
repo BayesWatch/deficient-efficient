@@ -58,6 +58,11 @@ class ConvB8(ConvBottleneck):
                 stride=stride, kernel_size=kernel_size, padding=padding,
                 bias=bias)
 
+class ConvB16(ConvBottleneck):
+    def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
+        super(ConvB16, self).__init__(in_planes, out_planes, out_planes/16,
+                stride=stride, kernel_size=kernel_size, padding=padding,
+                bias=bias)
 
 
 class Conv2x2(nn.Module):
@@ -191,6 +196,8 @@ class WideResNet(nn.Module):
             conv = ConvB4
         elif convtype =='ConvB8':
             conv = ConvB8
+        elif convtype == 'ConvB16':
+            conv = ConvB16
         elif convtype =='DConvB2':
             conv = DConvB2
         elif convtype =='DConvB4':
