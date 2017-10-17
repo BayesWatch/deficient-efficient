@@ -2,9 +2,31 @@
 
 Student-teacher toolbox for pytorch.
 
+
+
 To use, install pytorch then
 - pip install tqdm
 - pip install git+https://github.com/szagoruyko/pyinn.git@master
+
+Note that for pyinn, stuff gets written to the home directory, which on AFS is bad and leads to errors. A workaround is (assuming you installed with conda) to modify `<CONDA_PATH>/envs/torch/cupy/cuda/lib/python2.7/site-packages/cupy/cuda/compile.py` and change the line with `_default_cache_dir`
+
+
+def get_cache_dir():
+    return os.environ.get('CUPY_CACHE_DIR', _default_cache_dir)
+
+
+_empty_file_preprocess_cache = {}
+
+
+def compile_with_cache(source, options=(), arch=None, cache_dir=None,
+                       extra_source=None):
+    # NVRTC does not use extra_source. extra_source is used for cache key.
+    global _empty_file_preprocess_cache
+    if cache_dir==None:
+        cache_dir = get_cache_dir()
+
+
+A workaround is to modify the cu
 
 To train a teacher:
 
