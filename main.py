@@ -18,7 +18,7 @@ parser.add_argument('mode', choices=['KD','AT','teacher'], type=str, help='Learn
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
 parser.add_argument('--GPU', default='3', type=str,help='GPU to use')
 parser.add_argument('--student_checkpoint', '-s', default='wrn_40_2_student_KT',type=str, help='checkpoint to save/load student')
-parser.add_argument('--teacher_checkpoint', '-t', default='wrn_40_2',type=str, help='checkpoint to load in teacher')
+parser.add_argument('--teacher_checkpoint', '-t', default='wrn_40_2_T',type=str, help='checkpoint to load in teacher')
 
 #network stuff
 parser.add_argument('--wrn_depth', default=16, type=int, help='depth for WRN')
