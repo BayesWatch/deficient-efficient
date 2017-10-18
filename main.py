@@ -24,8 +24,10 @@ parser.add_argument('--teacher_checkpoint', '-t', default='wrn_40_2',type=str, h
 parser.add_argument('--wrn_depth', default=16, type=int, help='depth for WRN')
 parser.add_argument('--wrn_width', default=1, type=float, help='width for WRN')
 parser.add_argument('conv',
-                    choices=['Conv','ConvB2','ConvB4','ConvB8','ConvB16','DConv','Conv2x2','DConvB2','DConvB4','DConvB8','DConv3D'],
+                    choices=['Conv','ConvB2','ConvB4','ConvB8','ConvB16','DConv',
+                             'Conv2x2','DConvB2','DConvB4','DConvB8','DConv3D','custom'],
                     type=str, help='Conv type')
+parser.add_argument('--customconv',default=['Conv','Conv','ConvB16'],type=tuple)
 parser.add_argument('--AT_split', default=1, type=int, help='group splitting for AT loss')
 
 #learning stuff
@@ -43,6 +45,12 @@ parser.add_argument('--batch_size', default=128, type=int,
 parser.add_argument('--weightDecay', default=0.0005, type=float)
 
 args = parser.parse_args()
+
+if args.conv != 'custom':
+    conv = args.conv
+else:
+    conv = args.customconv
+
 print (vars(args))
 os.environ["CUDA_VISIBLE_DEVICES"] = args.GPU
 
@@ -203,7 +211,7 @@ def test(net, checkpoint=None):
             'best_acc': best_acc,
             'width': args.wrn_width,
             'depth': args.wrn_depth,
-            'conv_type': args.conv,
+            'conv_type': conv,
         }
         print('SAVED!')
         torch.save(state, 'checkpoints/%s.t7' % checkpoint)
@@ -228,7 +236,7 @@ if args.mode == 'teacher':
         teach = teach_checkpoint['net'].cuda()
     else:
         print('Mode Teacher: Making a teacher network from scratch and training it...')
-        teach = WideResNet(args.wrn_depth, args.wrn_width, dropRate=0, convtype=args.conv).cuda()
+        teach = WideResNet(args.wrn_depth, args.wrn_width, dropRate=0, convtype=conv).cuda()
 
 
     get_no_params(teach)
@@ -263,7 +271,7 @@ elif args.mode == 'KD':
         student = student_checkpoint['net']
     else:
         print('KD: Making a student network from scratch and training it...')
-        student = WideResNet(args.wrn_depth, args.wrn_width, dropRate=0, convtype=args.conv)
+        student = WideResNet(args.wrn_depth, args.wrn_width, dropRate=0, convtype=conv)
     student = student.cuda()
     optimizer = optim.SGD(student.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
     # This bit is stupid but we need to decay the learning rate depending on the epoch
@@ -306,7 +314,7 @@ elif args.mode == 'AT':
         student = student_checkpoint['net']
     else:
         print('Mode Student: Making a student network from scratch and training it...')
-        student = WideResNetAT(args.wrn_depth, args.wrn_width, dropRate=0, convtype=args.conv,
+        student = WideResNetAT(args.wrn_depth, args.wrn_width, dropRate=0, convtype=conv,
                                s=args.AT_split).cuda()
 
     student = student.cuda()

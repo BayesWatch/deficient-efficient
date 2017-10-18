@@ -141,6 +141,34 @@ class DConv3D(nn.Module):
         return self.conv3d(o).mean(2)
 
 
+def conv_function(convtype):
+    if convtype == 'Conv':
+        conv = Conv
+    elif convtype == 'DConv':
+        conv = DConv
+    elif convtype == 'Conv2x2':
+        conv = Conv2x2
+    elif convtype == 'ConvB2':
+        conv = ConvB2
+    elif convtype == 'ConvB4':
+        conv = ConvB4
+    elif convtype == 'ConvB8':
+        conv = ConvB8
+    elif convtype == 'ConvB16':
+        conv = ConvB16
+    elif convtype == 'DConvB2':
+        conv = DConvB2
+    elif convtype == 'DConvB4':
+        conv = DConvB4
+    elif convtype == 'DConvB8':
+        conv = DConvB8
+    elif convtype == 'DConv3D':
+        conv = DConv3D
+    else:
+        assert 1==0, 'conv not recognised'
+    return conv
+
+
 class BasicBlock(nn.Module):
     def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=Conv):
         super(BasicBlock, self).__init__()
@@ -184,32 +212,23 @@ class WideResNet(nn.Module):
     def __init__(self, depth, widen_factor=1, num_classes=10, dropRate=0.0, convtype='Conv'):
         super(WideResNet, self).__init__()
 
-        if convtype =='Conv':
-            conv = Conv
-        elif convtype =='DConv':
-            conv = DConv
-        elif convtype =='Conv2x2':
-            conv = Conv2x2
-        elif convtype =='ConvB2':
-            conv = ConvB2
-        elif convtype =='ConvB4':
-            conv = ConvB4
-        elif convtype =='ConvB8':
-            conv = ConvB8
-        elif convtype == 'ConvB16':
-            conv = ConvB16
-        elif convtype =='DConvB2':
-            conv = DConvB2
-        elif convtype =='DConvB4':
-            conv = DConvB4
-        elif convtype =='DConvB8':
-            conv = DConvB8
-        elif convtype =='DConv3D':
-            conv = DConv3D
+        #if convtype is a string we want every block to have the same type, if not, assume custom
+
+        if isinstance(convtype,str):
+
+            conv1 = conv_function(convtype)
+            conv2 = conv_function(convtype)
+            conv3 = conv_function(convtype)
+
+        else:
+            conv1 = conv_function(convtype[0])
+            conv2 = conv_function(convtype[1])
+            conv3 = conv_function(convtype[2])
 
 
         nChannels = [16, 16*widen_factor, 32*widen_factor, 64*widen_factor]
         nChannels = [int(a) for a in nChannels]
+
         assert((depth - 4) % 6 == 0)
         n = (depth - 4) // 6
         block = BasicBlock
@@ -217,11 +236,11 @@ class WideResNet(nn.Module):
         self.conv1 = nn.Conv2d(3, nChannels[0], kernel_size=3, stride=1,
                                padding=1, bias=False)
         # 1st block
-        self.block1 = NetworkBlock(n, nChannels[0], nChannels[1], block, 1, dropRate, conv)
+        self.block1 = NetworkBlock(n, nChannels[0], nChannels[1], block, 1, dropRate, conv1)
         # 2nd block
-        self.block2 = NetworkBlock(n, nChannels[1], nChannels[2], block, 2, dropRate, conv)
+        self.block2 = NetworkBlock(n, nChannels[1], nChannels[2], block, 2, dropRate, conv2)
         # 3rd block
-        self.block3 = NetworkBlock(n, nChannels[2], nChannels[3], block, 2, dropRate, conv)
+        self.block3 = NetworkBlock(n, nChannels[2], nChannels[3], block, 2, dropRate, conv3)
         # global average pooling and classifier
         self.bn1 = nn.BatchNorm2d(nChannels[3])
         self.relu = nn.ReLU(inplace=True)
