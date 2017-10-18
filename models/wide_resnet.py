@@ -57,6 +57,7 @@ class ConvB8(ConvBottleneck):
                 stride=stride, kernel_size=kernel_size, padding=padding,
                 bias=bias)
 
+
 class ConvB16(ConvBottleneck):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
         super(ConvB16, self).__init__(in_planes, out_planes, out_planes/16,
@@ -87,6 +88,31 @@ class DConv(nn.Module):
 
     def forward(self, x):
         return self.conv1x1(F.relu(self.bn(self.convdw(x))))
+
+class DConvG2(DConv):
+    def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
+        super(DConvG2, self).__init__(in_planes, out_planes,
+                stride=stride, kernel_size=kernel_size, padding=padding,
+                bias=bias, groups=in_planes/2)
+
+class DConvG4(DConv):
+    def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
+        super(DConvG4, self).__init__(in_planes, out_planes,
+                stride=stride, kernel_size=kernel_size, padding=padding,
+                bias=bias, groups=in_planes/4)
+
+class DConvG8(DConv):
+    def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
+        super(DConvG8, self).__init__(in_planes, out_planes,
+                stride=stride, kernel_size=kernel_size, padding=padding,
+                bias=bias, groups=in_planes/8)
+
+class DConvG16(DConv):
+    def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
+        super(DConvG16, self).__init__(in_planes, out_planes,
+                stride=stride, kernel_size=kernel_size, padding=padding,
+                bias=bias, groups=in_planes/16)
+
 
 
 class DConvBottleneck(nn.Module):
@@ -145,6 +171,14 @@ def conv_function(convtype):
         conv = Conv
     elif convtype == 'DConv':
         conv = DConv
+    elif convtype == 'DConvG2':
+        conv = DConvG2
+    elif convtype == 'DConvG4':
+        conv = DConvG4
+    elif convtype == 'DConvG8':
+        conv = DConvG8
+    elif convtype == 'DConvG16':
+        conv = DConvG16
     elif convtype == 'Conv2x2':
         conv = Conv2x2
     elif convtype == 'ConvB2':

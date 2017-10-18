@@ -25,7 +25,8 @@ parser.add_argument('--wrn_depth', default=16, type=int, help='depth for WRN')
 parser.add_argument('--wrn_width', default=1, type=float, help='width for WRN')
 parser.add_argument('conv',
                     choices=['Conv','ConvB2','ConvB4','ConvB8','ConvB16','DConv',
-                             'Conv2x2','DConvB2','DConvB4','DConvB8','DConv3D','custom'],
+                             'Conv2x2','DConvB2','DConvB4','DConvB8','DConv3D','DConvG2','DConvG4','DConvG8','DConvG16'
+                        ,'custom'],
                     type=str, help='Conv type')
 parser.add_argument('--customconv',default=['Conv','Conv','ConvB16'],type=tuple)
 parser.add_argument('--AT_split', default=1, type=int, help='group splitting for AT loss')
@@ -50,6 +51,8 @@ if args.conv != 'custom':
     conv = args.conv
 else:
     conv = args.customconv
+
+print(conv)
 
 print (vars(args))
 os.environ["CUDA_VISIBLE_DEVICES"] = args.GPU
