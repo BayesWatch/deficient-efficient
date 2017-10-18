@@ -60,6 +60,11 @@ os.environ["CUDA_VISIBLE_DEVICES"] = args.GPU
 use_cuda = torch.cuda.is_available()
 assert use_cuda, 'Error: No CUDA!'
 
+test_losses  = []
+train_losses = []
+test_accs    = []
+train_accs   = []
+
 best_acc = 0
 start_epoch = 0
 epoch_step = json.loads(args.epoch_step)
@@ -111,9 +116,11 @@ def train_teacher(net):
         total += targets.size(0)
         correct += predicted.eq(targets.data).cpu().sum()
 
+    train_losses.append(train_loss/(batch_idx+1))
+    train_accs.append(100.*correct/total)
+
     print('\nTrain Loss: %.3f | Acc: %.3f%% (%d/%d)'
     % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
-    return train_loss/(batch_idx+1),
 
 
 def train_student_KD(net, teach):
@@ -198,6 +205,10 @@ def test(net, checkpoint=None):
         total += targets.size(0)
         correct += predicted.eq(targets.data).cpu().sum()
 
+    test_losses.append(test_loss/(batch_idx+1))
+    test_accs.append(100.*correct/total)
+
+
     print('Test Loss: %.3f | Acc: %.3f%% (%d/%d)' % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
     if checkpoint:
@@ -215,6 +226,10 @@ def test(net, checkpoint=None):
             'width': args.wrn_width,
             'depth': args.wrn_depth,
             'conv_type': conv,
+            'train_losses': train_losses,
+            'train_accs': train_accs,
+            'test_losses': test_losses,
+            'test_accs': test_accs,
         }
         print('SAVED!')
         torch.save(state, 'checkpoints/%s.t7' % checkpoint)
