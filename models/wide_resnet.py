@@ -5,7 +5,6 @@ import torch.nn.functional as F
 
 from torch.autograd import Variable
 
-from pyinn.modules import Conv2dDepthwise
 
 import math
 
@@ -77,12 +76,12 @@ class Conv2x2(nn.Module):
 
 
 class DConv(nn.Module):
-    def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
+    def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False, groups=None):
         super(DConv, self).__init__()
         # This class replaces BasicConv, as such it assumes the output goes through a BN+ RELU whereas the
         # internal BN + RELU is written explicitly
-        self.convdw = Conv2dDepthwise(channels=in_planes, kernel_size=kernel_size, stride=stride, padding=padding,
-                                      bias=bias)
+        self.convdw = nn.Conv2d(in_planes, in_planes, kernel_size=kernel_size, stride=stride, padding=padding,
+                                      bias=bias, groups=in_planes if groups is None else groups)
         self.bn = nn.BatchNorm2d(in_planes)
         self.conv1x1 = nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=1, padding=0, bias=bias)
 
@@ -95,8 +94,8 @@ class DConvBottleneck(nn.Module):
         super(DConvBottleneck, self).__init__()
         self.conv1x1_down = nn.Conv2d(in_planes, bottleneck, kernel_size=1, stride=1, padding=0, bias=bias)
         self.bn1 = nn.BatchNorm2d(bottleneck)
-        self.convdw = Conv2dDepthwise(channels=bottleneck, kernel_size=kernel_size, stride=stride, padding=padding,
-                                      bias=bias)
+        self.convdw = nn.Conv2d(bottleneck, bottleneck, kernel_size=kernel_size, stride=stride, padding=padding,
+                                      bias=bias, groups=bottleneck)
         self.bn2= nn.BatchNorm2d(bottleneck)
         self.conv1x1_up = nn.Conv2d(bottleneck, out_planes, kernel_size=1, stride=1, padding=0, bias=bias)
 
@@ -129,8 +128,8 @@ class DConv3D(nn.Module):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
         super(DConv3D, self).__init__()
         # Separable conv approximating the 1x1 with a 3x3 conv3d
-        self.convdw = Conv2dDepthwise(channels=in_planes, kernel_size=kernel_size, stride=stride, padding=padding,
-                                      bias=bias)
+        self.convdw = nn.Conv2d(in_planes,in_planes, kernel_size=kernel_size, stride=stride, padding=padding,
+                                      bias=bias,groups=in_planes)
         self.bn = nn.BatchNorm2d(in_planes)
         self.conv3d = nn.Conv3d(1, out_planes, kernel_size=(3,1,1), stride=1, padding=(1,0,0), bias=bias)
 
