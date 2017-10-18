@@ -321,20 +321,16 @@ class WideResNetAT(nn.Module):
     def __init__(self, depth, widen_factor=1, num_classes=10, dropRate=0.0, convtype='Conv', s = 1):
         super(WideResNetAT, self).__init__()
 
-        if convtype == 'Conv':
-            conv = Conv
-        elif convtype == 'DConv':
-            conv = DConv
-        elif convtype == 'Conv2x2':
-            conv = Conv2x2
-        elif convtype == 'DConvB2':
-            conv = DConvB2
-        elif convtype == 'DConvB4':
-            conv = DConvB4
-        elif convtype == 'DConvB8':
-            conv = DConvB8
-        elif convtype == 'DConv3D':
-            conv = DConv3D
+        if isinstance(convtype,str):
+
+            conv1 = conv_function(convtype)
+            conv2 = conv_function(convtype)
+            conv3 = conv_function(convtype)
+
+        else:
+            conv1 = conv_function(convtype[0])
+            conv2 = conv_function(convtype[1])
+            conv3 = conv_function(convtype[2])
 
         nChannels = [16, 16 * widen_factor, 32 * widen_factor, 64 * widen_factor]
         nChannels = [int(a) for a in nChannels]
@@ -352,18 +348,18 @@ class WideResNetAT(nn.Module):
         self.block1 = torch.nn.ModuleList()
         for i in range(s):
             self.block1.append(NetworkBlock(n/s, nChannels[0] if i == 0 else nChannels[1],
-                                            nChannels[1], block, 1, dropRate, conv))
+                                            nChannels[1], block, 1, dropRate, conv1))
 
         # 2nd block
         self.block2 = torch.nn.ModuleList()
         for i in range(s):
             self.block2.append(NetworkBlock(n/s, nChannels[1] if i == 0 else nChannels[2],
-                                            nChannels[2], block, 2 if i == 0 else 1, dropRate, conv))
+                                            nChannels[2], block, 2 if i == 0 else 1, dropRate, conv2))
         # 3rd block
         self.block3 = torch.nn.ModuleList()
         for i in range(s):
             self.block3.append(NetworkBlock(n/s, nChannels[2] if i == 0 else nChannels[3],
-                                            nChannels[3], block, 2 if i == 0 else 1, dropRate, conv))
+                                            nChannels[3], block, 2 if i == 0 else 1, dropRate, conv3))
         # global average pooling and classifier
         self.bn1 = nn.BatchNorm2d(nChannels[3])
         self.relu = nn.ReLU(inplace=True)
