@@ -21,13 +21,16 @@ def l1_loss(x):
 def get_no_params(net):
 
     params = net.state_dict()
-    tot=0
+    tot= 0
+    conv_tot = 0
     for p in params:
         no = params[p].view(-1).__len__()
         tot += no
         if 'bn' not in p:
             print('%s has %d params' % (p,no))
+        if 'conv' in p:
+            conv_tot += no
 
-
+    print('Net has %d conv params' % conv_tot)
     print('Net has %d params in total' % tot)
     return tot
