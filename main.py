@@ -28,7 +28,7 @@ parser.add_argument('conv',
                              'Conv2x2','DConvB2','DConvB4','DConvB8','DConvB16','DConv3D','DConvG2','DConvG4','DConvG8','DConvG16'
                         ,'custom'],
                     type=str, help='Conv type')
-parser.add_argument('--customconv',default=['Conv','Conv','ConvB16'],type=tuple)
+parser.add_argument('--customconv',default=['Conv_Conv_ConvB16'],type=str)
 parser.add_argument('--AT_split', default=1, type=int, help='group splitting for AT loss')
 
 #learning stuff
@@ -50,7 +50,7 @@ args = parser.parse_args()
 if args.conv != 'custom':
     conv = args.conv
 else:
-    conv = args.customconv
+    conv = args.customconv.split('_')
 
 print(conv)
 
