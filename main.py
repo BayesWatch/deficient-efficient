@@ -21,8 +21,8 @@ parser.add_argument('--student_checkpoint', '-s', default='wrn_40_2_student_KT',
 parser.add_argument('--teacher_checkpoint', '-t', default='wrn_40_2_T',type=str, help='checkpoint to load in teacher')
 
 #network stuff
-parser.add_argument('--wrn_depth', default=16, type=int, help='depth for WRN')
-parser.add_argument('--wrn_width', default=1, type=float, help='width for WRN')
+parser.add_argument('--wrn_depth', default=40, type=int, help='depth for WRN')
+parser.add_argument('--wrn_width', default=2, type=float, help='width for WRN')
 parser.add_argument('conv',
                     choices=['Conv','ConvB2','ConvB4','ConvB8','ConvB16','DConv',
                              'Conv2x2','DConvB2','DConvB4','DConvB8','DConv3D','DConvG2','DConvG4','DConvG8','DConvG16'
@@ -290,6 +290,7 @@ elif args.mode == 'KD':
     else:
         print('KD: Making a student network from scratch and training it...')
         student = WideResNet(args.wrn_depth, args.wrn_width, dropRate=0, convtype=conv)
+    get_no_params(student)
     student = student.cuda()
     optimizer = optim.SGD(student.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
     # This bit is stupid but we need to decay the learning rate depending on the epoch
