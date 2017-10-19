@@ -18,6 +18,7 @@ def at_loss(x, y):
 def l1_loss(x):
     return torch.abs(x).mean()
 
+
 def get_no_params(net):
 
     params = net.state_dict()
