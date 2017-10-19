@@ -10,5 +10,4 @@ test.sh
 # all python caches
 __pycache__
 
-# don't commit working scripts
-bash/
+
