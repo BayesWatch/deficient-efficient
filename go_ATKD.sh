@@ -7,8 +7,8 @@ tmux \
   select-layout even-vertical
 
 tmux \
-  new-session  "python main.py AT $1 -s AT_$1_40_2 --GPU 0 --wrn_depth 40 --wrn_width 2" \; \
-  split-window "python main.py AT $2 -s AT_$2_40_2 --GPU 1 --wrn_depth 40 --wrn_width 2" \; \
-  split-window "python main.py AT $3 -s AT_$3_40_2 --GPU 2 --wrn_depth 40 --wrn_width 2" \; \
-  split-window "python main.py AT $4 -s AT_$4_40_2 --GPU 3 --wrn_depth 40 --wrn_width 2" \; \
+  new-session  "python main.py AT $1 -s AT_$1_40_2 --GPU 0 --wrn_depth 40 --wrn_width 2 --alpha 0" \; \
+  split-window "python main.py AT $2 -s AT_$2_40_2 --GPU 1 --wrn_depth 40 --wrn_width 2 --alpha 0" \; \
+  split-window "python main.py AT $3 -s AT_$3_40_2 --GPU 2 --wrn_depth 40 --wrn_width 2 --alpha 0" \; \
+  split-window "python main.py AT $4 -s AT_$4_40_2 --GPU 3 --wrn_depth 40 --wrn_width 2 --alpha 0" \; \
   select-layout even-vertical
