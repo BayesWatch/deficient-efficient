@@ -206,7 +206,8 @@ def conv_function(convtype):
     elif convtype == 'DConv3D':
         conv = DConv3D
     else:
-        assert 1==0, 'conv not recognised'
+        print(convtype)
+        assert 1==0, 'conv % not recognised'
     return conv
 
 
