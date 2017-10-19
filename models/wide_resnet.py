@@ -149,6 +149,12 @@ class DConvB8(DConvBottleneck):
                 stride=stride, kernel_size=kernel_size, padding=padding,
                 bias=bias)
 
+class DConvB16(DConvBottleneck):
+    def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
+        super(DConvB16, self).__init__(in_planes, out_planes, out_planes/16,
+                stride=stride, kernel_size=kernel_size, padding=padding,
+                bias=bias)
+
 
 class DConv3D(nn.Module):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
@@ -195,6 +201,8 @@ def conv_function(convtype):
         conv = DConvB4
     elif convtype == 'DConvB8':
         conv = DConvB8
+    elif convtype == 'DConvB16':
+        conv = DConvB16
     elif convtype == 'DConv3D':
         conv = DConv3D
     else:
