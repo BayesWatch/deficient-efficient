@@ -212,7 +212,7 @@ def conv_function(convtype):
 
 
 class BasicBlock(nn.Module):
-    def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=Conv):
+    def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=Conv, xy=Noner):
         super(BasicBlock, self).__init__()
         self.bn1 = nn.BatchNorm2d(in_planes)
         self.relu1 = nn.ReLU(inplace=True)
@@ -295,8 +295,8 @@ class AttentionBlock(nn.Module):
         self.equalInOut = (in_planes == out_planes)
         self.convShortcut = (not self.equalInOut) and nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride,
                                padding=0, bias=False) or None
-        self.fc1 = nn.Linear(xy, xy//16)
-        self.fc2 = nn.Linear(xy//16, xy)
+        self.fc1 = nn.Linear(xy, xy//64)
+        self.fc2 = nn.Linear(xy//64, xy)
 
     def forward(self, x):
         if not self.equalInOut:
