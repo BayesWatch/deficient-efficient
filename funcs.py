@@ -7,6 +7,14 @@ def distillation(y, teacher_scores, labels, T, alpha):
            + F.cross_entropy(y, labels) * (1. - alpha)
 
 
+def se(x):
+    return F.normalize(x.pow(2).mean(-1).mean(-1).view(x.size(0), -1))
+
+
+def se_loss(x, y):
+    return (se(x)-se(y)).pow(2).mean()
+
+
 def at(x):
     return F.normalize(x.pow(2).mean(1).view(x.size(0), -1))
 

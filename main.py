@@ -38,6 +38,7 @@ parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
 parser.add_argument('--lr_decay_ratio', default=0.2, type=float, help='learning rate decay')
 parser.add_argument('--temperature', default=4, type=float, help='temp for KD')
 parser.add_argument('--alpha', default=0.9, type=float, help='alpha for KD')
+parser.add_argument('--aux_loss', default='AT', type=str, help='AT or SE loss')
 parser.add_argument('--beta', default=1e3, type=float, help='beta for AT')
 parser.add_argument('--epoch_step', default='[60,120,160]', type=str,
                     help='json list with epochs to drop lr on')
@@ -55,6 +56,13 @@ else:
     conv = args.customconv.split('_')
 
 print(conv)
+
+if args.aux_loss == 'AT':
+    aux_loss = at_loss
+elif args.aux_loss == 'SE':
+    aux_loss = se_loss
+
+print(aux_loss)
 
 print (vars(args))
 os.environ["CUDA_VISIBLE_DEVICES"] = args.GPU
@@ -172,7 +180,7 @@ def train_student_AT(net, teach):
 
         adjusted_beta = (args.beta*3)/len(ints_student)
         for i in range(len(ints_student)):
-            loss += adjusted_beta * at_loss(ints_student[i], ints_teacher[i])
+            loss += adjusted_beta * aux_loss(ints_student[i], ints_teacher[i])
 
         optimizer.zero_grad()
         loss.backward()
