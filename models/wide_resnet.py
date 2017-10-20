@@ -364,7 +364,7 @@ class WideResNetInt(WideResNet):
 WideResNetAT3 = WideResNetInt
 
 class WideResNetAT(nn.Module):
-    def __init__(self, depth, widen_factor=1, num_classes=10, dropRate=0.0, convtype='Conv', s = 1):
+    def __init__(self, depth, widen_factor=1, num_classes=10, dropRate=0.0, convtype='Conv', s = 1,blocktype='Basic'):
         super(WideResNetAT, self).__init__()
 
         if isinstance(convtype,str):
@@ -382,11 +382,13 @@ class WideResNetAT(nn.Module):
         nChannels = [int(a) for a in nChannels]
         assert ((depth - 4) % 6 == 0)
         n = (depth - 4) // 6
-
+        if blocktype =='Basic':
+            block = BasicBlock
+        elif blocktype =='Bottle':
+            block = BottleBlock
 
         assert n % s == 0, 'n mod s must be zero'
 
-        block = BasicBlock
         # 1st conv before any network block
         self.conv1 = nn.Conv2d(3, nChannels[0], kernel_size=3, stride=1,
                                padding=1, bias=False)
