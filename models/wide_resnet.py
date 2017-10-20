@@ -238,9 +238,91 @@ class BasicBlock(nn.Module):
         return torch.add(x if self.equalInOut else self.convShortcut(x), out)
 
 
+class SqueezeExciteBlock(nn.Module):
+    def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=Conv, xy=None):
+        super(BasicBlock, self).__init__()
+        self.bn1 = nn.BatchNorm2d(in_planes)
+        self.relu1 = nn.ReLU(inplace=True)
+        self.conv1 = conv(in_planes, out_planes, kernel_size=3, stride=stride,
+                               padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(out_planes)
+        self.relu2 = nn.ReLU(inplace=True)
+        self.conv2 = conv(out_planes, out_planes, kernel_size=3, stride=1,
+                               padding=1, bias=False)
+        self.droprate = dropRate
+        self.equalInOut = (in_planes == out_planes)
+        self.convShortcut = (not self.equalInOut) and nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride,
+                               padding=0, bias=False) or None
+
+        self.fc1 = nn.Conv2d(out_planes, out_planes // 16, kernel_size=1)
+        self.fc2 = nn.Conv2d(out_planes // 16, out_planes, kernel_size=1)
+
+    def forward(self, x):
+        if not self.equalInOut:
+            x = self.relu1(self.bn1(x))
+        else:
+            out = self.relu1(self.bn1(x))
+        out = self.relu2(self.bn2(self.conv1(out if self.equalInOut else x)))
+        if self.droprate > 0:
+            out = F.dropout(out, p=self.droprate, training=self.training)
+        out = self.conv2(out)
+        # Squeeze
+        w = F.avg_pool2d(out, out.size(2))
+        w = F.relu(self.fc1(w))
+        w = F.sigmoid(self.fc2(w))
+        # Excitation
+
+        out = out * w
+
+        return torch.add(x if self.equalInOut else self.convShortcut(x), out)
+
+
+class AttentionBlock(nn.Module):
+    def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=Conv, xy=None):
+
+        assert xy is not None, 'need to know spatial size'
+
+        super(AttentionBlock, self).__init__()
+        self.bn1 = nn.BatchNorm2d(in_planes)
+        self.relu1 = nn.ReLU(inplace=True)
+        self.conv1 = conv(in_planes, out_planes, kernel_size=3, stride=stride,
+                               padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(out_planes)
+        self.relu2 = nn.ReLU(inplace=True)
+        self.conv2 = conv(out_planes, out_planes, kernel_size=3, stride=1,
+                               padding=1, bias=False)
+        self.droprate = dropRate
+        self.equalInOut = (in_planes == out_planes)
+        self.convShortcut = (not self.equalInOut) and nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride,
+                               padding=0, bias=False) or None
+        self.fc1 = nn.Linear(xy, xy//16)
+        self.fc2 = nn.Linear(xy//16, xy)
+
+    def forward(self, x):
+        if not self.equalInOut:
+            x = self.relu1(self.bn1(x))
+        else:
+            out = self.relu1(self.bn1(x))
+        out = self.relu2(self.bn2(self.conv1(out if self.equalInOut else x)))
+        if self.droprate > 0:
+            out = F.dropout(out, p=self.droprate, training=self.training)
+        out = self.conv2(out)
+        # Squeeze
+        w = out.mean(1, keepdim=True)
+        #Regrettable reshaping
+        w = w.view(w.size(0),-1)
+        w = F.relu(self.fc1(w))
+        w = F.sigmoid(self.fc2(w))
+        w = w.view(out.size(0),1,out.size(2),out.size(3))
+        # Excitation
+
+        out = out * w
+
+        return torch.add(x if self.equalInOut else self.convShortcut(x), out)
+
 
 class BottleBlock(nn.Module):
-    def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=Conv):
+    def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=Conv, xy=None):
         super(BottleBlock, self).__init__()
         self.bn1 = nn.BatchNorm2d(in_planes)
         self.relu1 = nn.ReLU(inplace=True)
@@ -269,13 +351,13 @@ class BottleBlock(nn.Module):
 
 
 class NetworkBlock(nn.Module):
-    def __init__(self, nb_layers, in_planes, out_planes, block, stride, dropRate=0.0, conv = Conv):
+    def __init__(self, nb_layers, in_planes, out_planes, block, stride, dropRate=0.0, conv = Conv, xy=None):
         super(NetworkBlock, self).__init__()
-        self.layer = self._make_layer(block, in_planes, out_planes, nb_layers, stride, dropRate, conv)
-    def _make_layer(self, block, in_planes, out_planes, nb_layers, stride, dropRate, conv):
+        self.layer = self._make_layer(block, in_planes, out_planes, nb_layers, stride, dropRate, conv,xy)
+    def _make_layer(self, block, in_planes, out_planes, nb_layers, stride, dropRate, conv, xy):
         layers = []
         for i in range(nb_layers):
-            layers.append(block(i == 0 and in_planes or out_planes, out_planes, i == 0 and stride or 1, dropRate, conv))
+            layers.append(block(i == 0 and in_planes or out_planes, out_planes, i == 0 and stride or 1, dropRate, conv, xy))
         return nn.Sequential(*layers)
     def forward(self, x):
         return self.layer(x)
@@ -309,17 +391,21 @@ class WideResNet(nn.Module):
             block = BasicBlock
         elif blocktype =='Bottle':
             block = BottleBlock
+        elif blocktype == 'AT':
+            block = AttentionBlock
+        elif blocktype =='SE':
+            block = SqueezeExciteBlock
 
 
         # 1st conv before any network block
         self.conv1 = nn.Conv2d(3, nChannels[0], kernel_size=3, stride=1,
                                padding=1, bias=False)
         # 1st block
-        self.block1 = NetworkBlock(n, nChannels[0], nChannels[1], block, 1, dropRate, conv1)
+        self.block1 = NetworkBlock(n, nChannels[0], nChannels[1], block, 1, dropRate, conv1, xy= 32)
         # 2nd block
-        self.block2 = NetworkBlock(n, nChannels[1], nChannels[2], block, 2, dropRate, conv2)
+        self.block2 = NetworkBlock(n, nChannels[1], nChannels[2], block, 2, dropRate, conv2, xy= 16)
         # 3rd block
-        self.block3 = NetworkBlock(n, nChannels[2], nChannels[3], block, 2, dropRate, conv3)
+        self.block3 = NetworkBlock(n, nChannels[2], nChannels[3], block, 2, dropRate, conv3, xy= 8)
         # global average pooling and classifier
         self.bn1 = nn.BatchNorm2d(nChannels[3])
         self.relu = nn.ReLU(inplace=True)
@@ -360,6 +446,26 @@ class WideResNetInt(WideResNet):
         out = out.view(-1, self.nChannels)
         out  = self.fc(out)
         return out, (block1_out,block2_out,block3_out)
+
+class WideResNetIntMap(WideResNet):
+    def __init__(self):
+        super(WideResNetIntMap, self).__init__()
+
+        self.map1 = nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1, bias=False)
+        self.map2 = nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.map3 = nn.Conv2d(128,128, kernel_size=3, stride=1, padding=1, bias=False)
+
+    def forward(self, x):
+        conv1_out = self.conv1(x)
+        block1_out = self.block1(conv1_out)
+        block2_out = self.block2(block1_out)
+        block3_out = self.block3(block2_out)
+        out = self.relu(self.bn1(block3_out))
+        out = F.avg_pool2d(out, 8)
+        out = out.view(-1, self.nChannels)
+        out  = self.fc(out)
+        return out, (self.map1(block1_out),self.map2(block2_out),self.map3(block3_out))
+
 
 WideResNetAT3 = WideResNetInt
 
