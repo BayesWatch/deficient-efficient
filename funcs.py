@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from models import wide_resnet
+from models import *
 
 def distillation(y, teacher_scores, labels, T, alpha):
     return F.kl_div(F.log_softmax(y/T), F.softmax(teacher_scores/T)) * (T*T * 2. * alpha)\
@@ -43,3 +43,10 @@ def get_no_params(net):
     print('Net has %d conv params' % conv_tot)
     print('Net has %d params in total' % tot)
     return tot
+
+
+def eval(file):
+    A = torch.load('checkpoints/%s.t7' % file)
+    acc = A['acc']
+    params = get_no_params(A['net'])
+    print('Accuracy %0.2f with %d params',acc,params)
