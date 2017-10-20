@@ -240,7 +240,7 @@ class BasicBlock(nn.Module):
 
 class SqueezeExciteBlock(nn.Module):
     def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=Conv, xy=None):
-        super(BasicBlock, self).__init__()
+        super(SqueezeExciteBlock, self).__init__()
         self.bn1 = nn.BatchNorm2d(in_planes)
         self.relu1 = nn.ReLU(inplace=True)
         self.conv1 = conv(in_planes, out_planes, kernel_size=3, stride=stride,
