@@ -321,7 +321,7 @@ elif args.mode == 'AT':
     print('AT (+optional KD): First, load a teacher network and convert for attention transfer')
     teach_checkpoint = torch.load('checkpoints/%s.t7' % args.teacher_checkpoint)
     state_dict_old = teach_checkpoint['net'].state_dict()
-    teach = WideResNetAT(teach_checkpoint['depth'], teach_checkpoint['width'], s=args.AT_split, blocktype=args.block)
+    teach = WideResNetAT(teach_checkpoint['depth'], teach_checkpoint['width'], s=args.AT_split)
     state_dict_new = teach.state_dict()
     old_keys = [v for v in state_dict_old]
     new_keys = [v for v in state_dict_new]
