@@ -212,7 +212,7 @@ def conv_function(convtype):
 
 
 class BasicBlock(nn.Module):
-    def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=Conv, xy=Noner):
+    def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=Conv, xy=None):
         super(BasicBlock, self).__init__()
         self.bn1 = nn.BatchNorm2d(in_planes)
         self.relu1 = nn.ReLU(inplace=True)
