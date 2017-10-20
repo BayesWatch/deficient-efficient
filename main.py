@@ -23,6 +23,8 @@ parser.add_argument('--teacher_checkpoint', '-t', default='wrn_40_2_T',type=str,
 #network stuff
 parser.add_argument('--wrn_depth', default=40, type=int, help='depth for WRN')
 parser.add_argument('--wrn_width', default=2, type=float, help='width for WRN')
+parser.add_argument('--block',default='Basic',type=str, help='blocktype')
+
 parser.add_argument('conv',
                     choices=['Conv','ConvB2','ConvB4','ConvB8','ConvB16','DConv',
                              'Conv2x2','DConvB2','DConvB4','DConvB8','DConvB16','DConv3D','DConvG2','DConvG4','DConvG8','DConvG16'
@@ -254,7 +256,7 @@ if args.mode == 'teacher':
         teach = teach_checkpoint['net'].cuda()
     else:
         print('Mode Teacher: Making a teacher network from scratch and training it...')
-        teach = WideResNet(args.wrn_depth, args.wrn_width, dropRate=0, convtype=conv).cuda()
+        teach = WideResNet(args.wrn_depth, args.wrn_width, dropRate=0, convtype=conv, blocktype=args.block).cuda()
 
 
     get_no_params(teach)
@@ -289,7 +291,7 @@ elif args.mode == 'KD':
         student = student_checkpoint['net']
     else:
         print('KD: Making a student network from scratch and training it...')
-        student = WideResNet(args.wrn_depth, args.wrn_width, dropRate=0, convtype=conv)
+        student = WideResNet(args.wrn_depth, args.wrn_width, dropRate=0, convtype=conv, blocktype=args.block)
     get_no_params(student)
     student = student.cuda()
     optimizer = optim.SGD(student.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
@@ -311,7 +313,7 @@ elif args.mode == 'AT':
     print('AT (+optional KD): First, load a teacher network and convert for attention transfer')
     teach_checkpoint = torch.load('checkpoints/%s.t7' % args.teacher_checkpoint)
     state_dict_old = teach_checkpoint['net'].state_dict()
-    teach = WideResNetAT(teach_checkpoint['depth'], teach_checkpoint['width'], s=args.AT_split)
+    teach = WideResNetAT(teach_checkpoint['depth'], teach_checkpoint['width'], s=args.AT_split, blocktype=args.block)
     state_dict_new = teach.state_dict()
     old_keys = [v for v in state_dict_old]
     new_keys = [v for v in state_dict_new]
@@ -334,7 +336,7 @@ elif args.mode == 'AT':
     else:
         print('Mode Student: Making a student network from scratch and training it...')
         student = WideResNetAT(args.wrn_depth, args.wrn_width, dropRate=0, convtype=conv,
-                               s=args.AT_split).cuda()
+                               s=args.AT_split, blocktype=args.block).cuda()
 
     student = student.cuda()
     optimizer = optim.SGD(student.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)

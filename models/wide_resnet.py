@@ -237,6 +237,37 @@ class BasicBlock(nn.Module):
         out = self.conv2(out)
         return torch.add(x if self.equalInOut else self.convShortcut(x), out)
 
+
+
+class BottleBlock(nn.Module):
+    def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=Conv):
+        super(BottleBlock, self).__init__()
+        self.bn1 = nn.BatchNorm2d(in_planes)
+        self.relu1 = nn.ReLU(inplace=True)
+        self.conv1 = conv(in_planes, out_planes, kernel_size=3, stride=stride,
+                               padding=1, bias=False)
+        # self.bn2 = nn.BatchNorm2d(out_planes)
+        # self.relu2 = nn.ReLU(inplace=True)
+        # self.conv2 = conv(out_planes, out_planes, kernel_size=3, stride=1,
+        #                        padding=1, bias=False)
+        self.droprate = dropRate
+        self.equalInOut = (in_planes == out_planes)
+        self.convShortcut = (not self.equalInOut) and nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride,
+                               padding=0, bias=False) or None
+    def forward(self, x):
+        if not self.equalInOut:
+            x = self.relu1(self.bn1(x))
+        else:
+            out = self.relu1(self.bn1(x))
+        out = self.conv1(out if self.equalInOut else x)
+        if self.droprate > 0:
+            out = F.dropout(out, p=self.droprate, training=self.training)
+        out = out
+        return torch.add(x if self.equalInOut else self.convShortcut(x), out)
+
+
+
+
 class NetworkBlock(nn.Module):
     def __init__(self, nb_layers, in_planes, out_planes, block, stride, dropRate=0.0, conv = Conv):
         super(NetworkBlock, self).__init__()
@@ -251,7 +282,7 @@ class NetworkBlock(nn.Module):
 
 class WideResNet(nn.Module):
 
-    def __init__(self, depth, widen_factor=1, num_classes=10, dropRate=0.0, convtype='Conv'):
+    def __init__(self, depth, widen_factor=1, num_classes=10, dropRate=0.0, convtype='Conv',blocktype='Basic'):
         super(WideResNet, self).__init__()
 
         #if convtype is a string we want every block to have the same type, if not, assume custom
@@ -273,7 +304,13 @@ class WideResNet(nn.Module):
 
         assert((depth - 4) % 6 == 0)
         n = (depth - 4) // 6
-        block = BasicBlock
+
+        if blocktype =='Basic':
+            block = BasicBlock
+        elif blocktype =='Bottle':
+            block = BottleBlock
+
+
         # 1st conv before any network block
         self.conv1 = nn.Conv2d(3, nChannels[0], kernel_size=3, stride=1,
                                padding=1, bias=False)
