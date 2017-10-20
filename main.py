@@ -148,6 +148,7 @@ def train_student_KD(net, teach):
     print('\nLoss: %.3f | Acc: %.3f%% (%d/%d)\n' % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
 
+
 # Training the student
 def train_student_AT(net, teach):
     net.train()
@@ -168,7 +169,6 @@ def train_student_AT(net, teach):
         #paper) and adjust the beta term accordingly.
 
         adjusted_beta = (args.beta*3)/len(ints_student)
-
         for i in range(len(ints_student)):
             loss += adjusted_beta * at_loss(ints_student[i], ints_teacher[i])
 
@@ -180,7 +180,7 @@ def train_student_AT(net, teach):
         _, predicted = torch.max(outputs_student.data, 1)
         total += targets.size(0)
         correct += predicted.eq(targets.data).cpu().sum()
-
+    print(len(ints_student))
     print('\nLoss: %.3f | Acc: %.3f%% (%d/%d)\n' % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
 
