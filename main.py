@@ -28,7 +28,7 @@ parser.add_argument('--block',default='Basic',type=str, help='blocktype')
 parser.add_argument('conv',
                     choices=['Conv','ConvB2','ConvB4','ConvB8','ConvB16','DConv',
                              'Conv2x2','DConvB2','DConvB4','DConvB8','DConvB16','DConv3D','DConvG2','DConvG4','DConvG8','DConvG16'
-                        ,'custom'],
+                        ,'custom','DConvA2','DConvA4','DConvA8','DConvA16'],
                     type=str, help='Conv type')
 parser.add_argument('--customconv',default=['Conv_Conv_ConvB16'],type=str)
 parser.add_argument('--AT_split', default=1, type=int, help='group splitting for AT loss')

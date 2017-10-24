@@ -114,6 +114,30 @@ class DConvG16(DConv):
                 bias=bias, groups=in_planes/16)
 
 
+class DConvA2(DConv):
+    def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
+        super(DConvA2, self).__init__(in_planes, out_planes,
+                stride=stride, kernel_size=kernel_size, padding=padding,
+                bias=bias, groups=2)
+
+class DConvA4(DConv):
+    def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
+        super(DConvA4, self).__init__(in_planes, out_planes,
+                stride=stride, kernel_size=kernel_size, padding=padding,
+                bias=bias, groups=4)
+
+class DConvA8(DConv):
+    def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
+        super(DConvA8, self).__init__(in_planes, out_planes,
+                stride=stride, kernel_size=kernel_size, padding=padding,
+                bias=bias, groups=8)
+
+class DConvA16(DConv):
+    def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
+        super(DConvA16, self).__init__(in_planes, out_planes,
+                stride=stride, kernel_size=kernel_size, padding=padding,
+                bias=bias, groups=16)
+
 
 class DConvBottleneck(nn.Module):
     def __init__(self, in_planes, out_planes, bottleneck, stride=1, kernel_size=3, padding=1, bias=False):
@@ -185,6 +209,14 @@ def conv_function(convtype):
         conv = DConvG8
     elif convtype == 'DConvG16':
         conv = DConvG16
+    elif convtype == 'DConvA2':
+        conv = DConvA2
+    elif convtype == 'DConvA4':
+        conv = DConvA4
+    elif convtype == 'DConvA8':
+        conv = DConvA8
+    elif convtype == 'DConvA16':
+        conv = DConvA16
     elif convtype == 'Conv2x2':
         conv = Conv2x2
     elif convtype == 'ConvB2':
