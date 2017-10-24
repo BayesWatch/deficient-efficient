@@ -54,6 +54,23 @@ class GConvBottleneck(nn.Module):
         return out
 
 
+class AConvBottleneck(nn.Module):
+    def __init__(self, in_planes, out_planes, bottleneck, groups, stride=1, kernel_size=3, padding=1, bias=False):
+        super(AConvBottleneck, self).__init__()
+        self.conv1x1_down = nn.Conv2d(in_planes, bottleneck, kernel_size=1, stride=1, padding=0, bias=bias)
+        self.bn1 = nn.BatchNorm2d(bottleneck)
+        self.conv = nn.Conv2d(bottleneck, bottleneck, kernel_size=kernel_size, stride=stride, padding=padding,
+                                      bias=bias, groups=groups)
+        self.bn2= nn.BatchNorm2d(bottleneck)
+        self.conv1x1_up = nn.Conv2d(bottleneck, out_planes, kernel_size=1, stride=1, padding=0, bias=bias)
+
+    def forward(self, x):
+        out = F.relu(self.bn1(self.conv1x1_down(x)))
+        out = F.relu(self.bn2(self.conv(out)))
+        out = self.conv1x1_up(out)
+        return out
+
+
 class G2B2(GConvBottleneck):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
         super(G2B2, self).__init__(in_planes, out_planes, bottleneck = out_planes / 2,group_split = 2,
@@ -75,6 +92,31 @@ class G8B2(GConvBottleneck):
 class G16B2(GConvBottleneck):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
         super(G16B2, self).__init__(in_planes, out_planes, bottleneck = out_planes / 2,group_split = 16,
+                                     stride=stride, kernel_size=kernel_size, padding=padding,
+                                     bias=bias)
+
+
+class A2B2(AConvBottleneck):
+    def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
+        super(A2B2, self).__init__(in_planes, out_planes, bottleneck = out_planes / 2,groups = 2,
+                                     stride=stride, kernel_size=kernel_size, padding=padding,
+                                     bias=bias)
+
+class A4B2(AConvBottleneck):
+    def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
+        super(A4B2, self).__init__(in_planes, out_planes, bottleneck = out_planes / 2,groups = 4,
+                                     stride=stride, kernel_size=kernel_size, padding=padding,
+                                     bias=bias)
+
+class A8B2(AConvBottleneck):
+    def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
+        super(A8B2, self).__init__(in_planes, out_planes, bottleneck = out_planes / 2,groups= 8,
+                                     stride=stride, kernel_size=kernel_size, padding=padding,
+                                     bias=bias)
+
+class A16B2(AConvBottleneck):
+    def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
+        super(A16B2, self).__init__(in_planes, out_planes, bottleneck = out_planes / 2,groups = 16,
                                      stride=stride, kernel_size=kernel_size, padding=padding,
                                      bias=bias)
 
@@ -321,6 +363,15 @@ def conv_function(convtype):
         conv = G8B4
     elif convtype =='G16B4':
         conv = G16B4
+    elif convtype =='A2B2':
+        conv = A2B2
+    elif convtype =='A4B2':
+        conv = A4B2
+    elif convtype =='A8B2':
+        conv = A8B2
+    elif convtype =='A16B2':
+        conv = A16B2
+
     else:
         print(convtype)
         assert 1==0, 'conv % not recognised'
