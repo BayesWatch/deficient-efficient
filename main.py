@@ -15,6 +15,7 @@ from tqdm import tqdm
 
 from funcs import *
 parser = argparse.ArgumentParser(description='Student/teacher training')
+parser.add_argument('dataset', type=str, choices=['cifar10', 'cifar100'], help='Choose between Cifar10/100.')
 parser.add_argument('mode', choices=['KD','AT','teacher'], type=str, help='Learn with KD, AT, or train a teacher')
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
 parser.add_argument('--GPU', default='3', type=str,help='GPU to use')
@@ -26,7 +27,6 @@ parser.add_argument('--wrn_depth', default=40, type=int, help='depth for WRN')
 parser.add_argument('--wrn_width', default=2, type=float, help='width for WRN')
 parser.add_argument('--block',default='Basic',type=str, help='blocktype')
 
-parser.add_argument('dataset', type=str, choices=['cifar10', 'cifar100'], help='Choose between Cifar10/100.')
 parser.add_argument('conv',
                     choices=['Conv','ConvB2','ConvB4','ConvB8','ConvB16','DConv',
                              'Conv2x2','DConvB2','DConvB4','DConvB8','DConvB16','DConv3D','DConvG2','DConvG4','DConvG8','DConvG16'
