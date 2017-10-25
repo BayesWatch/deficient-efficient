@@ -325,7 +325,6 @@ elif args.mode == 'KD':
     else:
         print('KD: Making a student network from scratch and training it...')
         student = WideResNet(args.wrn_depth, args.wrn_width, num_classes=num_classes, dropRate=0, convtype=conv, blocktype=args.block)
-    get_no_params(student)
     student = student.cuda()
     optimizer = optim.SGD(student.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
     # This bit is stupid but we need to decay the learning rate depending on the epoch
