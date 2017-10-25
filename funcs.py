@@ -27,7 +27,7 @@ def l1_loss(x):
     return torch.abs(x).mean()
 
 
-def get_no_params(net):
+def get_no_params(net, verbose=True):
 
     params = net.state_dict()
     tot= 0
@@ -36,17 +36,19 @@ def get_no_params(net):
         no = params[p].view(-1).__len__()
         tot += no
         if 'bn' not in p:
-            print('%s has %d params' % (p,no))
+            if verbose:
+                print('%s has %d params' % (p,no))
         if 'conv' in p:
             conv_tot += no
 
-    print('Net has %d conv params' % conv_tot)
-    print('Net has %d params in total' % tot)
+    if verbose:
+        print('Net has %d conv params' % conv_tot)
+        print('Net has %d params in total' % tot)
     return tot
 
 
 def eval(file):
     A = torch.load('checkpoints/%s.t7' % file)
     acc = A['acc']
-    params = get_no_params(A['net'])
+    params = get_no_params(A['net'],verbose=False)
     print('Accuracy %0.2f with %d params' %(acc,params))
