@@ -4,7 +4,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from tqdm import tqdm
 import torchvision
 import torchvision.transforms as transforms
 import json
@@ -12,6 +11,8 @@ import argparse
 from torch.autograd import Variable
 from models.wide_resnet import*
 import os
+from tqdm import tqdm
+
 from funcs import *
 parser = argparse.ArgumentParser(description='Student/teacher training')
 parser.add_argument('mode', choices=['KD','AT','teacher'], type=str, help='Learn with KD, AT, or train a teacher')
@@ -25,6 +26,7 @@ parser.add_argument('--wrn_depth', default=40, type=int, help='depth for WRN')
 parser.add_argument('--wrn_width', default=2, type=float, help='width for WRN')
 parser.add_argument('--block',default='Basic',type=str, help='blocktype')
 
+parser.add_argument('dataset', type=str, choices=['cifar10', 'cifar100'], help='Choose between Cifar10/100.')
 parser.add_argument('conv',
                     choices=['Conv','ConvB2','ConvB4','ConvB8','ConvB16','DConv',
                              'Conv2x2','DConvB2','DConvB4','DConvB8','DConvB16','DConv3D','DConvG2','DConvG4','DConvG8','DConvG16'
@@ -81,25 +83,48 @@ epoch_step = json.loads(args.epoch_step)
 
 # Data and loaders
 print('==> Preparing data..')
-transform_train = transforms.Compose([
-    transforms.RandomCrop(32, padding=4),
-    transforms.RandomHorizontalFlip(),
-    transforms.ToTensor(),
-    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-])
-transform_test = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-])
+if args.dataset == 'cifar10':
+    num_classes = 10
+    transform_train = transforms.Compose([
+        transforms.RandomCrop(32, padding=4),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    ])
+    transform_test = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    ])
 
-trainset = torchvision.datasets.CIFAR10(root='/disk/scratch/datasets/cifar',
-                                        train=True, download=False, transform=transform_train)
+    trainset = torchvision.datasets.CIFAR10(root='/disk/scratch/datasets/cifar',
+                                            train=True, download=False, transform=transform_train)
+    testset = torchvision.datasets.CIFAR10(root='/disk/scratch/datasets/cifar',
+                                           train=False, download=False, transform=transform_test)
+
+elif args.dataset == 'cifar100':
+    num_classes = 100
+    transform_train = transforms.Compose([
+        transforms.RandomCrop(32, padding=4),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize((0.5071, 0.4866, 0.4409), (0.2009, 0.1984, 0.2023)),
+    ])
+    transform_test = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.5071, 0.4866, 0.4409), (0.2009, 0.1984, 0.2023)),
+    ])
+
+    trainset = torchvision.datasets.CIFAR100(root='/disk/scratch/datasets/cifar100',
+                                            train=True, download=True, transform=transform_train)
+    testset = torchvision.datasets.CIFAR100(root='/disk/scratch/datasets/cifar100',
+                                           train=False, download=True, transform=transform_test)
+
+
+
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=2)
-testset = torchvision.datasets.CIFAR10(root='/disk/scratch/datasets/cifar',
-                                       train=False, download=False, transform=transform_test)
 testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
-criterion = nn.CrossEntropyLoss()
 
+criterion = nn.CrossEntropyLoss()
 
 def create_optimizer(lr,net):
     print('creating optimizer with lr = %0.5f' % lr)
@@ -264,7 +289,7 @@ if args.mode == 'teacher':
         teach = teach_checkpoint['net'].cuda()
     else:
         print('Mode Teacher: Making a teacher network from scratch and training it...')
-        teach = WideResNet(args.wrn_depth, args.wrn_width, dropRate=0, convtype=conv, blocktype=args.block).cuda()
+        teach = WideResNet(args.wrn_depth, args.wrn_width, num_classes=num_classes, dropRate=0, convtype=conv, blocktype=args.block).cuda()
 
 
     get_no_params(teach)
@@ -299,7 +324,7 @@ elif args.mode == 'KD':
         student = student_checkpoint['net']
     else:
         print('KD: Making a student network from scratch and training it...')
-        student = WideResNet(args.wrn_depth, args.wrn_width, dropRate=0, convtype=conv, blocktype=args.block)
+        student = WideResNet(args.wrn_depth, args.wrn_width, num_classes=num_classes, dropRate=0, convtype=conv, blocktype=args.block)
     get_no_params(student)
     student = student.cuda()
     optimizer = optim.SGD(student.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
@@ -321,7 +346,7 @@ elif args.mode == 'AT':
     print('AT (+optional KD): First, load a teacher network and convert for attention transfer')
     teach_checkpoint = torch.load('checkpoints/%s.t7' % args.teacher_checkpoint)
     state_dict_old = teach_checkpoint['net'].state_dict()
-    teach = WideResNetAT(teach_checkpoint['depth'], teach_checkpoint['width'], s=args.AT_split)
+    teach = WideResNetAT(teach_checkpoint['depth'], teach_checkpoint['width'], num_classes=num_classes, s=args.AT_split)
     state_dict_new = teach.state_dict()
     old_keys = [v for v in state_dict_old]
     new_keys = [v for v in state_dict_new]
@@ -343,7 +368,7 @@ elif args.mode == 'AT':
         student = student_checkpoint['net']
     else:
         print('Mode Student: Making a student network from scratch and training it...')
-        student = WideResNetAT(args.wrn_depth, args.wrn_width, dropRate=0, convtype=conv,
+        student = WideResNetAT(args.wrn_depth, args.wrn_width,  num_classes=num_classes, dropRate=0, convtype=conv,
                                s=args.AT_split, blocktype=args.block).cuda()
 
     student = student.cuda()
