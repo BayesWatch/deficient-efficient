@@ -48,6 +48,7 @@ def get_no_params(net, verbose=True):
 
 
 def eval(file):
+
     A = torch.load('checkpoints/%s.t7' % file)
     acc = A['acc']
     params = get_no_params(A['net'],verbose=False)
