@@ -51,4 +51,4 @@ def eval(file):
     A = torch.load('checkpoints/%s.t7' % file)
     acc = A['acc']
     params = get_no_params(A['net'],verbose=False)
-    print('Accuracy %0.2f with %d params' %(acc,params))
+    print('Accuracy %0.2f (Error %0.2f) with %d params' %(acc,100-acc,params))
