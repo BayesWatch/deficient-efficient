@@ -6,7 +6,7 @@ checkpoints
 tinker.py
 go.sh
 test.sh
-
+bash/
 # all python caches
 __pycache__
 
