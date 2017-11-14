@@ -601,7 +601,7 @@ class WideResNet(nn.Module):
         return self.fc(out)
 
 
-class WideResNetInt(WideResNet):
+class WideResNetAT3(WideResNet):
     # def __init__(self, depth, num_classes, widen_factor=1, dropRate=0.0):
     #     super(WideResNet, self).__init__(depth, num_classes, widen_factor, dropRate)
     def forward(self, x):
@@ -634,8 +634,6 @@ class WideResNetIntMap(WideResNet):
         out  = self.fc(out)
         return out, (self.map1(block1_out),self.map2(block2_out),self.map3(block3_out))
 
-
-WideResNetAT3 = WideResNetInt
 
 class WideResNetAT(nn.Module):
     def __init__(self, depth, widen_factor=1, num_classes=10, dropRate=0.0, convtype='Conv', s = 1,blocktype='Basic'):
