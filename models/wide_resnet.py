@@ -40,6 +40,7 @@ class ConvBottleneck(nn.Module):
 class GConvBottleneck(nn.Module):
     def __init__(self, in_planes, out_planes, bottleneck, group_split, stride=1, kernel_size=3, padding=1, bias=False):
         super(GConvBottleneck, self).__init__()
+        print(in_planes, type(in_planes), bottleneck, type(bottleneck))
         self.conv1x1_down = nn.Conv2d(in_planes, bottleneck, kernel_size=1, stride=1, padding=0, bias=bias)
         self.bn1 = nn.BatchNorm2d(bottleneck)
         self.conv = nn.Conv2d(bottleneck, bottleneck, kernel_size=kernel_size, stride=stride, padding=padding,
@@ -85,7 +86,7 @@ class G4B2(GConvBottleneck):
 
 class G8B2(GConvBottleneck):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
-        super(G8B2, self).__init__(in_planes, out_planes, bottleneck = out_planes / 2,group_split = 8,
+        super(G8B2, self).__init__(in_planes, out_planes, bottleneck = out_planes // 2,group_split = 8,
                                      stride=stride, kernel_size=kernel_size, padding=padding,
                                      bias=bias)
 
@@ -668,18 +669,18 @@ class WideResNetAT(nn.Module):
         # 1st block
         self.block1 = torch.nn.ModuleList()
         for i in range(s):
-            self.block1.append(NetworkBlock(n/s, nChannels[0] if i == 0 else nChannels[1],
+            self.block1.append(NetworkBlock(int(n/s), nChannels[0] if i == 0 else nChannels[1],
                                             nChannels[1], block, 1, dropRate, conv1))
 
         # 2nd block
         self.block2 = torch.nn.ModuleList()
         for i in range(s):
-            self.block2.append(NetworkBlock(n/s, nChannels[1] if i == 0 else nChannels[2],
+            self.block2.append(NetworkBlock(int(n/s), nChannels[1] if i == 0 else nChannels[2],
                                             nChannels[2], block, 2 if i == 0 else 1, dropRate, conv2))
         # 3rd block
         self.block3 = torch.nn.ModuleList()
         for i in range(s):
-            self.block3.append(NetworkBlock(n/s, nChannels[2] if i == 0 else nChannels[3],
+            self.block3.append(NetworkBlock(int(n/s), nChannels[2] if i == 0 else nChannels[3],
                                             nChannels[3], block, 2 if i == 0 else 1, dropRate, conv3))
         # global average pooling and classifier
         self.bn1 = nn.BatchNorm2d(nChannels[3])
