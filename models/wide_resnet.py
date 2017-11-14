@@ -43,8 +43,9 @@ class GConvBottleneck(nn.Module):
         print(in_planes, type(in_planes), bottleneck, type(bottleneck))
         self.conv1x1_down = nn.Conv2d(in_planes, bottleneck, kernel_size=1, stride=1, padding=0, bias=bias)
         self.bn1 = nn.BatchNorm2d(bottleneck)
+        print([(x,type(x)) for x in [bottleneck, bottleneck, kernel_size, stride, padding, bias, bottleneck//group_split]])
         self.conv = nn.Conv2d(bottleneck, bottleneck, kernel_size=kernel_size, stride=stride, padding=padding,
-                                      bias=bias, groups=bottleneck/group_split)
+                                      bias=bias, groups=bottleneck//group_split)
         self.bn2= nn.BatchNorm2d(bottleneck)
         self.conv1x1_up = nn.Conv2d(bottleneck, out_planes, kernel_size=1, stride=1, padding=0, bias=bias)
 
@@ -74,13 +75,13 @@ class AConvBottleneck(nn.Module):
 
 class G2B2(GConvBottleneck):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
-        super(G2B2, self).__init__(in_planes, out_planes, bottleneck = out_planes / 2,group_split = 2,
+        super(G2B2, self).__init__(in_planes, out_planes, bottleneck = out_planes // 2,group_split = 2,
                                      stride=stride, kernel_size=kernel_size, padding=padding,
                                      bias=bias)
 
 class G4B2(GConvBottleneck):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
-        super(G4B2, self).__init__(in_planes, out_planes, bottleneck = out_planes / 2,group_split = 4,
+        super(G4B2, self).__init__(in_planes, out_planes, bottleneck = out_planes // 2,group_split = 4,
                                      stride=stride, kernel_size=kernel_size, padding=padding,
                                      bias=bias)
 
@@ -92,57 +93,57 @@ class G8B2(GConvBottleneck):
 
 class G16B2(GConvBottleneck):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
-        super(G16B2, self).__init__(in_planes, out_planes, bottleneck = out_planes / 2,group_split = 16,
+        super(G16B2, self).__init__(in_planes, out_planes, bottleneck = out_planes // 2,group_split = 16,
                                      stride=stride, kernel_size=kernel_size, padding=padding,
                                      bias=bias)
 
 
 class A2B2(AConvBottleneck):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
-        super(A2B2, self).__init__(in_planes, out_planes, bottleneck = out_planes / 2,groups = 2,
+        super(A2B2, self).__init__(in_planes, out_planes, bottleneck = out_planes // 2,groups = 2,
                                      stride=stride, kernel_size=kernel_size, padding=padding,
                                      bias=bias)
 
 class A4B2(AConvBottleneck):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
-        super(A4B2, self).__init__(in_planes, out_planes, bottleneck = out_planes / 2,groups = 4,
+        super(A4B2, self).__init__(in_planes, out_planes, bottleneck = out_planes // 2,groups = 4,
                                      stride=stride, kernel_size=kernel_size, padding=padding,
                                      bias=bias)
 
 class A8B2(AConvBottleneck):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
-        super(A8B2, self).__init__(in_planes, out_planes, bottleneck = out_planes / 2,groups= 8,
+        super(A8B2, self).__init__(in_planes, out_planes, bottleneck = out_planes // 2,groups= 8,
                                      stride=stride, kernel_size=kernel_size, padding=padding,
                                      bias=bias)
 
 class A16B2(AConvBottleneck):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
-        super(A16B2, self).__init__(in_planes, out_planes, bottleneck = out_planes / 2,groups = 16,
+        super(A16B2, self).__init__(in_planes, out_planes, bottleneck = out_planes // 2,groups = 16,
                                      stride=stride, kernel_size=kernel_size, padding=padding,
                                      bias=bias)
 
 
 class G2B4(GConvBottleneck):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
-        super(G2B4, self).__init__(in_planes, out_planes, bottleneck = out_planes / 4,group_split = 2,
+        super(G2B4, self).__init__(in_planes, out_planes, bottleneck = out_planes // 4,group_split = 2,
                                      stride=stride, kernel_size=kernel_size, padding=padding,
                                      bias=bias)
 
 class G4B4(GConvBottleneck):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
-        super(G4B4, self).__init__(in_planes, out_planes, bottleneck = out_planes / 4,group_split = 4,
+        super(G4B4, self).__init__(in_planes, out_planes, bottleneck = out_planes // 4,group_split = 4,
                                      stride=stride, kernel_size=kernel_size, padding=padding,
                                      bias=bias)
 
 class G8B4(GConvBottleneck):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
-        super(G8B4, self).__init__(in_planes, out_planes, bottleneck = out_planes / 4,group_split = 8,
+        super(G8B4, self).__init__(in_planes, out_planes, bottleneck = out_planes // 4,group_split = 8,
                                      stride=stride, kernel_size=kernel_size, padding=padding,
                                      bias=bias)
 
 class G16B4(GConvBottleneck):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
-        super(G16B4, self).__init__(in_planes, out_planes, bottleneck = out_planes / 4,group_split = 16,
+        super(G16B4, self).__init__(in_planes, out_planes, bottleneck = out_planes // 4,group_split = 16,
                                      stride=stride, kernel_size=kernel_size, padding=padding,
                                      bias=bias)
 
@@ -150,28 +151,28 @@ class G16B4(GConvBottleneck):
 
 class ConvB2(ConvBottleneck):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
-        super(ConvB2, self).__init__(in_planes, out_planes, out_planes/2,
+        super(ConvB2, self).__init__(in_planes, out_planes, out_planes//2,
                 stride=stride, kernel_size=kernel_size, padding=padding,
                 bias=bias)
 
 
 class ConvB4(ConvBottleneck):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
-        super(ConvB4, self).__init__(in_planes, out_planes, out_planes/4,
+        super(ConvB4, self).__init__(in_planes, out_planes, out_planes//4,
                 stride=stride, kernel_size=kernel_size, padding=padding,
                 bias=bias)
 
 
 class ConvB8(ConvBottleneck):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
-        super(ConvB8, self).__init__(in_planes, out_planes, out_planes/8,
+        super(ConvB8, self).__init__(in_planes, out_planes, out_planes//8,
                 stride=stride, kernel_size=kernel_size, padding=padding,
                 bias=bias)
 
 
 class ConvB16(ConvBottleneck):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
-        super(ConvB16, self).__init__(in_planes, out_planes, out_planes/16,
+        super(ConvB16, self).__init__(in_planes, out_planes, out_planes//16,
                 stride=stride, kernel_size=kernel_size, padding=padding,
                 bias=bias)
 
@@ -204,25 +205,25 @@ class DConvG2(DConv):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
         super(DConvG2, self).__init__(in_planes, out_planes,
                 stride=stride, kernel_size=kernel_size, padding=padding,
-                bias=bias, groups=in_planes/2)
+                bias=bias, groups=in_planes//2)
 
 class DConvG4(DConv):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
         super(DConvG4, self).__init__(in_planes, out_planes,
                 stride=stride, kernel_size=kernel_size, padding=padding,
-                bias=bias, groups=in_planes/4)
+                bias=bias, groups=in_planes//4)
 
 class DConvG8(DConv):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
         super(DConvG8, self).__init__(in_planes, out_planes,
                 stride=stride, kernel_size=kernel_size, padding=padding,
-                bias=bias, groups=in_planes/8)
+                bias=bias, groups=in_planes//8)
 
 class DConvG16(DConv):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
         super(DConvG16, self).__init__(in_planes, out_planes,
                 stride=stride, kernel_size=kernel_size, padding=padding,
-                bias=bias, groups=in_planes/16)
+                bias=bias, groups=in_planes//16)
 
 
 class DConvA2(DConv):
@@ -268,25 +269,25 @@ class DConvBottleneck(nn.Module):
 
 class DConvB2(DConvBottleneck):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
-        super(DConvB2, self).__init__(in_planes, out_planes, out_planes/2,
+        super(DConvB2, self).__init__(in_planes, out_planes, out_planes//2,
                 stride=stride, kernel_size=kernel_size, padding=padding,
                 bias=bias)
 
 class DConvB4(DConvBottleneck):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
-        super(DConvB4, self).__init__(in_planes, out_planes, out_planes/4,
+        super(DConvB4, self).__init__(in_planes, out_planes, out_planes//4,
                 stride=stride, kernel_size=kernel_size, padding=padding,
                 bias=bias)
 
 class DConvB8(DConvBottleneck):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
-        super(DConvB8, self).__init__(in_planes, out_planes, out_planes/8,
+        super(DConvB8, self).__init__(in_planes, out_planes, out_planes//8,
                 stride=stride, kernel_size=kernel_size, padding=padding,
                 bias=bias)
 
 class DConvB16(DConvBottleneck):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
-        super(DConvB16, self).__init__(in_planes, out_planes, out_planes/16,
+        super(DConvB16, self).__init__(in_planes, out_planes, out_planes//16,
                 stride=stride, kernel_size=kernel_size, padding=padding,
                 bias=bias)
 
@@ -583,7 +584,7 @@ class WideResNet(nn.Module):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                m.weight.data.normal_(0, math.sqrt(2. / n))
+                m.weight.data.normal_(0, math.sqrt(2. // n))
             elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
@@ -667,18 +668,18 @@ class WideResNetAT(nn.Module):
         # 1st block
         self.block1 = torch.nn.ModuleList()
         for i in range(s):
-            self.block1.append(NetworkBlock(int(n/s), nChannels[0] if i == 0 else nChannels[1],
+            self.block1.append(NetworkBlock(int(n//s), nChannels[0] if i == 0 else nChannels[1],
                                             nChannels[1], block, 1, dropRate, conv1))
 
         # 2nd block
         self.block2 = torch.nn.ModuleList()
         for i in range(s):
-            self.block2.append(NetworkBlock(int(n/s), nChannels[1] if i == 0 else nChannels[2],
+            self.block2.append(NetworkBlock(int(n//s), nChannels[1] if i == 0 else nChannels[2],
                                             nChannels[2], block, 2 if i == 0 else 1, dropRate, conv2))
         # 3rd block
         self.block3 = torch.nn.ModuleList()
         for i in range(s):
-            self.block3.append(NetworkBlock(int(n/s), nChannels[2] if i == 0 else nChannels[3],
+            self.block3.append(NetworkBlock(int(n//s), nChannels[2] if i == 0 else nChannels[3],
                                             nChannels[3], block, 2 if i == 0 else 1, dropRate, conv3))
         # global average pooling and classifier
         self.bn1 = nn.BatchNorm2d(nChannels[3])
@@ -689,7 +690,7 @@ class WideResNetAT(nn.Module):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                m.weight.data.normal_(0, math.sqrt(2. / n))
+                m.weight.data.normal_(0, math.sqrt(2. // n))
             elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
@@ -716,15 +717,6 @@ class WideResNetAT(nn.Module):
         out = F.avg_pool2d(out, 8)
         out = out.view(-1, self.nChannels)
         return self.fc(out), activations
-
-
-
-
-
-
-
-
-
 
 
 def test():
