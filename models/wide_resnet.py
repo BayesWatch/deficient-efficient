@@ -40,10 +40,8 @@ class ConvBottleneck(nn.Module):
 class GConvBottleneck(nn.Module):
     def __init__(self, in_planes, out_planes, bottleneck, group_split, stride=1, kernel_size=3, padding=1, bias=False):
         super(GConvBottleneck, self).__init__()
-        print(in_planes, type(in_planes), bottleneck, type(bottleneck))
         self.conv1x1_down = nn.Conv2d(in_planes, bottleneck, kernel_size=1, stride=1, padding=0, bias=bias)
         self.bn1 = nn.BatchNorm2d(bottleneck)
-        print([(x,type(x)) for x in [bottleneck, bottleneck, kernel_size, stride, padding, bias, bottleneck//group_split]])
         self.conv = nn.Conv2d(bottleneck, bottleneck, kernel_size=kernel_size, stride=stride, padding=padding,
                                       bias=bias, groups=bottleneck//group_split)
         self.bn2= nn.BatchNorm2d(bottleneck)
