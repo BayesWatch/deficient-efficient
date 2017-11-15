@@ -1,4 +1,4 @@
-''''Writing everything into one script..'''
+''''Teach the student iteratively, using the teacher activations as input.'''
 from __future__ import print_function
 import torch
 import torch.nn as nn
@@ -14,9 +14,9 @@ import os
 from tqdm import tqdm
 
 from funcs import *
+
 parser = argparse.ArgumentParser(description='Student/teacher training')
 parser.add_argument('dataset', type=str, choices=['cifar10', 'cifar100'], help='Choose between Cifar10/100.')
-parser.add_argument('mode', choices=['KD','AT','teacher'], type=str, help='Learn with KD, AT, or train a teacher')
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
 parser.add_argument('--GPU', default='3', type=str,help='GPU to use')
 parser.add_argument('--student_checkpoint', '-s', default='wrn_40_2_student_KT',type=str, help='checkpoint to save/load student')
@@ -52,51 +52,33 @@ parser.add_argument('--weightDecay', default=0.0005, type=float)
 
 args = parser.parse_args()
 
+criterion = nn.CrossEntropyLoss()
+sqerror = nn.MSELoss()
 
-def create_optimizer(lr,net):
+def create_optimizer(lr, net):
     print('creating optimizer with lr = %0.5f' % lr)
     return torch.optim.SGD(net.parameters(), lr, 0.9, weight_decay=args.weightDecay)
 
-
-def train_teacher(net):
-    net.train()
-    train_loss = 0
-    correct = 0
-    total = 0
-    for batch_idx, (inputs, targets) in enumerate(tqdm(trainloader)):
-        if use_cuda:
-            inputs, targets = inputs.cuda(), targets.cuda()
-        optimizer.zero_grad()
-        inputs, targets = Variable(inputs), Variable(targets)
-        outputs = net(inputs)
-        loss = criterion(outputs, targets)
-        loss.backward()
-        optimizer.step()
-
-        train_loss += loss.data[0]
-        _, predicted = torch.max(outputs.data, 1)
-        total += targets.size(0)
-        correct += predicted.eq(targets.data).cpu().sum()
-
-    train_losses.append(train_loss/(batch_idx+1))
-    train_accs.append(100.*correct/total)
-
-    print('\nTrain Loss: %.3f | Acc: %.3f%% (%d/%d)'
-    % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
-
-
-def train_student_KD(net, teach):
+def train_student(net, teach):
+    """Trains the student, iteratively"""
     net.train()
     teach.eval()
     train_loss = 0
+    activation_loss = 0
     correct = 0
     total = 0
     for batch_idx, (inputs, targets) in enumerate(tqdm(trainloader)):
         inputs = Variable(inputs.cuda())
         targets = Variable(targets.cuda())
-        outputs_student = net(inputs)
-        outputs_teacher = teach(inputs)
-        loss = distillation(outputs_student, outputs_teacher, targets, args.temperature, args.alpha)
+        outputs_teacher, ints_teacher = teach(inputs)
+        #outputs_student, ints_student = net(inputs)
+        outputs_student = partial_fprop(net, ints_teacher[-1], 2)
+
+        # If alpha is 0 then this loss is just a cross entropy.
+        loss = distillation(outputs_student, outputs_teacher, targets, args.temperature, 1.0)
+
+        #Add an attention tranfer loss for each intermediate. Let's assume the default is three (as in the original
+        #paper) and adjust the beta term accordingly.
 
         optimizer.zero_grad()
         loss.backward()
@@ -107,11 +89,17 @@ def train_student_KD(net, teach):
         total += targets.size(0)
         correct += predicted.eq(targets.data).cpu().sum()
 
-    print('\nLoss: %.3f | Acc: %.3f%% (%d/%d)\n' % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
+        for i,a in enumerate([inputs]+ints_teacher[:-1]):
+            outputs_student = partial_fprop(net, a, i-1)
+            loss = sqerror(outputs_student, ints_teacher[i])
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            activation_loss += loss.data[0]
 
+    #print(len(ints_student))
+    print('\nLoss: %.3f | Activation Match: %.3f | Acc: %.3f%% (%d/%d)\n' % (train_loss/(batch_idx+1), activation_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
-
-# Training the student
 def train_student_AT(net, teach):
     net.train()
     teach.eval()
@@ -144,7 +132,6 @@ def train_student_AT(net, teach):
         correct += predicted.eq(targets.data).cpu().sum()
     print(len(ints_student))
     print('\nLoss: %.3f | Acc: %.3f%% (%d/%d)\n' % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
-
 
 def test(net, checkpoint=None):
     global best_acc
@@ -198,12 +185,12 @@ def test(net, checkpoint=None):
 
 
 def decay_optimizer_lr(optimizer, decay_rate):
-
     # callback to set the learning rate in an optimizer, without rebuilding the whole optimizer
     for param_group in optimizer.param_groups:
         param_group['lr'] = param_group['lr'] * decay_rate
     return optimizer
 
+# Stuff happens from here:
 if __name__ == '__main__':
     # Stuff happens from here:
     if args.conv != 'custom':
@@ -280,111 +267,53 @@ if __name__ == '__main__':
 
     criterion = nn.CrossEntropyLoss()
 
-
-    if args.mode == 'teacher':
-
-        if args.resume:
-            print('Mode Teacher: Loading teacher and continuing training...')
-            teach_checkpoint = torch.load('checkpoints/%s.t7' % args.teacher_checkpoint)
-            start_epoch = teach_checkpoint['epoch']
-            teach = teach_checkpoint['net'].cuda()
-        else:
-            print('Mode Teacher: Making a teacher network from scratch and training it...')
-            teach = WideResNet(args.wrn_depth, args.wrn_width, num_classes=num_classes, dropRate=0, convtype=conv, blocktype=args.block).cuda()
-
-
-        get_no_params(teach)
-        optimizer = optim.SGD(teach.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
-
-        # This bit is stupid but we need to decay the learning rate depending on the epoch
-        for e in range(0,start_epoch):
-            if e in epoch_step:
-                optimizer = decay_optimizer_lr(optimizer, args.lr_decay_ratio)
-
-        for epoch in tqdm(range(start_epoch, args.epochs)):
-            print('Teacher Epoch %d:' % epoch)
-            print('Learning rate is %s' % [v['lr'] for v in optimizer.param_groups][0])
-            if epoch in epoch_step:
-                optimizer = decay_optimizer_lr(optimizer, args.lr_decay_ratio)
-            train_teacher(teach)
-            test(teach, args.teacher_checkpoint)
-
-    elif args.mode == 'KD':
-        print('Mode Student: First, load a teacher network and check it performs decently...,')
-        teach_checkpoint = torch.load('checkpoints/%s.t7' % args.teacher_checkpoint)
-        teach = teach_checkpoint['net']
-        teach = teach.cuda()
-        # Very important to explicitly say we require no gradients for the teacher network
-        for param in teach.parameters():
-            param.requires_grad = False
-        test(teach)
-        if args.resume:
-            print('KD: Loading student and continuing training...')
-            student_checkpoint = torch.load('checkpoints/%s.t7' % args.student_checkpoint)
-            start_epoch = student_checkpoint['epoch']
-            student = student_checkpoint['net']
-        else:
-            print('KD: Making a student network from scratch and training it...')
-            student = WideResNet(args.wrn_depth, args.wrn_width, num_classes=num_classes, dropRate=0, convtype=conv, blocktype=args.block)
-        student = student.cuda()
-        optimizer = optim.SGD(student.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
-        # This bit is stupid but we need to decay the learning rate depending on the epoch
-        for e in range(0, start_epoch):
-            if e in epoch_step:
-                optimizer = decay_optimizer_lr(optimizer, args.lr_decay_ratio)
-
-        for epoch in tqdm(range(start_epoch, args.epochs)):
-            print('Student Epoch %d:' % epoch)
-            print('Learning rate is %s' % [v['lr'] for v in optimizer.param_groups][0])
-            if epoch in epoch_step:
-                optimizer = decay_optimizer_lr(optimizer, args.lr_decay_ratio)
-            train_student_KD(student, teach)
-            test(student, args.student_checkpoint)
-
-
-    elif args.mode == 'AT':
-        print('AT (+optional KD): First, load a teacher network and convert for attention transfer')
+    print('Loading teacher...')
+    teach = WideResNetAT(int(args.wrn_depth), int(args.wrn_width), num_classes=num_classes, s=args.AT_split)
+    if os.path.exists('state_dicts/%s.t7' % args.teacher_checkpoint):
+        state_dict_new = torch.load('state_dicts/%s.t7' % args.teacher_checkpoint)
+    else:
         teach_checkpoint = torch.load('checkpoints/%s.t7' % args.teacher_checkpoint)
         state_dict_old = teach_checkpoint['net'].state_dict()
-        teach = WideResNetAT(int(teach_checkpoint['depth']), int(teach_checkpoint['width']), num_classes=num_classes, s=args.AT_split)
         state_dict_new = teach.state_dict()
         old_keys = [v for v in state_dict_old]
         new_keys = [v for v in state_dict_new]
         for i,_ in enumerate(state_dict_old):
             state_dict_new[new_keys[i]] = state_dict_old[old_keys[i]]
+        torch.save(state_dict_new, 'state_dicts/%s.t7' % args.teacher_checkpoint)
 
+    teach.load_state_dict(state_dict_new)
+    teach = teach.cuda()
+    # Very important to explicitly say we require no gradients for the teacher network
+    for param in teach.parameters():
+        param.requires_grad = False
+    #print("Testing teacher...")
+    #test(teach)
 
-        teach.load_state_dict(state_dict_new)
-        teach = teach.cuda()
-        # Very important to explicitly say we require no gradients for the teacher network
-        for param in teach.parameters():
-            param.requires_grad = False
-        test(teach)
+    if args.resume:
+        print('Mode Student: Loading student and continuing training...')
+        student_checkpoint = torch.load('checkpoints/%s.t7' % args.student_checkpoint)
+        start_epoch = student_checkpoint['epoch']
+        student = student_checkpoint['net']
+    else:
+        print('Mode Student: Making a student network from scratch and training it...')
+        student = WideResNetAT(args.wrn_depth, args.wrn_width,  num_classes=num_classes, dropRate=0, convtype=conv,
+                               s=args.AT_split, blocktype=args.block).cuda()
 
-        if args.resume:
-            print('Mode Student: Loading student and continuing training...')
-            student_checkpoint = torch.load('checkpoints/%s.t7' % args.student_checkpoint)
-            start_epoch = student_checkpoint['epoch']
-            student = student_checkpoint['net']
+    student = student.cuda()
+    optimizer = optim.SGD(student.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
+
+    # This bit is stupid but we need to decay the learning rate depending on the epoch
+    for e in range(0, start_epoch):
+        if e in epoch_step:
+            optimizer = decay_optimizer_lr(optimizer, args.lr_decay_ratio)
+
+    for epoch in tqdm(range(start_epoch, args.epochs)):
+        print('Student Epoch %d:' % epoch)
+        print('Learning rate is %s' % [v['lr'] for v in optimizer.param_groups][0])
+        if epoch in epoch_step:
+            optimizer = decay_optimizer_lr(optimizer, args.lr_decay_ratio)
+        if epoch < 3:
+            train_student(student, teach)
         else:
-            print('Mode Student: Making a student network from scratch and training it...')
-            student = WideResNetAT(args.wrn_depth, args.wrn_width,  num_classes=num_classes, dropRate=0, convtype=conv,
-                                   s=args.AT_split, blocktype=args.block).cuda()
-
-        student = student.cuda()
-        optimizer = optim.SGD(student.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
-
-        # This bit is stupid but we need to decay the learning rate depending on the epoch
-        for e in range(0, start_epoch):
-            if e in epoch_step:
-                optimizer = decay_optimizer_lr(optimizer, args.lr_decay_ratio)
-
-        for epoch in tqdm(range(start_epoch, args.epochs)):
-            print('Student Epoch %d:' % epoch)
-            print('Learning rate is %s' % [v['lr'] for v in optimizer.param_groups][0])
-            if epoch in epoch_step:
-                optimizer = decay_optimizer_lr(optimizer, args.lr_decay_ratio)
             train_student_AT(student, teach)
-            test(student, args.student_checkpoint)
-
-
+        test(student, args.student_checkpoint)
