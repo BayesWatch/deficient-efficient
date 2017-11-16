@@ -57,3 +57,21 @@ a substitute for the full convolutions in the full network:
 python main.py cifar10 AT --conv G8B2 -t wrn_40_2.ckpt -s wrn_40_2.g8b2.student.ckpt --wrn_depth 40 --wrn_width 2
 ```
 
+# Custom Blocks
+
+Say you've come up with some alternative convolution or block structure,
+and you want to plug it into this code and see how well it performs when
+trained with attention transfer using a good teacher model. To do that, all
+you have to do is write a python file with `nn.Module` child objects
+named `Conv` and (optionally) `Block`. If `Block` is not defined, we will
+default to whatever the `blocktype` option is.
+
+To use this, you no longer need to specify `--conv`, but can just specify
+the name of this module file:
+
+```
+python main.py <DATASET> AT --module <YOUR-FILE.py> -t <EXISTING TEACHER CHECKPOINT> -s <STUDENT CHECKPOINT> --wrn_depth <STUDENT_DEPTH> --wrn_width <STUDENT_WIDTH>
+```
+
+To see what interface your modules must present, look at `dummy_module.py`
+for an example.
