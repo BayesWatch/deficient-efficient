@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 
 # wildcard import for legacy reasons
-from blocks import *
+from .blocks import *
 
 def parse_options(convtype, blocktype):
     # legacy cmdline argument parsing

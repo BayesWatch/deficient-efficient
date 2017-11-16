@@ -9,11 +9,13 @@ import torchvision.transforms as transforms
 import json
 import argparse
 from torch.autograd import Variable
-from models.wide_resnet import*
+from models.wide_resnet import WideResNet, parse_options
 import os
+import imp
 from tqdm import tqdm
 
 from funcs import *
+
 parser = argparse.ArgumentParser(description='Student/teacher training')
 parser.add_argument('dataset', type=str, choices=['cifar10', 'cifar100'], help='Choose between Cifar10/100.')
 parser.add_argument('mode', choices=['KD','AT','teacher'], type=str, help='Learn with KD, AT, or train a teacher')
@@ -25,14 +27,13 @@ parser.add_argument('--teacher_checkpoint', '-t', default='cifar100_T',type=str,
 #network stuff
 parser.add_argument('--wrn_depth', default=40, type=int, help='depth for WRN')
 parser.add_argument('--wrn_width', default=2, type=float, help='width for WRN')
-parser.add_argument('--block',default='Basic',type=str, help='blocktype')
-
-parser.add_argument('conv',
+parser.add_argument('--module', default=None, type=str, help='path to file containing custom Conv and maybe Block module definitions')
+parser.add_argument('--blocktype', default='Basic',type=str, help='blocktype used if specify a --conv')
+parser.add_argument('--conv',
                     choices=['Conv','ConvB2','ConvB4','ConvB8','ConvB16','DConv',
                              'Conv2x2','DConvB2','DConvB4','DConvB8','DConvB16','DConv3D','DConvG2','DConvG4','DConvG8','DConvG16'
                         ,'custom','DConvA2','DConvA4','DConvA8','DConvA16','G2B2','G2B4','G4B2','G4B4','G8B2','G8B4','G16B2','G16B4','A2B2','A4B2','A8B2','A16B2'],
-                    type=str, help='Conv type')
-parser.add_argument('--customconv',default=['Conv_Conv_ConvB16'],type=str)
+                    default=None, type=str, help='Conv type')
 parser.add_argument('--AT_split', default=1, type=int, help='group splitting for AT loss')
 
 #learning stuff
@@ -68,7 +69,7 @@ def train_teacher(net):
             inputs, targets = inputs.cuda(), targets.cuda()
         optimizer.zero_grad()
         inputs, targets = Variable(inputs), Variable(targets)
-        outputs = net(inputs)
+        outputs, _ = net(inputs)
         loss = criterion(outputs, targets)
         loss.backward()
         optimizer.step()
@@ -94,8 +95,8 @@ def train_student_KD(net, teach):
     for batch_idx, (inputs, targets) in enumerate(tqdm(trainloader)):
         inputs = Variable(inputs.cuda())
         targets = Variable(targets.cuda())
-        outputs_student = net(inputs)
-        outputs_teacher = teach(inputs)
+        outputs_student, _ = net(inputs)
+        outputs_teacher, _ = teach(inputs)
         loss = distillation(outputs_student, outputs_teacher, targets, args.temperature, args.alpha)
 
         optimizer.zero_grad()
@@ -156,7 +157,7 @@ def test(net, checkpoint=None):
 
         inputs, targets = inputs.cuda(), targets.cuda()
         inputs, targets = Variable(inputs, volatile=True), Variable(targets)
-        outputs = net(inputs)
+        outputs, _ = net(inputs)
         if isinstance(outputs,tuple):
             outputs = outputs[0]
 
@@ -181,13 +182,13 @@ def test(net, checkpoint=None):
 
         print('Saving..')
         state = {
-            'net': net,
+            'net': net.state_dict(),
             'acc': acc,
             'epoch': epoch,
             'best_acc': best_acc,
             'width': args.wrn_width,
             'depth': args.wrn_depth,
-            'conv_type': conv,
+            'conv_type': args.conv if args.conv is not None else args.module,
             'train_losses': train_losses,
             'train_accs': train_accs,
             'test_losses': test_losses,
@@ -198,7 +199,6 @@ def test(net, checkpoint=None):
 
 
 def decay_optimizer_lr(optimizer, decay_rate):
-
     # callback to set the learning rate in an optimizer, without rebuilding the whole optimizer
     for param_group in optimizer.param_groups:
         param_group['lr'] = param_group['lr'] * decay_rate
@@ -206,19 +206,26 @@ def decay_optimizer_lr(optimizer, decay_rate):
 
 if __name__ == '__main__':
     # Stuff happens from here:
-    if args.conv != 'custom':
-        conv = args.conv
+    if args.conv is not None:
+        Conv, Block = parse_options(args.conv, args.blocktype)
+    elif args.module is not None:
+        conv_module = imp.new_module('conv')
+        with open(args.module, 'r') as f:
+            exec(f.read(), conv_module.__dict__)
+        Conv = conv_module.Conv
+        try:
+            Block = conv_module.Block
+        except AttributeError:
+            # if the module doesn't implement a custom block,
+            # use default option
+            _, Block = parse_options('Conv', args.blocktype)
     else:
-        conv = args.customconv.split('_')
-
-    print(conv)
+        raise ValueError("You must specify either an existing conv option, or supply your own module to import")
 
     if args.aux_loss == 'AT':
         aux_loss = at_loss
     elif args.aux_loss == 'SE':
         aux_loss = se_loss
-
-    print(aux_loss)
 
     print(vars(args))
     os.environ["CUDA_VISIBLE_DEVICES"] = args.GPU
@@ -280,17 +287,21 @@ if __name__ == '__main__':
 
     criterion = nn.CrossEntropyLoss()
 
+    def load_network(loc):
+        net_checkpoint = torch.load(loc)
+        start_epoch = net_checkpoint['epoch']
+        net = WideResNet(args.wrn_depth, args.wrn_width, Conv, Block, num_classes=num_classes, dropRate=0).cuda()
+        net.load_state_dict(net_checkpoint['net'])
+        return net, start_epoch
 
     if args.mode == 'teacher':
 
         if args.resume:
             print('Mode Teacher: Loading teacher and continuing training...')
-            teach_checkpoint = torch.load('checkpoints/%s.t7' % args.teacher_checkpoint)
-            start_epoch = teach_checkpoint['epoch']
-            teach = teach_checkpoint['net'].cuda()
+            teach, start_epoch = load_network('checkpoints/%s.t7' % args.teacher_checkpoint)
         else:
             print('Mode Teacher: Making a teacher network from scratch and training it...')
-            teach = WideResNet(args.wrn_depth, args.wrn_width, num_classes=num_classes, dropRate=0, convtype=conv, blocktype=args.block).cuda()
+            teach = WideResNet(args.wrn_depth, args.wrn_width, Conv, Block, num_classes=num_classes, dropRate=0).cuda()
 
 
         get_no_params(teach)
@@ -311,22 +322,17 @@ if __name__ == '__main__':
 
     elif args.mode == 'KD':
         print('Mode Student: First, load a teacher network and check it performs decently...,')
-        teach_checkpoint = torch.load('checkpoints/%s.t7' % args.teacher_checkpoint)
-        teach = teach_checkpoint['net']
-        teach = teach.cuda()
+        teach, start_epoch = load_network('checkpoints/%s.t7' % args.teacher_checkpoint)
         # Very important to explicitly say we require no gradients for the teacher network
         for param in teach.parameters():
             param.requires_grad = False
         test(teach)
         if args.resume:
             print('KD: Loading student and continuing training...')
-            student_checkpoint = torch.load('checkpoints/%s.t7' % args.student_checkpoint)
-            start_epoch = student_checkpoint['epoch']
-            student = student_checkpoint['net']
+            student, start_epoch = load_network('checkpoints/%s.t7' % args.student_checkpoint)
         else:
             print('KD: Making a student network from scratch and training it...')
-            student = WideResNet(args.wrn_depth, args.wrn_width, num_classes=num_classes, dropRate=0, convtype=conv, blocktype=args.block)
-        student = student.cuda()
+            student = WideResNet(args.wrn_depth, args.wrn_width, Conv, Block, num_classes=num_classes, dropRate=0).cuda()
         optimizer = optim.SGD(student.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
         # This bit is stupid but we need to decay the learning rate depending on the epoch
         for e in range(0, start_epoch):
@@ -344,18 +350,7 @@ if __name__ == '__main__':
 
     elif args.mode == 'AT':
         print('AT (+optional KD): First, load a teacher network and convert for attention transfer')
-        teach_checkpoint = torch.load('checkpoints/%s.t7' % args.teacher_checkpoint)
-        state_dict_old = teach_checkpoint['net'].state_dict()
-        teach = WideResNetAT(int(teach_checkpoint['depth']), int(teach_checkpoint['width']), num_classes=num_classes, s=args.AT_split)
-        state_dict_new = teach.state_dict()
-        old_keys = [v for v in state_dict_old]
-        new_keys = [v for v in state_dict_new]
-        for i,_ in enumerate(state_dict_old):
-            state_dict_new[new_keys[i]] = state_dict_old[old_keys[i]]
-
-
-        teach.load_state_dict(state_dict_new)
-        teach = teach.cuda()
+        teach, start_epoch = load_network('checkpoints/%s.t7' % args.teacher_checkpoint)
         # Very important to explicitly say we require no gradients for the teacher network
         for param in teach.parameters():
             param.requires_grad = False
@@ -363,15 +358,13 @@ if __name__ == '__main__':
 
         if args.resume:
             print('Mode Student: Loading student and continuing training...')
-            student_checkpoint = torch.load('checkpoints/%s.t7' % args.student_checkpoint)
-            start_epoch = student_checkpoint['epoch']
-            student = student_checkpoint['net']
+            student, start_epoch = load_network('checkpoints/%s.t7' % args.student_checkpoint)
         else:
             print('Mode Student: Making a student network from scratch and training it...')
-            student = WideResNetAT(args.wrn_depth, args.wrn_width,  num_classes=num_classes, dropRate=0, convtype=conv,
-                                   s=args.AT_split, blocktype=args.block).cuda()
+            student = WideResNet(args.wrn_depth, args.wrn_width, Conv, Block,
+                    num_classes=num_classes, dropRate=0,
+                    s=args.AT_split).cuda()
 
-        student = student.cuda()
         optimizer = optim.SGD(student.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
 
         # This bit is stupid but we need to decay the learning rate depending on the epoch
@@ -386,5 +379,4 @@ if __name__ == '__main__':
                 optimizer = decay_optimizer_lr(optimizer, args.lr_decay_ratio)
             train_student_AT(student, teach)
             test(student, args.student_checkpoint)
-
 
