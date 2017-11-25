@@ -188,7 +188,9 @@ def test(net, checkpoint=None):
             'best_acc': best_acc,
             'width': args.wrn_width,
             'depth': args.wrn_depth,
-            'conv_type': args.conv if args.conv is not None else args.module,
+            'conv': args.conv,
+            'blocktype': args.blocktype,
+            'module': args.module,
             'train_losses': train_losses,
             'train_accs': train_accs,
             'test_losses': test_losses,
@@ -206,21 +208,24 @@ def decay_optimizer_lr(optimizer, decay_rate):
 
 if __name__ == '__main__':
     # Stuff happens from here:
-    if args.conv is not None:
-        Conv, Block = parse_options(args.conv, args.blocktype)
-    elif args.module is not None:
-        conv_module = imp.new_module('conv')
-        with open(args.module, 'r') as f:
-            exec(f.read(), conv_module.__dict__)
-        Conv = conv_module.Conv
-        try:
-            Block = conv_module.Block
-        except AttributeError:
-            # if the module doesn't implement a custom block,
-            # use default option
-            _, Block = parse_options('Conv', args.blocktype)
-    else:
-        raise ValueError("You must specify either an existing conv option, or supply your own module to import")
+    def what_conv_block(conv, blocktype, module):
+        if conv is not None:
+            Conv, Block = parse_options(conv, blocktype)
+        elif module is not None:
+            conv_module = imp.new_module('conv')
+            with open(module, 'r') as f:
+                exec(f.read(), conv_module.__dict__)
+            Conv = conv_module.Conv
+            try:
+                Block = conv_module.Block
+            except AttributeError:
+                # if the module doesn't implement a custom block,
+                # use default option
+                _, Block = parse_options('Conv', args.blocktype)
+        else:
+            raise ValueError("You must specify either an existing conv option, or supply your own module to import")
+        return Conv, Block
+    Conv, Block = what_conv_block(args.conv, args.blocktype, args.module)
 
     if args.aux_loss == 'AT':
         aux_loss = at_loss
@@ -290,7 +295,9 @@ if __name__ == '__main__':
     def load_network(loc):
         net_checkpoint = torch.load(loc)
         start_epoch = net_checkpoint['epoch']
-        net = WideResNet(args.wrn_depth, args.wrn_width, Conv, Block, num_classes=num_classes, dropRate=0).cuda()
+        SavedConv, SavedBlock = what_conv_block(net_checkpoint['conv'],
+                net_checkpoint['blocktype'], net_checkpoint['module'])
+        net = WideResNet(args.wrn_depth, args.wrn_width, SavedConv, SavedBlock, num_classes=num_classes, dropRate=0).cuda()
         net.load_state_dict(net_checkpoint['net'])
         return net, start_epoch
 
