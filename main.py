@@ -206,25 +206,26 @@ def decay_optimizer_lr(optimizer, decay_rate):
         param_group['lr'] = param_group['lr'] * decay_rate
     return optimizer
 
+def what_conv_block(conv, blocktype, module):
+    if conv is not None:
+        Conv, Block = parse_options(conv, blocktype)
+    elif module is not None:
+        conv_module = imp.new_module('conv')
+        with open(module, 'r') as f:
+            exec(f.read(), conv_module.__dict__)
+        Conv = conv_module.Conv
+        try:
+            Block = conv_module.Block
+        except AttributeError:
+            # if the module doesn't implement a custom block,
+            # use default option
+            _, Block = parse_options('Conv', args.blocktype)
+    else:
+        raise ValueError("You must specify either an existing conv option, or supply your own module to import")
+    return Conv, Block
+
 if __name__ == '__main__':
     # Stuff happens from here:
-    def what_conv_block(conv, blocktype, module):
-        if conv is not None:
-            Conv, Block = parse_options(conv, blocktype)
-        elif module is not None:
-            conv_module = imp.new_module('conv')
-            with open(module, 'r') as f:
-                exec(f.read(), conv_module.__dict__)
-            Conv = conv_module.Conv
-            try:
-                Block = conv_module.Block
-            except AttributeError:
-                # if the module doesn't implement a custom block,
-                # use default option
-                _, Block = parse_options('Conv', args.blocktype)
-        else:
-            raise ValueError("You must specify either an existing conv option, or supply your own module to import")
-        return Conv, Block
     Conv, Block = what_conv_block(args.conv, args.blocktype, args.module)
 
     if args.aux_loss == 'AT':
@@ -261,12 +262,10 @@ if __name__ == '__main__':
             transforms.ToTensor(),
             transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
         ])
-
         trainset = torchvision.datasets.CIFAR10(root='/disk/scratch/datasets/cifar',
                                                 train=True, download=False, transform=transform_train)
         testset = torchvision.datasets.CIFAR10(root='/disk/scratch/datasets/cifar',
                                                train=False, download=False, transform=transform_test)
-
     elif args.dataset == 'cifar100':
         num_classes = 100
         transform_train = transforms.Compose([
@@ -279,13 +278,10 @@ if __name__ == '__main__':
             transforms.ToTensor(),
             transforms.Normalize((0.5071, 0.4866, 0.4409), (0.2009, 0.1984, 0.2023)),
         ])
-
         trainset = torchvision.datasets.CIFAR100(root='/disk/scratch/datasets/cifar100',
                                                 train=True, download=True, transform=transform_train)
         testset = torchvision.datasets.CIFAR100(root='/disk/scratch/datasets/cifar100',
                                                train=False, download=True, transform=transform_test)
-
-
 
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=2)
     testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
