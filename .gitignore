@@ -10,3 +10,4 @@ bash/
 # all python caches
 __pycache__
 state_dicts/
+logs

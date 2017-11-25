@@ -9,11 +9,14 @@ import torchvision.transforms as transforms
 import json
 import argparse
 from torch.autograd import Variable
-from models.wide_resnet import*
+from models.wide_resnet import WideResNet, parse_options
 import os
 from tqdm import tqdm
 
 from funcs import *
+
+# for logging
+from tensorboardX import SummaryWriter
 
 parser = argparse.ArgumentParser(description='Student/teacher training')
 parser.add_argument('dataset', type=str, choices=['cifar10', 'cifar100'], help='Choose between Cifar10/100.')
@@ -21,10 +24,11 @@ parser.add_argument('--resume', '-r', action='store_true', help='resume from che
 parser.add_argument('--GPU', default='3', type=str,help='GPU to use')
 parser.add_argument('--student_checkpoint', '-s', default='wrn_40_2_student_KT',type=str, help='checkpoint to save/load student')
 parser.add_argument('--teacher_checkpoint', '-t', default='cifar100_T',type=str, help='checkpoint to load in teacher')
+parser.add_argument('--logdir', default='logs', type=str, help='where to write logs')
 
 #network stuff
 parser.add_argument('--wrn_depth', default=40, type=int, help='depth for WRN')
-parser.add_argument('--wrn_width', default=2, type=float, help='width for WRN')
+parser.add_argument('--wrn_width', default=2, type=int, help='width for WRN')
 parser.add_argument('--block',default='Basic',type=str, help='blocktype')
 
 parser.add_argument('conv',
@@ -53,18 +57,27 @@ parser.add_argument('--weightDecay', default=0.0005, type=float)
 args = parser.parse_args()
 
 criterion = nn.CrossEntropyLoss()
-sqerror = nn.MSELoss()
+sqerror = nn.MSELoss(reduce=False)
+
+if not os.path.exists(args.logdir):
+    os.mkdir(args.logdir)
+else:
+    import shutil
+    shutil.rmtree(args.logdir)
+    os.mkdir(args.logdir)
+
+summary_writer = SummaryWriter(args.logdir)
 
 def create_optimizer(lr, net):
     print('creating optimizer with lr = %0.5f' % lr)
     return torch.optim.SGD(net.parameters(), lr, 0.9, weight_decay=args.weightDecay)
 
-def train_student(net, teach):
+def train_student(net, teach, global_idx):
     """Trains the student, iteratively"""
     net.train()
     teach.eval()
     train_loss = 0
-    activation_loss = 0
+    activation_loss = []
     correct = 0
     total = 0
     for batch_idx, (inputs, targets) in enumerate(tqdm(trainloader)):
@@ -76,6 +89,7 @@ def train_student(net, teach):
 
         # If alpha is 0 then this loss is just a cross entropy.
         loss = distillation(outputs_student, outputs_teacher, targets, args.temperature, 1.0)
+        summary_writer.add_scalar('train/distill_loss', loss, global_idx)
 
         #Add an attention tranfer loss for each intermediate. Let's assume the default is three (as in the original
         #paper) and adjust the beta term accordingly.
@@ -92,13 +106,30 @@ def train_student(net, teach):
         for i,a in enumerate([inputs]+ints_teacher[:-1]):
             outputs_student = partial_fprop(net, a, i-1)
             loss = sqerror(outputs_student, ints_teacher[i])
+            bp = 'train/block_%i/' # block log prefix
+            np_error = loss.clone().cpu().data.numpy()
+            summary_writer.add_histogram(bp+'se', np_error, global_idx)
+            loss = loss.mean()
+            summary_writer.add_scalar(bp+'mse', loss, global_idx)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            activation_loss += loss.data[0]
+            try:
+                activation_loss[i] += loss.data[0]
+            except IndexError:
+                activation_loss[i] += loss.data[0]
+        print(global_idx)
 
     #print(len(ints_student))
-    print('\nLoss: %.3f | Activation Match: %.3f | Acc: %.3f%% (%d/%d)\n' % (train_loss/(batch_idx+1), activation_loss/(batch_idx+1), 100.*correct/total, correct, total))
+    mean_loss, mean_acc = train_loss/(batch_idx+1), 100.*correct/total
+    mean_activation_loss  = [activation_loss/(batch_idx+1) for a in activation_loss]
+    act_str = ",".join(["%.3f"%a for a in mean_activation_loss])
+    print('\nLoss: %.3f | Activation Match: %s | Acc: %.3f%% (%d/%d)\n' % (mean_loss, act_str, correct, total))
+    summary_writer.add_scalar('train/distill_loss_epochmean', mean_loss, global_idx)
+    summary_writer.add_scalar('train/accuracy_epochmean', mean_acc, global_idx)
+    for i,a in enumerate(activation_loss):
+        bp = 'train/block_%i/' # block log prefix
+        summary_writer.add_scalar(bp+'mse_epochmean', a, global_idx)
 
 def train_student_AT(net, teach):
     net.train()
@@ -133,7 +164,7 @@ def train_student_AT(net, teach):
     print(len(ints_student))
     print('\nLoss: %.3f | Acc: %.3f%% (%d/%d)\n' % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
-def test(net, checkpoint=None):
+def test(net, global_idx, checkpoint=None):
     global best_acc
     net.eval()
     test_loss = 0
@@ -156,7 +187,8 @@ def test(net, checkpoint=None):
 
     test_losses.append(test_loss/(batch_idx+1))
     test_accs.append(100.*correct/total)
-
+    summary_writer('test/xentropy', test_losses[-1], global_idx)
+    summary_writer('test/accuracy', test_accs[-1], global_idx)
 
     print('Test Loss: %.3f | Acc: %.3f%% (%d/%d)' % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
@@ -193,10 +225,25 @@ def decay_optimizer_lr(optimizer, decay_rate):
 # Stuff happens from here:
 if __name__ == '__main__':
     # Stuff happens from here:
-    if args.conv != 'custom':
-        conv = args.conv
-    else:
-        conv = args.customconv.split('_')
+    def what_conv_block(conv, blocktype, module):
+        if conv is not None:
+            Conv, Block = parse_options(conv, blocktype)
+        elif module is not None:
+            conv_module = imp.new_module('conv')
+            with open(module, 'r') as f:
+                exec(f.read(), conv_module.__dict__)
+            Conv = conv_module.Conv
+            try:
+                Block = conv_module.Block
+            except AttributeError:
+                # if the module doesn't implement a custom block,
+                # use default option
+                _, Block = parse_options('Conv', args.blocktype)
+        else:
+            raise ValueError("You must specify either an existing conv option, or supply your own module to import")
+        return Conv, Block
+    Conv, Block = what_conv_block(args.conv, args.blocktype, args.module)
+
 
     print(conv)
 
@@ -268,18 +315,21 @@ if __name__ == '__main__':
     criterion = nn.CrossEntropyLoss()
 
     print('Loading teacher...')
-    teach = WideResNetAT(int(args.wrn_depth), int(args.wrn_width), num_classes=num_classes, s=args.AT_split)
-    if os.path.exists('state_dicts/%s.t7' % args.teacher_checkpoint):
+    #teach = WideResNet(args.wrn_depth, args.wrn_width, , , num_classes=num_classes, dropRate=0)
+
+    #if os.path.exists('state_dicts/%s.t7' % args.teacher_checkpoint):
+    if False:
         state_dict_new = torch.load('state_dicts/%s.t7' % args.teacher_checkpoint)
     else:
         teach_checkpoint = torch.load('checkpoints/%s.t7' % args.teacher_checkpoint)
-        state_dict_old = teach_checkpoint['net'].state_dict()
-        state_dict_new = teach.state_dict()
-        old_keys = [v for v in state_dict_old]
-        new_keys = [v for v in state_dict_new]
-        for i,_ in enumerate(state_dict_old):
-            state_dict_new[new_keys[i]] = state_dict_old[old_keys[i]]
-        torch.save(state_dict_new, 'state_dicts/%s.t7' % args.teacher_checkpoint)
+        teach = teach_checkpoint['net']
+        #state_dict_old = teach_checkpoint['net'].state_dict()
+        #state_dict_new = teach.state_dict()
+        #old_keys = [v for v in state_dict_old]
+        #new_keys = [v for v in state_dict_new]
+        #for i,_ in enumerate(state_dict_old):
+        #    state_dict_new[new_keys[i]] = state_dict_old[old_keys[i]]
+        #torch.save(state_dict_new, 'state_dicts/%s.t7' % args.teacher_checkpoint)
 
     teach.load_state_dict(state_dict_new)
     teach = teach.cuda()
@@ -296,11 +346,11 @@ if __name__ == '__main__':
         student = student_checkpoint['net']
     else:
         print('Mode Student: Making a student network from scratch and training it...')
-        student = WideResNetAT(args.wrn_depth, args.wrn_width,  num_classes=num_classes, dropRate=0, convtype=conv,
-                               s=args.AT_split, blocktype=args.block).cuda()
+        student = WideResNet(args.wrn_depth, args.wrn_width, Conv, Block, num_classes=num_classes, dropRate=0)
 
     student = student.cuda()
     optimizer = optim.SGD(student.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
+    global_idx = start_epoch*len(trainloader)
 
     # This bit is stupid but we need to decay the learning rate depending on the epoch
     for e in range(0, start_epoch):
@@ -312,8 +362,6 @@ if __name__ == '__main__':
         print('Learning rate is %s' % [v['lr'] for v in optimizer.param_groups][0])
         if epoch in epoch_step:
             optimizer = decay_optimizer_lr(optimizer, args.lr_decay_ratio)
-        if epoch < 3:
-            train_student(student, teach)
-        else:
-            train_student_AT(student, teach)
-        test(student, args.student_checkpoint)
+        train_student(student, teach, global_idx)
+        print(global_idx)
+        test(student, global_idx, args.student_checkpoint)
