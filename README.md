@@ -17,7 +17,7 @@ export CUDNN_LIB_DIR="/disk/scratch/ecrowley/cudnn_v7/lib64/"
 ```
 Some of the above is likely redundant.
 
-The following set of commands should work...
+The following set of commands installs the requirements:
 
 - conda create -n torch3 python=3
 - source activate torch3
@@ -29,6 +29,11 @@ Then go to some directory:
 - git clone --recursive https://github.com/pytorch/pytorch
 - cd pytorch
 - python setup.py install (this takes ages)
+
+Finally some miscellaneous packages:
+
+- pip install torchvision
+- pip install tqdm
 
 ## Training a Teacher
 
