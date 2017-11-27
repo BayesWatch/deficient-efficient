@@ -17,6 +17,8 @@ export CUDNN_LIB_DIR="/disk/scratch/ecrowley/cudnn_v7/lib64/"
 ```
 Some of the above is likely redundant.
 
+The following set of commands should work...
+
 - conda create -n torch3 python=3
 - source activate torch3
 - export CMAKE_PREFIX_PATH="/disk/scratch/ecrowley/miniconda2/envs/torch3"
