@@ -6,17 +6,28 @@ Student-teacher toolbox for pytorch.
 
 ## Install
 
-I installed requirements as follows by creating a conda environment with miniconda2:
+I installed requirements as follows by creating a conda environment with miniconda2. Make sure your bashrc points towards cudnn and CUDA
 
-- conda create -n torch python=2
-- source activate torch
-- conda install pytorch torchvision cuda80 -c soumith
-- pip install tqdm
-- pip install git+https://github.com/szagoruyko/pyinn.git@master
+e.g.
+```
+export CUDA_HOME=/opt/cuda-8.0.44
+export PATH=$PATH:$CUDA_HOME/bin
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/lib64/:$CUDA_HOME/lib64:/disk/scratch/ecrowley/cudnn_v7/lib64/"
+export CUDNN_INCLUDE_DIR="/disk/scratch/ecrowley/cudnn_v7/include/"
+export CUDNN_LIB_DIR="/disk/scratch/ecrowley/cudnn_v7/lib64/"
+```
+Some of the above is likely redundant.
 
-Pyinn uses cupy which annoyingly writes to the home directory by default (which on AFS leads to errors). I found setting the cache dir using the recommended environmental variable didn't work.
+- conda create -n torch3 python=3
+- source activate torch3
+- export CMAKE_PREFIX_PATH="/disk/scratch/ecrowley/miniconda2/envs/torch3"
+- conda install numpy pyyaml mkl setuptools cmake cffi
+- conda install -c soumith magma-cuda80
 
-A crude workaround is instead to modify `<CONDA_PATH>/envs/torch/lib/python2.7/site-packages/cupy/cuda/compiler.py` and change the line (103) to `_default_cache_dir = <SOMEWHERE ON SCRATCH>`
+Then go to some directory:
+- git clone --recursive https://github.com/pytorch/pytorch
+- cd pytorch
+- python setup.py install
 
 ## Training a Teacher
 
