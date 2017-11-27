@@ -1,7 +1,5 @@
 # teach
 
-**Edit: now using the pytorch implementation for grouped convolutions as it was fixed,  install pytorch from source**
-
 Student-teacher toolbox for pytorch.
 
 ## Install
