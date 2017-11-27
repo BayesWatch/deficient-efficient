@@ -28,7 +28,7 @@ The following set of commands should work...
 Then go to some directory:
 - git clone --recursive https://github.com/pytorch/pytorch
 - cd pytorch
-- python setup.py install
+- python setup.py install (this takes ages)
 
 ## Training a Teacher
 
