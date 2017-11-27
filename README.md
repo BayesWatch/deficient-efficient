@@ -4,8 +4,9 @@ Student-teacher toolbox for pytorch.
 
 ## Install
 
-I installed requirements as follows by creating a conda environment with miniconda2. Make sure your bashrc points towards cudnn and CUDA
+I installed requirements as follows by creating a conda environment with miniconda2. At present the latest pytorch release *doesn't* contain optimised grouped convolutions so we have to install from source.
 
+Make sure your bashrc points towards cudnn and CUDA. 
 e.g.
 ```
 export CUDA_HOME=/opt/cuda-8.0.44
