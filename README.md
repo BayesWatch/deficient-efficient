@@ -34,6 +34,8 @@ Finally some miscellaneous packages:
 
 - pip install torchvision
 - pip install tqdm
+- pip install tensorboardX
+- pip install tensorflow
 
 ## Training a Teacher
 
