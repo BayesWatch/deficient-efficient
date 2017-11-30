@@ -1,9 +1,9 @@
 # moonshine (formerly teach)
 
 Code used to produce https://arxiv.org/abs/1711.02613
-## Install
+## Installation Instructions
 
-I installed requirements as follows by creating a conda environment with miniconda2. At present the latest pytorch release *doesn't* contain optimised grouped convolutions so we have to install from source.
+At present the latest pytorch release *doesn't* contain optimised grouped convolutions so we have to install from source.
 
 Make sure your bashrc points towards cudnn and CUDA. 
 e.g.
@@ -16,11 +16,11 @@ export CUDNN_LIB_DIR="/disk/scratch/ecrowley/cudnn_v7/lib64/"
 ```
 Some of the above is likely redundant.
 
-The following set of commands installs the requirements:
+Install miniconda then use the following set of commands:
 
 - conda create -n torch3 python=3
 - source activate torch3
-- export CMAKE_PREFIX_PATH="/disk/scratch/ecrowley/miniconda2/envs/torch3"
+- export CMAKE_PREFIX_PATH="<YOUR CONDA DIRECTORY>/envs/torch3"
 - conda install numpy pyyaml mkl setuptools cmake cffi
 - conda install -c soumith magma-cuda80
 
