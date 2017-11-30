@@ -3,6 +3,7 @@ from __future__ import print_function
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import torch.optim.lr_scheduler as lr_scheduler
 import torch.nn.functional as F
 import torchvision
 import torchvision.transforms as transforms
@@ -13,6 +14,7 @@ from models.wide_resnet import WideResNet, parse_options
 import os
 import imp
 from tqdm import tqdm
+from tensorboardX import SummaryWriter
 
 from funcs import *
 
@@ -53,6 +55,8 @@ parser.add_argument('--weightDecay', default=0.0005, type=float)
 
 args = parser.parse_args()
 
+writer = SummaryWriter()
+
 
 def create_optimizer(lr,net):
     print('creating optimizer with lr = %0.5f' % lr)
@@ -81,6 +85,8 @@ def train_teacher(net):
 
     train_losses.append(train_loss/(batch_idx+1))
     train_accs.append(100.*correct/total)
+    writer.add_scalar('train_loss', train_loss / (batch_idx + 1), epoch)
+    writer.add_scalar('train_acc', 100. * correct / total,epoch)
 
     print('\nTrain Loss: %.3f | Acc: %.3f%% (%d/%d)'
     % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
@@ -107,6 +113,8 @@ def train_student_KD(net, teach):
         _, predicted = torch.max(outputs_student.data, 1)
         total += targets.size(0)
         correct += predicted.eq(targets.data).cpu().sum()
+        writer.add_scalar('train_loss', train_loss / (batch_idx + 1), epoch)
+        writer.add_scalar('train_acc', 100. * correct / total, epoch)
 
     print('\nLoss: %.3f | Acc: %.3f%% (%d/%d)\n' % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
@@ -143,6 +151,9 @@ def train_student_AT(net, teach):
         _, predicted = torch.max(outputs_student.data, 1)
         total += targets.size(0)
         correct += predicted.eq(targets.data).cpu().sum()
+        writer.add_scalar('train_loss', train_loss / (batch_idx + 1), epoch)
+        writer.add_scalar('train_acc', 100. * correct / total, epoch)
+
     print(len(ints_student))
     print('\nLoss: %.3f | Acc: %.3f%% (%d/%d)\n' % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
@@ -168,6 +179,8 @@ def test(net, checkpoint=None):
         total += targets.size(0)
         correct += predicted.eq(targets.data).cpu().sum()
 
+    writer.add_scalar('test_loss', test_loss / (batch_idx + 1), epoch)
+    writer.add_scalar('test_acc', 100. * correct / total, epoch)
     test_losses.append(test_loss/(batch_idx+1))
     test_accs.append(100.*correct/total)
 
@@ -200,11 +213,6 @@ def test(net, checkpoint=None):
         torch.save(state, 'checkpoints/%s.t7' % checkpoint)
 
 
-def decay_optimizer_lr(optimizer, decay_rate):
-    # callback to set the learning rate in an optimizer, without rebuilding the whole optimizer
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = param_group['lr'] * decay_rate
-    return optimizer
 
 def what_conv_block(conv, blocktype, module):
     if conv is not None:
@@ -309,17 +317,17 @@ if __name__ == '__main__':
 
         get_no_params(teach)
         optimizer = optim.SGD(teach.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
+        scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=epoch_step, gamma=args.lr_decay_ratio)
 
         # This bit is stupid but we need to decay the learning rate depending on the epoch
         for e in range(0,start_epoch):
-            if e in epoch_step:
-                optimizer = decay_optimizer_lr(optimizer, args.lr_decay_ratio)
+            scheduler.step()
 
         for epoch in tqdm(range(start_epoch, args.epochs)):
+            scheduler.step()
             print('Teacher Epoch %d:' % epoch)
             print('Learning rate is %s' % [v['lr'] for v in optimizer.param_groups][0])
-            if epoch in epoch_step:
-                optimizer = decay_optimizer_lr(optimizer, args.lr_decay_ratio)
+            writer.add_scalar('learning_rate', [v['lr'] for v in optimizer.param_groups][0], epoch)
             train_teacher(teach)
             test(teach, args.teacher_checkpoint)
 
@@ -337,16 +345,19 @@ if __name__ == '__main__':
             print('KD: Making a student network from scratch and training it...')
             student = WideResNet(args.wrn_depth, args.wrn_width, Conv, Block, num_classes=num_classes, dropRate=0).cuda()
         optimizer = optim.SGD(student.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
+        scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=epoch_step, gamma=args.lr_decay_ratio)
+
         # This bit is stupid but we need to decay the learning rate depending on the epoch
         for e in range(0, start_epoch):
-            if e in epoch_step:
-                optimizer = decay_optimizer_lr(optimizer, args.lr_decay_ratio)
+            scheduler.step()
 
         for epoch in tqdm(range(start_epoch, args.epochs)):
+            scheduler.step()
+
             print('Student Epoch %d:' % epoch)
             print('Learning rate is %s' % [v['lr'] for v in optimizer.param_groups][0])
-            if epoch in epoch_step:
-                optimizer = decay_optimizer_lr(optimizer, args.lr_decay_ratio)
+            writer.add_scalar('learning_rate', [v['lr'] for v in optimizer.param_groups][0], epoch)
+
             train_student_KD(student, teach)
             test(student, args.student_checkpoint)
 
@@ -369,17 +380,20 @@ if __name__ == '__main__':
                     s=args.AT_split).cuda()
 
         optimizer = optim.SGD(student.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
+        scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=epoch_step, gamma=args.lr_decay_ratio)
 
         # This bit is stupid but we need to decay the learning rate depending on the epoch
         for e in range(0, start_epoch):
-            if e in epoch_step:
-                optimizer = decay_optimizer_lr(optimizer, args.lr_decay_ratio)
+            scheduler.step()
+
 
         for epoch in tqdm(range(start_epoch, args.epochs)):
+            scheduler.step()
+
             print('Student Epoch %d:' % epoch)
             print('Learning rate is %s' % [v['lr'] for v in optimizer.param_groups][0])
-            if epoch in epoch_step:
-                optimizer = decay_optimizer_lr(optimizer, args.lr_decay_ratio)
+            writer.add_scalar('learning_rate', [v['lr'] for v in optimizer.param_groups][0], epoch)
+
             train_student_AT(student, teach)
             test(student, args.student_checkpoint)
 
