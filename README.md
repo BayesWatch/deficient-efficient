@@ -1,7 +1,6 @@
-# teach
+# moonshine (formerly teach)
 
-Student-teacher toolbox for pytorch.
-
+Code used to produce https://arxiv.org/abs/1711.02613
 ## Install
 
 I installed requirements as follows by creating a conda environment with miniconda2. At present the latest pytorch release *doesn't* contain optimised grouped convolutions so we have to install from source.
