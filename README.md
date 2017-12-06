@@ -14,7 +14,6 @@ then
 
 ```
 conda install pytorch torchvision cuda90 -c pytorch
-pip install torchvision
 pip install tqdm
 pip install tensorboardX
 pip install tensorflow
