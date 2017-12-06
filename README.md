@@ -3,38 +3,21 @@
 Code used to produce https://arxiv.org/abs/1711.02613
 ## Installation Instructions
 
-At present the latest pytorch release *doesn't* contain optimised grouped convolutions so we have to install from source.
+The latest pytorch release now contains optimised grouped convolutions which makes installation much easier.
 
-Make sure your bashrc points towards cudnn and CUDA. 
-e.g.
+Make an appropriate conda environment and activate it.
 ```
-export CUDA_HOME=/opt/cuda-8.0.44
-export PATH=$PATH:$CUDA_HOME/bin
-export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/lib64/:$CUDA_HOME/lib64:/disk/scratch/ecrowley/cudnn_v7/lib64/"
-export CUDNN_INCLUDE_DIR="/disk/scratch/ecrowley/cudnn_v7/include/"
-export CUDNN_LIB_DIR="/disk/scratch/ecrowley/cudnn_v7/lib64/"
+conda create -n torch python=3
+source activate torch
 ```
-Some of the above is likely redundant.
+then
 
-Install miniconda then use the following set of commands:
-
-- conda create -n torch3 python=3
-- source activate torch3
-- export CMAKE_PREFIX_PATH="<YOUR CONDA DIRECTORY>/envs/torch3"
-- conda install numpy pyyaml mkl setuptools cmake cffi
-- conda install -c soumith magma-cuda80
-
-Then go to some directory:
-- git clone --recursive https://github.com/pytorch/pytorch
-- cd pytorch
-- python setup.py install (this takes ages)
-
-Finally some miscellaneous packages:
-
-- pip install torchvision
-- pip install tqdm
-- pip install tensorboardX
-- pip install tensorflow
+```
+conda install pytorch torchvision cuda90 -c pytorch
+pip install tqdm
+pip install tensorboardX
+pip install tensorflow
+```
 
 ## Training a Teacher
 
