@@ -3,7 +3,7 @@ import torch.nn.functional as F
 from models import *
 
 def distillation(y, teacher_scores, labels, T, alpha):
-    return F.kl_div(F.log_softmax(y/T), F.softmax(teacher_scores/T)) * (T*T * 2. * alpha)\
+    return F.kl_div(F.log_softmax(y/T, dim=1), F.softmax(teacher_scores/T, dim=1)) * (T*T * 2. * alpha)\
            + F.cross_entropy(y, labels) * (1. - alpha)
 
 
@@ -94,35 +94,36 @@ def partial_fprop(net, a, index):
     """Given some activations, substitute them in at an index in the network,
     then continue the forward prop from there. Set index to -1 to use the whole
     network."""
-    assert isinstance(net, WideResNetAT)
+    assert isinstance(net, WideResNet)
 
     out = a
     #activations = []
 
-    if index == -1:
+    if index == 0:
         out = net.conv1(out)
 
     block_idx = 0
     for sub_block in net.block1:
-        if index < block_idx:
+        if index == block_idx:
             return sub_block(out)
             #activations.append(out)
         block_idx += 1
 
     for sub_block in net.block2:
-        if index < block_idx:
+        if index == block_idx:
             return sub_block(out)
             #activations.append(out)
         block_idx += 1
 
     for sub_block in net.block3:
-        if index < block_idx:
+        if index == block_idx:
             return sub_block(out)
             #activations.append(out)
         block_idx += 1
 
-    out = net.relu(net.bn1(out))
-    out = F.avg_pool2d(out, 8)
-    out = out.view(-1, net.nChannels)
-    return net.fc(out)
-
+    if index == block_idx:
+        out = net.relu(net.bn1(out))
+        out = F.avg_pool2d(out, 8)
+        out = out.view(-1, net.nChannels)
+        return net.fc(out)
+    assert False # you should never be here

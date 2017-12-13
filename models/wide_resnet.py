@@ -71,6 +71,7 @@ class WideResNet(nn.Module):
     def forward(self, x):
         activations = []
         out = self.conv1(x)
+        #activations.append(out)
 
         for sub_block in self.block1:
             out = sub_block(out)
