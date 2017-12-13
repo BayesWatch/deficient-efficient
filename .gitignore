@@ -11,3 +11,4 @@ bash/
 __pycache__
 state_dicts/
 logs
+runs
