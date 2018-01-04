@@ -415,8 +415,10 @@ class OldBlock(nn.Module):
         self.bn2 = nn.BatchNorm2d(out_planes)
 
         self.equalInOut = (in_planes == out_planes)
-        self.downsample = (not self.equalInOut or stride >1) and nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride,
-                                padding=0, bias=False) or None
+        self.downsample = (not self.equalInOut or stride >1) and \
+                          nn.Sequential(nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride,
+                                padding=0, bias=False), nn.BatchNorm2d(out_planes)) \
+                          or None
         self.stride = stride
 
     def forward(self, x):
@@ -437,38 +439,6 @@ class OldBlock(nn.Module):
 
         return out
 
-# class OldBlock(nn.Module):
-#     # Including this old block for compatibility with pre-trained resnets
-#
-#     def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=Conv, xy=None):
-#         super(OldBlock, self).__init__()
-#
-#         self.conv1 = conv(in_planes, out_planes, kernel_size=3, stride=stride,
-#                                padding=1, bias=False)
-#         self.bn1 = nn.BatchNorm2d(out_planes)
-#         self.relu1 = nn.ReLU(inplace=True)
-#
-#
-#         self.conv2 = conv(out_planes, out_planes, kernel_size=3, stride=1,
-#                                padding=1, bias=False)
-#         self.bn2 = nn.BatchNorm2d(out_planes)
-#         self.relu2 = nn.ReLU(inplace=True)
-#
-#         self.droprate = dropRate
-#         self.equalInOut = (in_planes == out_planes)
-#         self.convShortcut = (not self.equalInOut) and nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride,
-#                                padding=0, bias=False) or None
-#     def forward(self, x):
-#
-#         residual = x
-#
-#         out = self.relu1(self.bn1(self.conv1(x)))
-#         out = self.relu2(self.bn2(self.conv2(out)))
-#
-#         if self.droprate > 0:
-#             out = F.dropout(out, p=self.droprate, training=self.training)
-#
-#         return torch.add(residual if self.equalInOut else self.convShortcut(residual), out)
 
 
 class SqueezeExciteBlock(nn.Module):
