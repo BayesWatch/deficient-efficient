@@ -4,6 +4,7 @@
 import torch
 import torch.nn as nn
 import math
+import torchvision.models.resnet
 import torch.utils.model_zoo as model_zoo
 from .blocks import *
 
@@ -32,25 +33,25 @@ class ResNet(nn.Module):
 
         nChannels =[64, 64, 128, 256, 512]
 
-        self.block1 = torch.nn.ModuleList()
+        self.layer1 = torch.nn.ModuleList()
         for i in range(s):
-            self.block1.append(NetworkBlock(int(n[0] // s), nChannels[0] if i == 0 else nChannels[1],
+            self.layer1.append(NetworkBlock(int(n[0] // s), nChannels[0] if i == 0 else nChannels[1],
                                             nChannels[1], block, 1, conv=conv))
 
 
-        self.block2 = torch.nn.ModuleList()
+        self.layer2 = torch.nn.ModuleList()
         for i in range(s):
-            self.block2.append(NetworkBlock(int(n[1] // s), nChannels[1] if i == 0 else nChannels[2],
+            self.layer2.append(NetworkBlock(int(n[1] // s), nChannels[1] if i == 0 else nChannels[2],
                                             nChannels[2], block, 2, conv=conv))
 
-        self.block3 = torch.nn.ModuleList()
+        self.layer3 = torch.nn.ModuleList()
         for i in range(s):
-            self.block3.append(NetworkBlock(int(n[2] // s), nChannels[2] if i == 0 else nChannels[3],
+            self.layer3.append(NetworkBlock(int(n[2] // s), nChannels[2] if i == 0 else nChannels[3],
                                             nChannels[3], block, 2, conv=conv))
 
-        self.block4 = torch.nn.ModuleList()
+        self.layer4 = torch.nn.ModuleList()
         for i in range(s):
-            self.block4.append(NetworkBlock(int(n[3] // s), nChannels[3] if i == 0 else nChannels[4],
+            self.layer4.append(NetworkBlock(int(n[3] // s), nChannels[3] if i == 0 else nChannels[4],
                                             nChannels[4], block, 2, conv=conv))
 
         # self.layer1 = self._make_layer(block, 64, layers[0])
@@ -74,19 +75,19 @@ class ResNet(nn.Module):
         activations = []
         out = self.maxpool(self.relu(self.bn1(self.conv1(x))))
 
-        for sub_block in self.block1:
+        for sub_block in self.layer1:
             out = sub_block(out)
             activations.append(out)
 
-        for sub_block in self.block2:
+        for sub_block in self.layer2:
             out = sub_block(out)
             activations.append(out)
 
-        for sub_block in self.block3:
+        for sub_block in self.layer3:
             out = sub_block(out)
             activations.append(out)
 
-        for sub_block in self.block4:
+        for sub_block in self.layer4:
             out = sub_block(out)
             activations.append(out)
 
@@ -116,7 +117,28 @@ def resnet34(pretrained=False, **kwargs):
     """
     model = ResNet(Conv, OldBlock, [3, 4, 6, 3])
     if pretrained:
-        model.load_state_dict(model_zoo.load_url(model_urls['resnet34']))
+        old_model = torchvision.models.resnet.resnet34(pretrained=False)
+        old_model.load_state_dict(model_zoo.load_url(model_urls['resnet34']))
+
+
+        new_state_dict = model.state_dict()
+        old_state_dict = old_model.state_dict()
+
+        # This assumes the sequence of each module in the network is the same in both cases.
+        # Ridiculously, batch norm params are stored in a different sequence in the downloaded state dict, so we have to
+        # load the old model definition, load in its downloaded state dict to change the order back, then transfer this!
+
+        old_model = torchvision.models.resnet.resnet34(pretrained=False)
+        old_model.load_state_dict(model_zoo.load_url(model_urls['resnet34']))
+
+        old_names = [v for v in old_state_dict]
+        new_names = [v for v in new_state_dict]
+
+        for i,j in enumerate(old_names):
+            new_state_dict[new_names[i]] = old_state_dict[j]
+
+        model.load_state_dict(new_state_dict)
+
     return model
 
 
