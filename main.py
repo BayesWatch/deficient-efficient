@@ -19,8 +19,10 @@ from tensorboardX import SummaryWriter
 from funcs import *
 
 parser = argparse.ArgumentParser(description='Student/teacher training')
-parser.add_argument('dataset', type=str, choices=['cifar10', 'cifar100'], help='Choose between Cifar10/100.')
+parser.add_argument('dataset', type=str, choices=['cifar10', 'cifar100', 'imagenet'], help='Choose between Cifar10/100/imagenet.')
 parser.add_argument('mode', choices=['KD','AT','teacher'], type=str, help='Learn with KD, AT, or train a teacher')
+parser.add_argument('--imagenet_loc', default='/disk/scratch_ssd/imagenet',type=str, help='folder containing imagenet train and val folders')
+parser.add_argument('--workers', default=2, type=int, help='No. of data loading workers. Make this high for imagenet')
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
 parser.add_argument('--GPU', default='3', type=str,help='GPU to use')
 parser.add_argument('--student_checkpoint', '-s', default='wrn_40_2_student_KT',type=str, help='checkpoint to save/load student')
@@ -291,8 +293,37 @@ if __name__ == '__main__':
         testset = torchvision.datasets.CIFAR100(root='/disk/scratch/datasets/cifar100',
                                                train=False, download=True, transform=transform_test)
 
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=2)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=2)
+    elif args.dataset == 'imagenet':
+        num_classes = 1000
+        traindir = os.path.join(args.imagenet_loc, 'train')
+        valdir = os.path.join(args.imagenet_loc, 'val')
+        normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                         std=[0.229, 0.224, 0.225])
+
+        transform_train = transforms.Compose([
+            transforms.RandomResizedCrop(224),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            normalize,
+        ])
+        transform_test = transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            normalize,
+        ])
+
+        trainset = torchvision.datasets.ImageFolder(traindir, transform_train)
+        testset = torchvision.datasets.ImageFolder(valdir, transform_test)
+
+
+
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True,
+                                              num_workers=args.workers,
+                                              pin_memory = True if args.dataset == 'imagenet' else False)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False,
+                                             num_workers=args.workers,
+                                             pin_memory=True if args.dataset == 'imagenet' else False)
 
     criterion = nn.CrossEntropyLoss()
 

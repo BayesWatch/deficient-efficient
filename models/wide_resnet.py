@@ -20,6 +20,8 @@ def parse_options(convtype, blocktype):
         block = BasicBlock
     elif blocktype =='Bottle':
         block = BottleBlock
+    elif blocktype =='Old':
+        block = OldBlock
     return conv, block
 
 
