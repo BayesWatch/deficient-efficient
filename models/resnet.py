@@ -99,23 +99,23 @@ class ResNet(nn.Module):
 
 
 
-def resnet18(pretrained=False, **kwargs):
+def resnet18(pretrained=False, conv=Conv, block=OldBlock):
     """Constructs a ResNet-18 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    model = ResNet(Conv, OldBlock, [2, 2, 2, 2])
+    model = ResNet(conv,block, [2, 2, 2, 2])
     if pretrained:
         model.load_state_dict(model_zoo.load_url(model_urls['resnet18']))
     return model
 
 
-def resnet34(pretrained=False, **kwargs):
+def resnet34(pretrained=False, conv=Conv, block=OldBlock):
     """Constructs a ResNet-34 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    model = ResNet(Conv, OldBlock, [3, 4, 6, 3])
+    model = ResNet(conv,block, [3, 4, 6, 3])
     if pretrained:
         old_model = torchvision.models.resnet.resnet34(pretrained=False)
         old_model.load_state_dict(model_zoo.load_url(model_urls['resnet34']))

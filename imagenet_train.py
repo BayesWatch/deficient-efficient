@@ -15,22 +15,21 @@ import os
 import imp
 from tqdm import tqdm
 from tensorboardX import SummaryWriter
+import torch.nn.parallel
 
 from funcs import *
 
 parser = argparse.ArgumentParser(description='Student/teacher training')
 parser.add_argument('dataset', type=str, choices=['cifar10', 'cifar100', 'imagenet'], help='Choose between Cifar10/100/imagenet.')
-parser.add_argument('mode', choices=['KD','AT','teacher'], type=str, help='Learn with KD, AT, or train a teacher')
+parser.add_argument('mode', choices=['KD','AT'], type=str, help='Learn with KD, AT, or train a teacher')
 parser.add_argument('--imagenet_loc', default='/disk/scratch_ssd/imagenet',type=str, help='folder containing imagenet train and val folders')
-parser.add_argument('--workers', default=2, type=int, help='No. of data loading workers. Make this high for imagenet')
+parser.add_argument('--workers', default=16, type=int, help='No. of data loading workers. Make this high for imagenet')
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
-parser.add_argument('--GPU', default='3', type=str,help='GPU to use')
-parser.add_argument('--student_checkpoint', '-s', default='wrn_40_2_student_KT',type=str, help='checkpoint to save/load student')
-parser.add_argument('--teacher_checkpoint', '-t', default='cifar100_T',type=str, help='checkpoint to load in teacher')
+parser.add_argument('--student_checkpoint', '-s', default='imagenet',type=str, help='checkpoint to save/load student')
+parser.add_argument('--print_every', '-p', default=100,type=int, help='')
 
 #network stuff
-parser.add_argument('--wrn_depth', default=40, type=int, help='depth for WRN')
-parser.add_argument('--wrn_width', default=2, type=float, help='width for WRN')
+
 parser.add_argument('--module', default=None, type=str, help='path to file containing custom Conv and maybe Block module definitions')
 parser.add_argument('--blocktype', default='Basic',type=str, help='blocktype used if specify a --conv')
 parser.add_argument('--conv',
@@ -42,18 +41,18 @@ parser.add_argument('--AT_split', default=1, type=int, help='group splitting for
 
 #learning stuff
 parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
-parser.add_argument('--lr_decay_ratio', default=0.2, type=float, help='learning rate decay')
+parser.add_argument('--lr_decay_ratio', default=0.1, type=float, help='learning rate decay')
 parser.add_argument('--temperature', default=4, type=float, help='temp for KD')
-parser.add_argument('--alpha', default=0.9, type=float, help='alpha for KD')
+parser.add_argument('--alpha', default=0., type=float, help='alpha for KD')
 parser.add_argument('--aux_loss', default='AT', type=str, help='AT or SE loss')
 parser.add_argument('--beta', default=1e3, type=float, help='beta for AT')
-parser.add_argument('--epoch_step', default='[60,120,160]', type=str,
+parser.add_argument('--epoch_step', default='[30,60,90]', type=str,
                     help='json list with epochs to drop lr on')
-parser.add_argument('--epochs', default=200, type=int, metavar='N',
+parser.add_argument('--epochs', default=100, type=int, metavar='N',
                     help='number of total epochs to run')
-parser.add_argument('--batch_size', default=128, type=int,
+parser.add_argument('--batch_size', default=256, type=int,
                     help='minibatch size')
-parser.add_argument('--weightDecay', default=0.0005, type=float)
+parser.add_argument('--weightDecay', default=1e-4, type=float)
 
 args = parser.parse_args()
 
@@ -63,36 +62,6 @@ writer = SummaryWriter()
 def create_optimizer(lr,net):
     print('creating optimizer with lr = %0.5f' % lr)
     return torch.optim.SGD(net.parameters(), lr, 0.9, weight_decay=args.weightDecay)
-
-
-def train_teacher(net):
-    net.train()
-    train_loss = 0
-    top1 = 0
-    top5 = 0
-    total = 0
-
-    for batch_idx, (inputs, targets) in enumerate(tqdm(trainloader)):
-        if use_cuda:
-            inputs, targets = inputs.cuda(), targets.cuda()
-        optimizer.zero_grad()
-        inputs, targets = Variable(inputs), Variable(targets)
-        outputs, _ = net(inputs)
-        loss = criterion(outputs, targets)
-        loss.backward()
-        optimizer.step()
-
-        train_loss += loss.data[0]
-
-        prec1, prec5 = accuracy(outputs.data.cpu(), targets.data.cpu(), topk=(1, 5))
-
-        print('Top 1: %.3f%%, Top 5: %.3f%%' % (prec1 ,prec5))
-
-    writer.add_scalar('train_loss', train_loss / (batch_idx + 1), epoch)
-    writer.add_scalar('train_acc', 100. * correct / total,epoch)
-
-    print('\nTrain Loss: %.3f | Acc: %.3f%% (%d/%d)'
-    % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
 
 def train_student_KD(net, teach):
@@ -115,7 +84,6 @@ def train_student_KD(net, teach):
         train_loss += loss.data[0]
         _, predicted = torch.max(outputs_student.data, 1)
         total += targets.size(0)
-
         correct += predicted.eq(targets.data).cpu().sum()
         writer.add_scalar('train_loss', train_loss / (batch_idx + 1), epoch)
         writer.add_scalar('train_acc', 100. * correct / total, epoch)
@@ -131,7 +99,12 @@ def train_student_AT(net, teach):
     train_loss = 0
     correct = 0
     total = 0
-    for batch_idx, (inputs, targets) in enumerate(tqdm(trainloader)):
+    top1=0
+    top5=0
+
+    for batch_idx, (inputs, targets) in enumerate(trainloader):
+
+
         inputs = Variable(inputs.cuda())
         targets = Variable(targets.cuda())
         outputs_student, ints_student = net(inputs)
@@ -152,22 +125,39 @@ def train_student_AT(net, teach):
         optimizer.step()
 
         train_loss += loss.data[0]
-        _, predicted = torch.max(outputs_student.data, 1)
+        prec1, prec5 = accuracy(outputs_student.data.cpu(), targets.data.cpu(), topk=(1, 5))
         total += targets.size(0)
-        correct += predicted.eq(targets.data).cpu().sum()
-        writer.add_scalar('train_loss', train_loss / (batch_idx + 1), epoch)
-        writer.add_scalar('train_acc', 100. * correct / total, epoch)
+        top1 += prec1
+        top5 += prec5
 
-    print(len(ints_student))
-    print('\nLoss: %.3f | Acc: %.3f%% (%d/%d)\n' % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
+        if batch_idx % args.print_every == 0:
+
+            print('Epoch %d |Train Batch %d of %d |Loss: %.3f | Top1Error: %.3f%% | Top5Error: %.3f%%' %
+                  (epoch,batch_idx, len(trainloader), train_loss / total, 100. - top1 / (batch_idx + 1),
+                   100. - top5 / (batch_idx + 1)))
+
+    writer.add_scalar('train_loss', train_loss / (batch_idx + 1), epoch)
+    writer.add_scalar('train_top1', 100. - top1 / (batch_idx + 1), epoch)
+    writer.add_scalar('train_top5', 100. - top5 / (batch_idx + 1), epoch)
+    train_losses.append(train_loss / (batch_idx + 1))
+    train_top1.append(100. * correct / total)
+    train_top5.append(100. * correct / total)
+
+        # _, predicted = torch.max(outputs_student.data, 1)
+        # total += targets.size(0)
+        # correct += predicted.eq(targets.data).cpu().sum()
+        # writer.add_scalar('train_loss', train_loss / (batch_idx + 1), epoch)
+        # writer.add_scalar('train_acc', 100. * correct / total, epoch)
+
 
 
 def test(net, checkpoint=None):
-    global best_acc
     net.eval()
     test_loss = 0
     correct = 0
     total = 0
+    top1 = 0
+    top5 = 0
     for batch_idx, (inputs, targets) in enumerate(testloader):
 
         inputs, targets = inputs.cuda(), targets.cuda()
@@ -179,39 +169,43 @@ def test(net, checkpoint=None):
         loss = criterion(outputs, targets)
 
         test_loss += loss.data[0]
-        _, predicted = torch.max(outputs.data, 1)
+        prec1, prec5 = accuracy(outputs.data.cpu(), targets.data.cpu(), topk=(1, 5))
         total += targets.size(0)
-        correct += predicted.eq(targets.data).cpu().sum()
+        top1 += prec1
+        top5 += prec5
+
+        if batch_idx % args.print_every == 0:
+            print('Epoch % d | Test Batch %d of %d |Loss: %.3f | Top1Error: %.3f%% | Top5Error: %.3f%%' %
+                  (epoch, batch_idx, len(testloader),test_loss/total, 100. - top1/(batch_idx+1), 100. - top5/(batch_idx+1)))
+
 
     writer.add_scalar('test_loss', test_loss / (batch_idx + 1), epoch)
-    writer.add_scalar('test_acc', 100. * correct / total, epoch)
+    writer.add_scalar('test_top1', 100. - top1/(batch_idx+1), epoch)
+    writer.add_scalar('test_top5', 100. - top5/(batch_idx+1), epoch)
     test_losses.append(test_loss/(batch_idx+1))
-    test_accs.append(100.*correct/total)
+    test_top1.append(100.*correct/total)
+    test_top5.append(100.*correct/total)
 
-
-    print('Test Loss: %.3f | Acc: %.3f%% (%d/%d)' % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
 
     if checkpoint:
         # Save checkpoint.
         acc = 100.*correct/total
-        if acc > best_acc:
-            best_acc = acc
+
 
         print('Saving..')
         state = {
             'net': net.state_dict(),
             'acc': acc,
             'epoch': epoch,
-            'best_acc': best_acc,
-            'width': args.wrn_width,
-            'depth': args.wrn_depth,
             'conv': args.conv,
             'blocktype': args.blocktype,
             'module': args.module,
             'train_losses': train_losses,
-            'train_accs': train_accs,
+            'train_top1': train_top1,
+            'train_top5': train_top5,
             'test_losses': test_losses,
-            'test_accs': test_accs,
+            'test_top1': test_top1,
+            'test_top5': test_top5,
         }
         print('SAVED!')
         torch.save(state, 'checkpoints/%s.t7' % checkpoint)
@@ -246,17 +240,18 @@ if __name__ == '__main__':
         aux_loss = se_loss
 
     print(vars(args))
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.GPU
+
 
     use_cuda = torch.cuda.is_available()
     assert use_cuda, 'Error: No CUDA!'
 
     test_losses  = []
     train_losses = []
-    test_accs    = []
-    train_accs   = []
+    test_top1    = []
+    test_top5    = []
+    train_top1   = []
+    train_top5   = []
 
-    best_acc = 0
     start_epoch = 0
     epoch_step = json.loads(args.epoch_step)
 
@@ -338,33 +333,8 @@ if __name__ == '__main__':
         net.load_state_dict(net_checkpoint['net'])
         return net, start_epoch
 
-    if args.mode == 'teacher':
 
-        if args.resume:
-            print('Mode Teacher: Loading teacher and continuing training...')
-            teach, start_epoch = load_network('checkpoints/%s.t7' % args.teacher_checkpoint)
-        else:
-            print('Mode Teacher: Making a teacher network from scratch and training it...')
-            teach = WideResNet(args.wrn_depth, args.wrn_width, Conv, Block, num_classes=num_classes, dropRate=0).cuda()
-
-
-        get_no_params(teach)
-        optimizer = optim.SGD(teach.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
-        scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=epoch_step, gamma=args.lr_decay_ratio)
-
-        # This bit is stupid but we need to decay the learning rate depending on the epoch
-        for e in range(0,start_epoch):
-            scheduler.step()
-
-        for epoch in tqdm(range(start_epoch, args.epochs)):
-            scheduler.step()
-            print('Teacher Epoch %d:' % epoch)
-            print('Learning rate is %s' % [v['lr'] for v in optimizer.param_groups][0])
-            writer.add_scalar('learning_rate', [v['lr'] for v in optimizer.param_groups][0], epoch)
-            train_teacher(teach)
-            test(teach, args.teacher_checkpoint)
-
-    elif args.mode == 'KD':
+    if args.mode == 'KD':
         print('Mode Student: First, load a teacher network and check it performs decently...,')
         teach, start_epoch = load_network('checkpoints/%s.t7' % args.teacher_checkpoint)
         # Very important to explicitly say we require no gradients for the teacher network
@@ -397,20 +367,21 @@ if __name__ == '__main__':
 
     elif args.mode == 'AT':
         print('AT (+optional KD): First, load a teacher network and convert for attention transfer')
-        teach, start_epoch = load_network('checkpoints/%s.t7' % args.teacher_checkpoint)
+        teach = resnet34(pretrained=True)
+        teach.cuda()
+        teach = torch.nn.DataParallel(teach).cuda()
+        epoch = 0
+        print(epoch)
         # Very important to explicitly say we require no gradients for the teacher network
         for param in teach.parameters():
             param.requires_grad = False
-        test(teach)
 
         if args.resume:
             print('Mode Student: Loading student and continuing training...')
             student, start_epoch = load_network('checkpoints/%s.t7' % args.student_checkpoint)
         else:
             print('Mode Student: Making a student network from scratch and training it...')
-            student = WideResNet(args.wrn_depth, args.wrn_width, Conv, Block,
-                    num_classes=num_classes, dropRate=0,
-                    s=args.AT_split).cuda()
+            student = torch.nn.DataParallel(resnet18(pretrained=False)).cuda()
 
         optimizer = optim.SGD(student.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
         scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=epoch_step, gamma=args.lr_decay_ratio)
@@ -426,7 +397,7 @@ if __name__ == '__main__':
             print('Student Epoch %d:' % epoch)
             print('Learning rate is %s' % [v['lr'] for v in optimizer.param_groups][0])
             writer.add_scalar('learning_rate', [v['lr'] for v in optimizer.param_groups][0], epoch)
-
             train_student_AT(student, teach)
             test(student, args.student_checkpoint)
+            #test(student, args.student_checkpoint)
 

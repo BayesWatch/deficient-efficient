@@ -10,10 +10,14 @@ from models import *
 
 imagenet_loc = '/disk/scratch_ssd/imagenet'
 
-model = resnet34(pretrained=True)
+#model = resnet18(pretrained=False)
 
-#model = torchvision.models.resnet.resnet34(pretrained=True)
+model = torchvision.models.resnet.resnet34(pretrained=True)
 model = torch.nn.DataParallel(model).cuda()
+# SD = torch.load('checkpoints/imagenet.t7')['net']#resnet34(pretrained=True)
+# model.load_state_dict(SD)
+
+
 
 workers = 8
 batch_size = 256
@@ -95,7 +99,9 @@ def validate(val_loader, model, criterion):
         target_var = torch.autograd.Variable(target, volatile=True)
 
         # compute output
-        output, _= model(input_var)
+        output = model(input_var)
+        if isinstance(output,tuple):
+            output = output[0]
         loss = criterion(output, target_var)
 
         # measure accuracy and record loss
