@@ -38,3 +38,16 @@ Note that, in the above the top1 and top5 Elliot for the pre-trained models (Res
 Despite this, the top1 and top5 Elliot for the AT paper (which i did train using the pre-trained Resnet34 as teacher, and a new student Resnet18 from scratch) is comparable to their paper.
 
 Good enough!
+
+--------------------------------------------------------------
+
+Next experiment. Let's see what happens when we do the same experiment but with the student as a Resnet34 with depthwise separable convolutions.
+
+
+| Model        | No. Params |  Top1   |  Top5   |
+|--------------|------------|---------|---------|
+| Resnet34     | 21.8M      | 26.73   |  8.57   |    
+| Resnet18 AT  | 11.7M      | 29.18   | 11.02   |
+| Resnet34 Sep |  2.0M      
+
+
