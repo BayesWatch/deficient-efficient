@@ -48,6 +48,6 @@ Next experiment. Let's see what happens when we do the same experiment but with 
 |--------------|------------|---------|---------|
 | Resnet34     | 21.8M      | 26.73   |  8.57   |    
 | Resnet18 AT  | 11.7M      | 29.18   | 11.02   |
-| Resnet34 Sep |  3.16M      
+| Resnet34 Sep | 3.16M      | 30.16   | 10.66   |
 
 
