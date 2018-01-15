@@ -44,10 +44,10 @@ Good enough!
 Next experiment. Let's see what happens when we do the same experiment but with the student as a Resnet34 with depthwise separable convolutions.
 
 
-| Model        | No. Params |  Top1   |  Top5   |
-|--------------|------------|---------|---------|
-| Resnet34     | 21.8M      | 26.73   |  8.57   |    
-| Resnet18 AT  | 11.7M      | 29.18   | 11.02   |
-| Resnet34 Sep | 3.16M      | 30.16   | 10.66   |
-
+| Model             | No. Params |  Top1   |  Top5   |
+|-------------------|------------|---------|---------|
+| Resnet34          | 21.8M      | 26.73   |  8.57   |    
+| Resnet18 AT       | 11.7M      | 29.18   | 11.02   |
+| Resnet34 Sep + AT | 3.16M      | 30.16   | 10.66   |
+| Resnet34 Sep      | 3.16M      | 32.98   | 12.26   |
 
