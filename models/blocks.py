@@ -402,6 +402,45 @@ class BasicBlock(nn.Module):
         return torch.add(x if self.equalInOut else self.convShortcut(x), out)
 
 
+class OldBlock(nn.Module):
+
+    def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=Conv, xy=None):
+
+        super(OldBlock, self).__init__()
+
+        self.conv1 = conv(in_planes, out_planes, stride=stride, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(out_planes)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv2 = conv(out_planes, out_planes, stride=1, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(out_planes)
+
+        self.equalInOut = (in_planes == out_planes)
+        self.downsample = (not self.equalInOut or stride >1) and \
+                          nn.Sequential(nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride,
+                                padding=0, bias=False), nn.BatchNorm2d(out_planes)) \
+                          or None
+        self.stride = stride
+
+    def forward(self, x):
+        residual = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        out += residual
+        out = self.relu(out)
+
+        return out
+
+
+
 class SqueezeExciteBlock(nn.Module):
     def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=Conv, xy=None):
         super(SqueezeExciteBlock, self).__init__()
