@@ -51,3 +51,4 @@ Next experiment. Let's see what happens when we do the same experiment but with 
 | Resnet34 Sep + AT | 3.16M      | 30.16   | 10.66   |
 | Resnet34 Sep      | 3.16M      | 32.98   | 12.26   |
 
+Great. This is exactly what we wanted. Any suggestions for one more exp?
