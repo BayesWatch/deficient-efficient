@@ -3,9 +3,7 @@
 Code used to produce https://arxiv.org/abs/1711.02613
 ## Installation Instructions
 
-The latest pytorch release now contains optimised grouped convolutions which makes installation much easier.
-
-Make an appropriate conda environment and activate it.
+Use Conda! Make a new environment then activate it.
 ```
 conda create -n torch python=3
 source activate torch
