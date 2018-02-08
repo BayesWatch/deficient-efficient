@@ -66,5 +66,5 @@ A non-exhaustive list follows:
 ```
 https://github.com/szagoruyko/attention-transfer
 https://github.com/kuangliu/pytorch-cifar
-https://github.com/gngdb/pytorch-cifar-sgdr
+https://github.com/xternalz/WideResNet-pytorch
 ```
