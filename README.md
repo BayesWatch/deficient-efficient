@@ -1,6 +1,7 @@
 # moonshine
 
 Code used to produce https://arxiv.org/abs/1711.02613
+
 ## Installation Instructions
 
 Use Conda! Make a new environment then activate it.
@@ -55,4 +56,14 @@ a substitute for the full convolutions in the full network:
 ```
 python main.py cifar10 AT --conv G8B2 -t wrn_40_2.ckpt -s wrn_40_2.g8b2.student.ckpt --wrn_depth 40 --wrn_width 2
 ```
+
+## Acknowledgements
+
+Code has been liberally borrowed from other repos.
+
+A non-exhaustive list follows:
+
+https://github.com/szagoruyko/attention-transfer
+https://github.com/kuangliu/pytorch-cifar
+https://github.com/gngdb/pytorch-cifar-sgdr
 
