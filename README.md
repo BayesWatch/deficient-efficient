@@ -1,4 +1,4 @@
-# moonshine (formerly teach)
+# moonshine
 
 Code used to produce https://arxiv.org/abs/1711.02613
 ## Installation Instructions
