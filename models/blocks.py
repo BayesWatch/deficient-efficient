@@ -10,7 +10,7 @@ from torch.autograd import Variable
 class Conv(nn.Module):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
         super(Conv, self).__init__()
-        # Dumb normal conv, pointlessly incorporated into a class
+        # Dumb normal conv incorporated into a class
         self.conv = nn.Conv2d(in_planes, out_planes, kernel_size=kernel_size,
                               stride=stride, padding=padding, bias=bias)
 
@@ -376,7 +376,7 @@ def conv_function(convtype):
 
 
 class BasicBlock(nn.Module):
-    def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=Conv, xy=None):
+    def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=Conv):
         super(BasicBlock, self).__init__()
         self.bn1 = nn.BatchNorm2d(in_planes)
         self.relu1 = nn.ReLU(inplace=True)
@@ -404,7 +404,7 @@ class BasicBlock(nn.Module):
 
 class OldBlock(nn.Module):
 
-    def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=Conv, xy=None):
+    def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=Conv):
 
         super(OldBlock, self).__init__()
 
@@ -440,90 +440,6 @@ class OldBlock(nn.Module):
         return out
 
 
-
-class SqueezeExciteBlock(nn.Module):
-    def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=Conv, xy=None):
-        super(SqueezeExciteBlock, self).__init__()
-        self.bn1 = nn.BatchNorm2d(in_planes)
-        self.relu1 = nn.ReLU(inplace=True)
-        self.conv1 = conv(in_planes, out_planes, kernel_size=3, stride=stride,
-                               padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(out_planes)
-        self.relu2 = nn.ReLU(inplace=True)
-        self.conv2 = conv(out_planes, out_planes, kernel_size=3, stride=1,
-                               padding=1, bias=False)
-        self.droprate = dropRate
-        self.equalInOut = (in_planes == out_planes)
-        self.convShortcut = (not self.equalInOut) and nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride,
-                               padding=0, bias=False) or None
-
-        self.fc1 = nn.Conv2d(out_planes, out_planes // 16, kernel_size=1)
-        self.fc2 = nn.Conv2d(out_planes // 16, out_planes, kernel_size=1)
-
-    def forward(self, x):
-        if not self.equalInOut:
-            x = self.relu1(self.bn1(x))
-        else:
-            out = self.relu1(self.bn1(x))
-        out = self.relu2(self.bn2(self.conv1(out if self.equalInOut else x)))
-        if self.droprate > 0:
-            out = F.dropout(out, p=self.droprate, training=self.training)
-        out = self.conv2(out)
-        # Squeeze
-        w = F.avg_pool2d(out, out.size(2))
-        w = F.relu(self.fc1(w))
-        w = F.sigmoid(self.fc2(w))
-        # Excitation
-
-        out = out * w
-
-        return torch.add(x if self.equalInOut else self.convShortcut(x), out)
-
-
-class AttentionBlock(nn.Module):
-    def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=Conv, xy=None):
-
-        assert xy is not None, 'need to know spatial size'
-
-        super(AttentionBlock, self).__init__()
-        self.bn1 = nn.BatchNorm2d(in_planes)
-        self.relu1 = nn.ReLU(inplace=True)
-        self.conv1 = conv(in_planes, out_planes, kernel_size=3, stride=stride,
-                               padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(out_planes)
-        self.relu2 = nn.ReLU(inplace=True)
-        self.conv2 = conv(out_planes, out_planes, kernel_size=3, stride=1,
-                               padding=1, bias=False)
-        self.droprate = dropRate
-        self.equalInOut = (in_planes == out_planes)
-        self.convShortcut = (not self.equalInOut) and nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride,
-                               padding=0, bias=False) or None
-        self.fc1 = nn.Linear(xy, xy//64)
-        self.fc2 = nn.Linear(xy//64, xy)
-
-    def forward(self, x):
-        if not self.equalInOut:
-            x = self.relu1(self.bn1(x))
-        else:
-            out = self.relu1(self.bn1(x))
-        out = self.relu2(self.bn2(self.conv1(out if self.equalInOut else x)))
-        if self.droprate > 0:
-            out = F.dropout(out, p=self.droprate, training=self.training)
-        out = self.conv2(out)
-        # Squeeze
-        w = out.mean(1, keepdim=True)
-        #Regrettable reshaping
-        w = w.view(w.size(0),-1)
-        w = F.relu(self.fc1(w))
-        w = F.sigmoid(self.fc2(w))
-        w = w.view(out.size(0),1,out.size(2),out.size(3))
-        # Excitation
-
-        out = out * w
-
-        return torch.add(x if self.equalInOut else self.convShortcut(x), out)
-
-
 class BottleBlock(nn.Module):
     def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=Conv, xy=None):
         super(BottleBlock, self).__init__()
@@ -554,13 +470,13 @@ class BottleBlock(nn.Module):
 
 
 class NetworkBlock(nn.Module):
-    def __init__(self, nb_layers, in_planes, out_planes, block, stride, dropRate=0.0, conv = Conv, xy=None):
+    def __init__(self, nb_layers, in_planes, out_planes, block, stride, dropRate=0.0, conv = Conv):
         super(NetworkBlock, self).__init__()
-        self.layer = self._make_layer(block, in_planes, out_planes, nb_layers, stride, dropRate, conv,xy)
-    def _make_layer(self, block, in_planes, out_planes, nb_layers, stride, dropRate, conv, xy):
+        self.layer = self._make_layer(block, in_planes, out_planes, nb_layers, stride, dropRate, conv)
+    def _make_layer(self, block, in_planes, out_planes, nb_layers, stride, dropRate, conv):
         layers = []
         for i in range(nb_layers):
-            layers.append(block(i == 0 and in_planes or out_planes, out_planes, i == 0 and stride or 1, dropRate, conv, xy))
+            layers.append(block(i == 0 and in_planes or out_planes, out_planes, i == 0 and stride or 1, dropRate, conv))
         return nn.Sequential(*layers)
     def forward(self, x):
         return self.layer(x)

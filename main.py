@@ -15,18 +15,20 @@ import os
 import imp
 from tqdm import tqdm
 from tensorboardX import SummaryWriter
-
+import time
 from funcs import *
+
+os.mkdir('checkpoints/') if not os.path.isdir('checkpoints/') else None
 
 parser = argparse.ArgumentParser(description='Student/teacher training')
 parser.add_argument('dataset', type=str, choices=['cifar10', 'cifar100', 'imagenet'], help='Choose between Cifar10/100/imagenet.')
-parser.add_argument('mode', choices=['KD','AT','teacher'], type=str, help='Learn with KD, AT, or train a teacher')
+parser.add_argument('mode', choices=['student','teacher'], type=str, help='Learn a teacher or a student')
 parser.add_argument('--imagenet_loc', default='/disk/scratch_ssd/imagenet',type=str, help='folder containing imagenet train and val folders')
 parser.add_argument('--workers', default=2, type=int, help='No. of data loading workers. Make this high for imagenet')
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
-parser.add_argument('--GPU', default='3', type=str,help='GPU to use')
+parser.add_argument('--GPU', default='2', type=str,help='GPU to use')
 parser.add_argument('--student_checkpoint', '-s', default='wrn_40_2_student_KT',type=str, help='checkpoint to save/load student')
-parser.add_argument('--teacher_checkpoint', '-t', default='cifar100_T',type=str, help='checkpoint to load in teacher')
+parser.add_argument('--teacher_checkpoint', '-t', default='wrn_40_2_T',type=str, help='checkpoint to load in teacher')
 
 #network stuff
 parser.add_argument('--wrn_depth', default=40, type=int, help='depth for WRN')
@@ -44,13 +46,14 @@ parser.add_argument('--AT_split', default=1, type=int, help='group splitting for
 parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
 parser.add_argument('--lr_decay_ratio', default=0.2, type=float, help='learning rate decay')
 parser.add_argument('--temperature', default=4, type=float, help='temp for KD')
-parser.add_argument('--alpha', default=0.9, type=float, help='alpha for KD')
+parser.add_argument('--alpha', default=0.0, type=float, help='alpha for KD')
 parser.add_argument('--aux_loss', default='AT', type=str, help='AT or SE loss')
 parser.add_argument('--beta', default=1e3, type=float, help='beta for AT')
 parser.add_argument('--epoch_step', default='[60,120,160]', type=str,
                     help='json list with epochs to drop lr on')
 parser.add_argument('--epochs', default=200, type=int, metavar='N',
                     help='number of total epochs to run')
+parser.add_argument('--print_freq', default=10, type=int, help="print stats frequency")
 parser.add_argument('--batch_size', default=128, type=int,
                     help='minibatch size')
 parser.add_argument('--weightDecay', default=0.0005, type=float)
@@ -66,72 +69,77 @@ def create_optimizer(lr,net):
 
 
 def train_teacher(net):
-    net.train()
-    train_loss = 0
-    top1 = 0
-    top5 = 0
-    total = 0
 
-    for batch_idx, (inputs, targets) in enumerate(tqdm(trainloader)):
+    batch_time = AverageMeter()
+    data_time = AverageMeter()
+    losses = AverageMeter()
+    top1 = AverageMeter()
+    top5 = AverageMeter()
+
+    net.train()
+
+    end = time.time()
+
+    for batch_idx, (inputs, targets) in enumerate(trainloader):
+
+        # measure data loading time
+        data_time.update(time.time() - end)
+
         if use_cuda:
             inputs, targets = inputs.cuda(), targets.cuda()
-        optimizer.zero_grad()
         inputs, targets = Variable(inputs), Variable(targets)
         outputs, _ = net(inputs)
         loss = criterion(outputs, targets)
-        loss.backward()
-        optimizer.step()
 
-        train_loss += loss.data[0]
+        # measure accuracy and record loss
+        prec1, prec5 = accuracy(outputs.data, targets.data, topk=(1, 5))
+        err1 = 100. - prec1
+        err5 = 100. - prec5
+        losses.update(loss.data[0], inputs.size(0))
+        top1.update(err1[0], inputs.size(0))
+        top5.update(err5[0], inputs.size(0))
 
-        prec1, prec5 = accuracy(outputs.data.cpu(), targets.data.cpu(), topk=(1, 5))
-
-        print('Top 1: %.3f%%, Top 5: %.3f%%' % (prec1 ,prec5))
-
-    writer.add_scalar('train_loss', train_loss / (batch_idx + 1), epoch)
-    writer.add_scalar('train_acc', 100. * correct / total,epoch)
-
-    print('\nTrain Loss: %.3f | Acc: %.3f%% (%d/%d)'
-    % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
-
-
-def train_student_KD(net, teach):
-    net.train()
-    teach.eval()
-    train_loss = 0
-    correct = 0
-    total = 0
-    for batch_idx, (inputs, targets) in enumerate(tqdm(trainloader)):
-        inputs = Variable(inputs.cuda())
-        targets = Variable(targets.cuda())
-        outputs_student, _ = net(inputs)
-        outputs_teacher, _ = teach(inputs)
-        loss = distillation(outputs_student, outputs_teacher, targets, args.temperature, args.alpha)
-
+        # compute gradient and do SGD step
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
-        train_loss += loss.data[0]
-        _, predicted = torch.max(outputs_student.data, 1)
-        total += targets.size(0)
+        # measure elapsed time
+        batch_time.update(time.time() - end)
+        end = time.time()
 
-        correct += predicted.eq(targets.data).cpu().sum()
-        writer.add_scalar('train_loss', train_loss / (batch_idx + 1), epoch)
-        writer.add_scalar('train_acc', 100. * correct / total, epoch)
+        if batch_idx % args.print_freq == 0:
+            print('Epoch: [{0}][{1}/{2}]\t'
+                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                  'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
+                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                  'Error@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+                  'Error@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
+                epoch, batch_idx, len(trainloader), batch_time=batch_time,
+                data_time=data_time, loss=losses, top1=top1, top5=top5))
 
-    print('\nLoss: %.3f | Acc: %.3f%% (%d/%d)\n' % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
+    writer.add_scalar('train_loss', losses.avg, epoch)
+    writer.add_scalar('train_top1', top1.avg, epoch)
+    writer.add_scalar('train_top5', top5.avg, epoch)
+
+    train_losses.append(losses.avg)
+    train_errors.append(top1.avg)
 
 
+def train_student(net, teach):
 
-# Training the student
-def train_student_AT(net, teach):
+    batch_time = AverageMeter()
+    data_time = AverageMeter()
+    losses = AverageMeter()
+    top1 = AverageMeter()
+    top5 = AverageMeter()
+
     net.train()
     teach.eval()
-    train_loss = 0
-    correct = 0
-    total = 0
-    for batch_idx, (inputs, targets) in enumerate(tqdm(trainloader)):
+
+    end = time.time()
+
+    for batch_idx, (inputs, targets) in enumerate(trainloader):
         inputs = Variable(inputs.cuda())
         targets = Variable(targets.cuda())
         outputs_student, ints_student = net(inputs)
@@ -147,28 +155,54 @@ def train_student_AT(net, teach):
         for i in range(len(ints_student)):
             loss += adjusted_beta * aux_loss(ints_student[i], ints_teacher[i])
 
+        # measure accuracy and record loss
+        prec1, prec5 = accuracy(outputs_student.data, targets.data, topk=(1, 5))
+        err1 = 100. - prec1
+        err5 = 100. - prec5
+        losses.update(loss.data[0], inputs.size(0))
+        top1.update(err1[0], inputs.size(0))
+        top5.update(err5[0], inputs.size(0))
+
+
+        # compute gradient and do SGD step
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
-        train_loss += loss.data[0]
-        _, predicted = torch.max(outputs_student.data, 1)
-        total += targets.size(0)
-        correct += predicted.eq(targets.data).cpu().sum()
-        writer.add_scalar('train_loss', train_loss / (batch_idx + 1), epoch)
-        writer.add_scalar('train_acc', 100. * correct / total, epoch)
+        # measure elapsed time
+        batch_time.update(time.time() - end)
+        end = time.time()
 
-    print(len(ints_student))
-    print('\nLoss: %.3f | Acc: %.3f%% (%d/%d)\n' % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
+        if batch_idx % args.print_freq == 0:
+            print('Epoch: [{0}][{1}/{2}]\t'
+                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                  'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
+                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                  'Error@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+                  'Error@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
+                epoch, batch_idx, len(trainloader), batch_time=batch_time,
+                data_time=data_time, loss=losses, top1=top1, top5=top5))
+
+    writer.add_scalar('train_loss', losses.avg, epoch)
+    writer.add_scalar('train_top1', top1.avg, epoch)
+    writer.add_scalar('train_top5', top5.avg, epoch)
+
+    train_losses.append(losses.avg)
+    train_errors.append(top1.avg)
 
 
-def test(net, checkpoint=None):
-    global best_acc
+def validate(net, checkpoint=None):
+
+    batch_time = AverageMeter()
+    losses = AverageMeter()
+    top1 = AverageMeter()
+    top5 = AverageMeter()
+
+
     net.eval()
-    test_loss = 0
-    correct = 0
-    total = 0
-    for batch_idx, (inputs, targets) in enumerate(testloader):
+    end = time.time()
+
+    for batch_idx, (inputs, targets) in enumerate(valloader):
 
         inputs, targets = inputs.cuda(), targets.cuda()
         inputs, targets = Variable(inputs, volatile=True), Variable(targets)
@@ -178,40 +212,51 @@ def test(net, checkpoint=None):
 
         loss = criterion(outputs, targets)
 
-        test_loss += loss.data[0]
-        _, predicted = torch.max(outputs.data, 1)
-        total += targets.size(0)
-        correct += predicted.eq(targets.data).cpu().sum()
+        # measure accuracy and record loss
+        prec1, prec5 = accuracy(outputs.data, targets.data, topk=(1, 5))
+        err1 = 100. - prec1
+        err5 = 100. - prec5
 
-    writer.add_scalar('test_loss', test_loss / (batch_idx + 1), epoch)
-    writer.add_scalar('test_acc', 100. * correct / total, epoch)
-    test_losses.append(test_loss/(batch_idx+1))
-    test_accs.append(100.*correct/total)
+        losses.update(loss.data[0], inputs.size(0))
+        top1.update(err1[0], inputs.size(0))
+        top5.update(err5[0], inputs.size(0))
+
+        # measure elapsed time
+        batch_time.update(time.time() - end)
+        end = time.time()
+
+        if batch_idx % args.print_freq == 0:
+            print('validate: [{0}/{1}]\t'
+                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                  'Error@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+                  'Error@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
+                batch_idx, len(valloader), batch_time=batch_time, loss=losses,
+                top1=top1, top5=top5))
+
+    print(' * Error@1 {top1.avg:.3f} Error@5 {top5.avg:.3f}'
+          .format(top1=top1, top5=top5))
 
 
-    print('Test Loss: %.3f | Acc: %.3f%% (%d/%d)' % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
+
+    val_losses.append(losses.avg)
+    val_errors.append(top1.avg)
+
 
     if checkpoint:
-        # Save checkpoint.
-        acc = 100.*correct/total
-        if acc > best_acc:
-            best_acc = acc
-
         print('Saving..')
         state = {
             'net': net.state_dict(),
-            'acc': acc,
             'epoch': epoch,
-            'best_acc': best_acc,
             'width': args.wrn_width,
             'depth': args.wrn_depth,
             'conv': args.conv,
             'blocktype': args.blocktype,
             'module': args.module,
             'train_losses': train_losses,
-            'train_accs': train_accs,
-            'test_losses': test_losses,
-            'test_accs': test_accs,
+            'train_errors': train_errors,
+            'val_losses': val_losses,
+            'val_errors': val_errors,
         }
         print('SAVED!')
         torch.save(state, 'checkpoints/%s.t7' % checkpoint)
@@ -251,10 +296,10 @@ if __name__ == '__main__':
     use_cuda = torch.cuda.is_available()
     assert use_cuda, 'Error: No CUDA!'
 
-    test_losses  = []
+    val_losses = []
     train_losses = []
-    test_accs    = []
-    train_accs   = []
+    val_errors = []
+    train_errors = []
 
     best_acc = 0
     start_epoch = 0
@@ -270,14 +315,14 @@ if __name__ == '__main__':
             transforms.ToTensor(),
             transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
         ])
-        transform_test = transforms.Compose([
+        transform_validate = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
         ])
         trainset = torchvision.datasets.CIFAR10(root='/disk/scratch/datasets/cifar',
                                                 train=True, download=False, transform=transform_train)
-        testset = torchvision.datasets.CIFAR10(root='/disk/scratch/datasets/cifar',
-                                               train=False, download=False, transform=transform_test)
+        valset = torchvision.datasets.CIFAR10(root='/disk/scratch/datasets/cifar',
+                                               train=False, download=False, transform=transform_validate)
     elif args.dataset == 'cifar100':
         num_classes = 100
         transform_train = transforms.Compose([
@@ -286,14 +331,14 @@ if __name__ == '__main__':
             transforms.ToTensor(),
             transforms.Normalize((0.5071, 0.4866, 0.4409), (0.2009, 0.1984, 0.2023)),
         ])
-        transform_test = transforms.Compose([
+        transform_validate = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.5071, 0.4866, 0.4409), (0.2009, 0.1984, 0.2023)),
         ])
         trainset = torchvision.datasets.CIFAR100(root='/disk/scratch/datasets/cifar100',
                                                 train=True, download=True, transform=transform_train)
-        testset = torchvision.datasets.CIFAR100(root='/disk/scratch/datasets/cifar100',
-                                               train=False, download=True, transform=transform_test)
+        validateset = torchvision.datasets.CIFAR100(root='/disk/scratch/datasets/cifar100',
+                                               train=False, download=True, transform=transform_validate)
 
     elif args.dataset == 'imagenet':
         num_classes = 1000
@@ -308,7 +353,7 @@ if __name__ == '__main__':
             transforms.ToTensor(),
             normalize,
         ])
-        transform_test = transforms.Compose([
+        transform_validate = transforms.Compose([
             transforms.Resize(256),
             transforms.CenterCrop(224),
             transforms.ToTensor(),
@@ -316,14 +361,14 @@ if __name__ == '__main__':
         ])
 
         trainset = torchvision.datasets.ImageFolder(traindir, transform_train)
-        testset = torchvision.datasets.ImageFolder(valdir, transform_test)
+        valset = torchvision.datasets.ImageFolder(valdir, transform_validate)
 
 
 
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True,
                                               num_workers=args.workers,
                                               pin_memory = True if args.dataset == 'imagenet' else False)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False,
+    valloader = torch.utils.data.DataLoader(valset, batch_size=100, shuffle=False,
                                              num_workers=args.workers,
                                              pin_memory=True if args.dataset == 'imagenet' else False)
 
@@ -352,7 +397,7 @@ if __name__ == '__main__':
         optimizer = optim.SGD(teach.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
         scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=epoch_step, gamma=args.lr_decay_ratio)
 
-        # This bit is stupid but we need to decay the learning rate depending on the epoch
+        # Decay the learning rate depending on the epoch
         for e in range(0,start_epoch):
             scheduler.step()
 
@@ -362,46 +407,16 @@ if __name__ == '__main__':
             print('Learning rate is %s' % [v['lr'] for v in optimizer.param_groups][0])
             writer.add_scalar('learning_rate', [v['lr'] for v in optimizer.param_groups][0], epoch)
             train_teacher(teach)
-            test(teach, args.teacher_checkpoint)
+            validate(teach, args.teacher_checkpoint)
 
-    elif args.mode == 'KD':
-        print('Mode Student: First, load a teacher network and check it performs decently...,')
+
+    elif args.mode == 'student':
+        print('Mode Student: First, load a teacher network and convert for (optional) attention transfer')
         teach, start_epoch = load_network('checkpoints/%s.t7' % args.teacher_checkpoint)
         # Very important to explicitly say we require no gradients for the teacher network
         for param in teach.parameters():
             param.requires_grad = False
-        test(teach)
-        if args.resume:
-            print('KD: Loading student and continuing training...')
-            student, start_epoch = load_network('checkpoints/%s.t7' % args.student_checkpoint)
-        else:
-            print('KD: Making a student network from scratch and training it...')
-            student = WideResNet(args.wrn_depth, args.wrn_width, Conv, Block, num_classes=num_classes, dropRate=0).cuda()
-        optimizer = optim.SGD(student.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
-        scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=epoch_step, gamma=args.lr_decay_ratio)
-
-        # This bit is stupid but we need to decay the learning rate depending on the epoch
-        for e in range(0, start_epoch):
-            scheduler.step()
-
-        for epoch in tqdm(range(start_epoch, args.epochs)):
-            scheduler.step()
-
-            print('Student Epoch %d:' % epoch)
-            print('Learning rate is %s' % [v['lr'] for v in optimizer.param_groups][0])
-            writer.add_scalar('learning_rate', [v['lr'] for v in optimizer.param_groups][0], epoch)
-
-            train_student_KD(student, teach)
-            test(student, args.student_checkpoint)
-
-
-    elif args.mode == 'AT':
-        print('AT (+optional KD): First, load a teacher network and convert for attention transfer')
-        teach, start_epoch = load_network('checkpoints/%s.t7' % args.teacher_checkpoint)
-        # Very important to explicitly say we require no gradients for the teacher network
-        for param in teach.parameters():
-            param.requires_grad = False
-        test(teach)
+        validate(teach)
 
         if args.resume:
             print('Mode Student: Loading student and continuing training...')
@@ -415,7 +430,7 @@ if __name__ == '__main__':
         optimizer = optim.SGD(student.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
         scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=epoch_step, gamma=args.lr_decay_ratio)
 
-        # This bit is stupid but we need to decay the learning rate depending on the epoch
+        # Decay the learning rate depending on the epoch
         for e in range(0, start_epoch):
             scheduler.step()
 
@@ -427,6 +442,6 @@ if __name__ == '__main__':
             print('Learning rate is %s' % [v['lr'] for v in optimizer.param_groups][0])
             writer.add_scalar('learning_rate', [v['lr'] for v in optimizer.param_groups][0], epoch)
 
-            train_student_AT(student, teach)
-            test(student, args.student_checkpoint)
+            train_student(student, teach)
+            validate(student, args.student_checkpoint)
 
