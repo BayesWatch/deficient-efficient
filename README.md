@@ -4,15 +4,17 @@ Code used to produce https://arxiv.org/abs/1711.02613
 
 ## Installation Instructions
 
-Use Conda! Make a new environment then activate it.
+Best done with conda. Make sure your conda is up to date.
+
+Make a new environment then activate it. Python version probably doesn't matter but I use 2 for no apparent reason.
 ```
-conda create -n torch python=3
+conda create -n torch python=2
 source activate torch
 ```
 then
 
 ```
-conda install pytorch torchvision cuda90 -c pytorch
+conda install pytorch torchvision -c pytorch
 pip install tqdm
 pip install tensorboardX
 pip install tensorflow
