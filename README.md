@@ -32,7 +32,7 @@ In the paper, results are typically reported using a standard 40-2 WRN,
 which would be the following (on cifar-10):
 
 ```
-python main.py cifar10 teacher --conv Conv -t wrn_40_2.ckpt --wrn_depth 40 --wrn_width 2
+python main.py cifar10 teacher --conv Conv -t wrn_40_2 --wrn_depth 40 --wrn_width 2
 ```
 
 ## Training a Student
