@@ -26,7 +26,7 @@ parser.add_argument('mode', choices=['student','teacher'], type=str, help='Learn
 parser.add_argument('--imagenet_loc', default='/disk/scratch_ssd/imagenet',type=str, help='folder containing imagenet train and val folders')
 parser.add_argument('--workers', default=2, type=int, help='No. of data loading workers. Make this high for imagenet')
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
-parser.add_argument('--GPU', default='2', type=str,help='GPU to use')
+parser.add_argument('--GPU', default=None, type=str,help='GPU to use')
 parser.add_argument('--student_checkpoint', '-s', default='wrn_40_2_student_KT',type=str, help='checkpoint to save/load student')
 parser.add_argument('--teacher_checkpoint', '-t', default='wrn_40_2_T',type=str, help='checkpoint to load in teacher')
 
@@ -36,7 +36,7 @@ parser.add_argument('--wrn_width', default=2, type=float, help='width for WRN')
 parser.add_argument('--module', default=None, type=str, help='path to file containing custom Conv and maybe Block module definitions')
 parser.add_argument('--blocktype', default='Basic',type=str, help='blocktype used if specify a --conv')
 parser.add_argument('--conv',
-                    choices=['Conv','ConvB2','ConvB4','ConvB8','ConvB16','DConv',
+                    choices=['Conv','ConvB2','ConvB4','ConvB8','ConvB16','DConv', 'ACDC',
                              'Conv2x2','DConvB2','DConvB4','DConvB8','DConvB16','DConv3D','DConvG2','DConvG4','DConvG8','DConvG16'
                         ,'custom','DConvA2','DConvA4','DConvA8','DConvA16','G2B2','G2B4','G4B2','G4B4','G8B2','G8B4','G16B2','G16B4','A2B2','A4B2','A8B2','A16B2'],
                     default=None, type=str, help='Conv type')
@@ -95,7 +95,7 @@ def train_teacher(net):
         prec1, prec5 = accuracy(outputs.data, targets.data, topk=(1, 5))
         err1 = 100. - prec1
         err5 = 100. - prec5
-        losses.update(loss.data[0], inputs.size(0))
+        losses.update(loss.item(), inputs.size(0))
         top1.update(err1[0], inputs.size(0))
         top5.update(err5[0], inputs.size(0))
 
@@ -159,7 +159,7 @@ def train_student(net, teach):
         prec1, prec5 = accuracy(outputs_student.data, targets.data, topk=(1, 5))
         err1 = 100. - prec1
         err5 = 100. - prec5
-        losses.update(loss.data[0], inputs.size(0))
+        losses.update(loss.item(), inputs.size(0))
         top1.update(err1[0], inputs.size(0))
         top5.update(err5[0], inputs.size(0))
 
@@ -217,7 +217,7 @@ def validate(net, checkpoint=None):
         err1 = 100. - prec1
         err5 = 100. - prec5
 
-        losses.update(loss.data[0], inputs.size(0))
+        losses.update(loss.item(), inputs.size(0))
         top1.update(err1[0], inputs.size(0))
         top5.update(err5[0], inputs.size(0))
 
@@ -291,7 +291,8 @@ if __name__ == '__main__':
         aux_loss = se_loss
 
     print(vars(args))
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.GPU
+    if args.GPU is not None:
+        os.environ["CUDA_VISIBLE_DEVICES"] = args.GPU
 
     use_cuda = torch.cuda.is_available()
     assert use_cuda, 'Error: No CUDA!'
@@ -412,11 +413,12 @@ if __name__ == '__main__':
 
     elif args.mode == 'student':
         print('Mode Student: First, load a teacher network and convert for (optional) attention transfer')
-        teach, start_epoch = load_network('checkpoints/%s.t7' % args.teacher_checkpoint)
+        teach, _ = load_network('checkpoints/%s.t7' % args.teacher_checkpoint)
         # Very important to explicitly say we require no gradients for the teacher network
         for param in teach.parameters():
             param.requires_grad = False
         validate(teach)
+        val_losses, val_errors = [], [] # or we'd save the teacher's error as the first entry
 
         if args.resume:
             print('Mode Student: Loading student and continuing training...')
@@ -433,7 +435,6 @@ if __name__ == '__main__':
         # Decay the learning rate depending on the epoch
         for e in range(0, start_epoch):
             scheduler.step()
-
 
         for epoch in tqdm(range(start_epoch, args.epochs)):
             scheduler.step()

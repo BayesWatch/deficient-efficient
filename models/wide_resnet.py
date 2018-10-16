@@ -60,10 +60,15 @@ class WideResNet(nn.Module):
         self.fc = nn.Linear(nChannels[3], num_classes)
         self.nChannels = nChannels[3]
 
+        # normal is better than uniform initialisation
+        # this should really be in `self.reset_parameters`
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                m.weight.data.normal_(0, math.sqrt(2. / n))
+                try:
+                    m.weight.data.normal_(0, math.sqrt(2. / n))
+                except AttributeError:
+                    pass
             elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
