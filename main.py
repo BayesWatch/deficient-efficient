@@ -238,6 +238,9 @@ def validate(net, checkpoint=None):
           .format(top1=top1, top5=top5))
 
 
+    writer.add_scalar('val_loss', losses.avg, epoch)
+    writer.add_scalar('val_top1', top1.avg, epoch)
+    writer.add_scalar('val_top5', top5.avg, epoch)
 
     val_losses.append(losses.avg)
     val_errors.append(top1.avg)
