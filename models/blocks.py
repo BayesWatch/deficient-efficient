@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 from torch.autograd import Variable
 
-from torch_dct.layers import FastStackedConvACDC
+from pytorch_acdc.layers import FastStackedConvACDC
 
 
 def ACDC(in_channels, out_channels, kernel_size, stride=1,
@@ -14,6 +14,12 @@ def ACDC(in_channels, out_channels, kernel_size, stride=1,
     return FastStackedConvACDC(in_channels, out_channels, kernel_size, 12,
             stride=stride, padding=padding, dilation=dilation, groups=groups,
             bias=bias)
+
+def OriginalACDC(in_channels, out_channels, kernel_size, stride=1,
+        padding=0, dilation=1, groups=1, bias=False):
+    return FastStackedConvACDC(in_channels, out_channels, kernel_size, 12,
+            stride=stride, padding=padding, dilation=dilation, groups=groups,
+            bias=bias, original=True)
 
 class Conv(nn.Module):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
@@ -379,6 +385,8 @@ def conv_function(convtype):
         conv = A16B2
     elif convtype =='ACDC':
         conv = ACDC
+    elif convtype =='OriginalACDC':
+        conv = OriginalACDC
     else:
         raise ValueError('Conv "%s" not recognised'%convtype)
     return conv

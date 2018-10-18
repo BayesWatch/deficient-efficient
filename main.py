@@ -13,6 +13,7 @@ from torch.autograd import Variable
 from models.wide_resnet import WideResNet, parse_options
 import os
 import imp
+import sys
 from tqdm import tqdm
 from tensorboardX import SummaryWriter
 import time
@@ -36,7 +37,7 @@ parser.add_argument('--wrn_width', default=2, type=float, help='width for WRN')
 parser.add_argument('--module', default=None, type=str, help='path to file containing custom Conv and maybe Block module definitions')
 parser.add_argument('--blocktype', default='Basic',type=str, help='blocktype used if specify a --conv')
 parser.add_argument('--conv',
-                    choices=['Conv','ConvB2','ConvB4','ConvB8','ConvB16','DConv', 'ACDC',
+                    choices=['Conv','ConvB2','ConvB4','ConvB8','ConvB16','DConv', 'ACDC', 'OriginalACDC',
                              'Conv2x2','DConvB2','DConvB4','DConvB8','DConvB16','DConv3D','DConvG2','DConvG4','DConvG8','DConvG16'
                         ,'custom','DConvA2','DConvA4','DConvA8','DConvA16','G2B2','G2B4','G4B2','G4B4','G8B2','G8B4','G16B2','G16B4','A2B2','A4B2','A8B2','A16B2'],
                     default=None, type=str, help='Conv type')
@@ -65,7 +66,7 @@ if args.mode == 'teacher':
 elif args.mode == 'student':
     logdir = "runs/%s.%s"%(args.teacher_checkpoint, args.student_checkpoint)
 append = 0
-while os.isdir(logdir+".%i"%append):
+while os.path.isdir(logdir+".%i"%append):
     append += 1
 writer = SummaryWriter(logdir)
 
@@ -244,21 +245,19 @@ def validate(net, checkpoint=None):
     print(' * Error@1 {top1.avg:.3f} Error@5 {top5.avg:.3f}'
           .format(top1=top1, top5=top5))
 
-
-    writer.add_scalar('val_loss', losses.avg, epoch)
-    writer.add_scalar('val_top1', top1.avg, epoch)
-    writer.add_scalar('val_top5', top5.avg, epoch)
-
-    val_losses.append(losses.avg)
-    val_errors.append(top1.avg)
-
-
     if checkpoint:
+        writer.add_scalar('val_loss', losses.avg, epoch)
+        writer.add_scalar('val_top1', top1.avg, epoch)
+        writer.add_scalar('val_top5', top5.avg, epoch)
+
+        val_losses.append(losses.avg)
+        val_errors.append(top1.avg)
+
         print('Saving..')
         state = {
             'net': net.state_dict(),
             'epoch': epoch,
-            'args': args.__dict__,
+            'args': sys.argv,
             'width': args.wrn_width,
             'depth': args.wrn_depth,
             'conv': args.conv,
