@@ -60,7 +60,14 @@ parser.add_argument('--weightDecay', default=0.0005, type=float)
 
 args = parser.parse_args()
 
-writer = SummaryWriter()
+if args.mode == 'teacher':
+    logdir = "runs/%s"%args.teacher_checkpoint
+elif args.mode == 'student':
+    logdir = "runs/%s.%s"%(args.teacher_checkpoint, args.student_checkpoint)
+append = 0
+while os.isdir(logdir+".%i"%append):
+    append += 1
+writer = SummaryWriter(logdir)
 
 
 def create_optimizer(lr,net):
@@ -251,6 +258,7 @@ def validate(net, checkpoint=None):
         state = {
             'net': net.state_dict(),
             'epoch': epoch,
+            'args': args.__dict__,
             'width': args.wrn_width,
             'depth': args.wrn_depth,
             'conv': args.conv,
