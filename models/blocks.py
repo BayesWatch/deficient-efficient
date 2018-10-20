@@ -21,9 +21,9 @@ def OriginalACDC(in_channels, out_channels, kernel_size, stride=1,
             stride=stride, padding=padding, dilation=dilation, groups=groups,
             bias=bias, original=True)
 
-class Conv(nn.Module):
+class nnConv(nn.Module):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
-        super(Conv, self).__init__()
+        super(nnConv, self).__init__()
         # Dumb normal conv incorporated into a class
         self.conv = nn.Conv2d(in_planes, out_planes, kernel_size=kernel_size,
                               stride=stride, padding=padding, bias=bias)
@@ -320,7 +320,7 @@ class DConv3D(nn.Module):
 
 def conv_function(convtype):
     if convtype == 'Conv':
-        conv = Conv
+        conv = nnConv
     elif convtype == 'DConv':
         conv = DConv
     elif convtype == 'DConvG2':
@@ -393,7 +393,7 @@ def conv_function(convtype):
 
 
 class BasicBlock(nn.Module):
-    def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=Conv):
+    def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=nnConv):
         super(BasicBlock, self).__init__()
         self.bn1 = nn.BatchNorm2d(in_planes)
         self.relu1 = nn.ReLU(inplace=True)
@@ -405,7 +405,11 @@ class BasicBlock(nn.Module):
                                padding=1, bias=False)
         self.droprate = dropRate
         self.equalInOut = (in_planes == out_planes)
-        self.convShortcut = (not self.equalInOut) and nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride,
+        if conv == nnConv:
+            self.convShortcut = (not self.equalInOut) and nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride,
+                               padding=0, bias=False) or None
+        else:
+            self.convShortcut = (not self.equalInOut) and conv(in_planes, out_planes, kernel_size=1, stride=stride,
                                padding=0, bias=False) or None
     def forward(self, x):
         if not self.equalInOut:
@@ -421,7 +425,7 @@ class BasicBlock(nn.Module):
 
 class OldBlock(nn.Module):
 
-    def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=Conv):
+    def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=nnConv):
 
         super(OldBlock, self).__init__()
 
@@ -458,7 +462,7 @@ class OldBlock(nn.Module):
 
 
 class BottleBlock(nn.Module):
-    def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=Conv, xy=None):
+    def __init__(self, in_planes, out_planes, stride, dropRate=0.0, conv=nnConv, xy=None):
         super(BottleBlock, self).__init__()
         self.bn1 = nn.BatchNorm2d(in_planes)
         self.relu1 = nn.ReLU(inplace=True)
@@ -484,10 +488,8 @@ class BottleBlock(nn.Module):
         return torch.add(x if self.equalInOut else self.convShortcut(x), out)
 
 
-
-
 class NetworkBlock(nn.Module):
-    def __init__(self, nb_layers, in_planes, out_planes, block, stride, dropRate=0.0, conv = Conv):
+    def __init__(self, nb_layers, in_planes, out_planes, block, stride, dropRate=0.0, conv=nnConv):
         super(NetworkBlock, self).__init__()
         self.layer = self._make_layer(block, in_planes, out_planes, nb_layers, stride, dropRate, conv)
     def _make_layer(self, block, in_planes, out_planes, nb_layers, stride, dropRate, conv):

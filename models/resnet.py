@@ -99,7 +99,7 @@ class ResNet(nn.Module):
 
 
 
-def resnet18(pretrained=False, conv=Conv, block=OldBlock):
+def resnet18(pretrained=False, conv=nnConv, block=OldBlock):
     """Constructs a ResNet-18 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
@@ -110,7 +110,7 @@ def resnet18(pretrained=False, conv=Conv, block=OldBlock):
     return model
 
 
-def resnet34(pretrained=False, conv=Conv, block=OldBlock):
+def resnet34(pretrained=False, conv=nnConv, block=OldBlock):
     """Constructs a ResNet-34 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
