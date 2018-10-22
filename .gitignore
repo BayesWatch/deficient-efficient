@@ -12,3 +12,5 @@ __pycache__
 state_dicts/
 logs
 runs
+.ipynbs
+*.ipynb
