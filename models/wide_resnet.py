@@ -36,14 +36,8 @@ class WideResNet(nn.Module):
         assert n % s == 0, 'n mod s must be zero'
 
         # 1st conv before any network block
-        # if for legacy reasons
-        if conv == nnConv:
-            self.conv1 = nn.Conv2d(3, nChannels[0], kernel_size=3, stride=1,
-                                   padding=1, bias=False)
-        else:
-            self.conv1 = conv(3, nChannels[0], kernel_size=3, stride=1,
-                                   padding=1, bias=False)
-
+        self.conv1 = nn.Conv2d(3, nChannels[0], kernel_size=3, stride=1,
+                               padding=1, bias=False)
         # 1st block
         self.block1 = torch.nn.ModuleList()
         for i in range(s):
