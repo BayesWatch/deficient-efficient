@@ -58,6 +58,7 @@ parser.add_argument('--print_freq', default=10, type=int, help="print stats freq
 parser.add_argument('--batch_size', default=128, type=int,
                     help='minibatch size')
 parser.add_argument('--weightDecay', default=0.0005, type=float)
+parser.add_argument('--clip_grad', default=None, type=float)
 
 args = parser.parse_args()
 
@@ -68,6 +69,8 @@ elif args.mode == 'student':
 append = 0
 while os.path.isdir(logdir+".%i"%append):
     append += 1
+if append > 0:
+    logdir = logdir+".%i"%append
 writer = SummaryWriter(logdir)
 
 
@@ -175,6 +178,14 @@ def train_student(net, teach):
         # compute gradient and do SGD step
         optimizer.zero_grad()
         loss.backward()
+        if args.clip_grad is not None:
+            max_grad = 0.
+            for p in net.parameters():
+                g = p.grad.max().item()
+                if g > max_grad:
+                    max_grad = g
+            nn.utils.clip_grad_norm(net.parameters(), args.clip_grad)
+            print("Max grad: ", max_grad)
         optimizer.step()
 
         # measure elapsed time
