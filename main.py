@@ -10,7 +10,7 @@ import torchvision.transforms as transforms
 import json
 import argparse
 from torch.autograd import Variable
-from models.wide_resnet import WideResNet, parse_options
+from models.wide_resnet import WideResNet
 import os
 import imp
 import sys
@@ -224,34 +224,35 @@ def validate(net, checkpoint=None):
     for batch_idx, (inputs, targets) in enumerate(valloader):
 
         inputs, targets = inputs.cuda(), targets.cuda()
-        inputs, targets = Variable(inputs, volatile=True), Variable(targets)
-        outputs, _ = net(inputs)
-        if isinstance(outputs,tuple):
-            outputs = outputs[0]
+        with torch.no_grad():
+            inputs, targets = Variable(inputs), Variable(targets)
+            outputs, _ = net(inputs)
+            if isinstance(outputs,tuple):
+                outputs = outputs[0]
 
-        loss = criterion(outputs, targets)
+            loss = criterion(outputs, targets)
 
-        # measure accuracy and record loss
-        prec1, prec5 = accuracy(outputs.data, targets.data, topk=(1, 5))
-        err1 = 100. - prec1
-        err5 = 100. - prec5
+            # measure accuracy and record loss
+            prec1, prec5 = accuracy(outputs.data, targets.data, topk=(1, 5))
+            err1 = 100. - prec1
+            err5 = 100. - prec5
 
-        losses.update(loss.item(), inputs.size(0))
-        top1.update(err1[0], inputs.size(0))
-        top5.update(err5[0], inputs.size(0))
+            losses.update(loss.item(), inputs.size(0))
+            top1.update(err1[0], inputs.size(0))
+            top5.update(err5[0], inputs.size(0))
 
-        # measure elapsed time
-        batch_time.update(time.time() - end)
-        end = time.time()
+            # measure elapsed time
+            batch_time.update(time.time() - end)
+            end = time.time()
 
-        if batch_idx % args.print_freq == 0:
-            print('validate: [{0}/{1}]\t'
-                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                  'Error@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-                  'Error@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                batch_idx, len(valloader), batch_time=batch_time, loss=losses,
-                top1=top1, top5=top5))
+            if batch_idx % args.print_freq == 0:
+                print('validate: [{0}/{1}]\t'
+                      'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                      'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                      'Error@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+                      'Error@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
+                    batch_idx, len(valloader), batch_time=batch_time, loss=losses,
+                    top1=top1, top5=top5))
 
     print(' * Error@1 {top1.avg:.3f} Error@5 {top5.avg:.3f}'
           .format(top1=top1, top5=top5))
@@ -282,25 +283,6 @@ def validate(net, checkpoint=None):
         print('SAVED!')
         torch.save(state, 'checkpoints/%s.t7' % checkpoint)
 
-
-
-def what_conv_block(conv, blocktype, module):
-    if conv is not None:
-        Conv, Block = parse_options(conv, blocktype)
-    elif module is not None:
-        conv_module = imp.new_module('conv')
-        with open(module, 'r') as f:
-            exec(f.read(), conv_module.__dict__)
-        Conv = conv_module.Conv
-        try:
-            Block = conv_module.Block
-        except AttributeError:
-            # if the module doesn't implement a custom block,
-            # use default option
-            _, Block = parse_options('Conv', args.blocktype)
-    else:
-        raise ValueError("You must specify either an existing conv option, or supply your own module to import")
-    return Conv, Block
 
 if __name__ == '__main__':
     # Stuff happens from here:

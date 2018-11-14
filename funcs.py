@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 from models import *
+from models.wide_resnet import parse_options
 
 def distillation(y, teacher_scores, labels, T, alpha):
     return F.kl_div(F.log_softmax(y/T, dim=1), F.softmax(teacher_scores/T, dim=1)) * (T*T * 2. * alpha)\
@@ -69,4 +70,21 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 
+def what_conv_block(conv, blocktype, module):
+    if conv is not None:
+        Conv, Block = parse_options(conv, blocktype)
+    elif module is not None:
+        conv_module = imp.new_module('conv')
+        with open(module, 'r') as f:
+            exec(f.read(), conv_module.__dict__)
+        Conv = conv_module.Conv
+        try:
+            Block = conv_module.Block
+        except AttributeError:
+            # if the module doesn't implement a custom block,
+            # use default option
+            _, Block = parse_options('Conv', args.blocktype)
+    else:
+        raise ValueError("You must specify either an existing conv option, or supply your own module to import")
+    return Conv, Block
 
