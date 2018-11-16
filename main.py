@@ -73,12 +73,6 @@ if append > 0:
     logdir = logdir+".%i"%append
 writer = SummaryWriter(logdir)
 
-
-def create_optimizer(lr,net):
-    print('creating optimizer with lr = %0.5f' % lr)
-    return torch.optim.SGD(net.parameters(), lr, 0.9, weight_decay=args.weightDecay)
-
-
 def train_teacher(net):
 
     batch_time = AverageMeter()
@@ -398,7 +392,7 @@ if __name__ == '__main__':
 
 
         get_no_params(teach)
-        optimizer = optim.SGD(teach.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
+        optimizer = optim.SGD(teach.grouped_parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
         scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=epoch_step, gamma=args.lr_decay_ratio)
 
         # Decay the learning rate depending on the epoch
@@ -432,7 +426,7 @@ if __name__ == '__main__':
                     num_classes=num_classes, dropRate=0,
                     s=args.AT_split).cuda()
 
-        optimizer = optim.SGD(student.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
+        optimizer = optim.SGD(student.grouped_parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
         scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=epoch_step, gamma=args.lr_decay_ratio)
 
         # Decay the learning rate depending on the epoch

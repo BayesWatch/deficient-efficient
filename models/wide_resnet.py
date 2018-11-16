@@ -81,6 +81,8 @@ class WideResNet(nn.Module):
         for n,p in self.named_parameters():
             if 'A' in n or 'D' in n:
                 acdc_params.append(p)
+            elif 'grouped' in n:
+                acdc_params.append(p)
             else:
                 other_params.append(p)
         return [{'params': acdc_params, 'weight_decay': 8.8e-6},
