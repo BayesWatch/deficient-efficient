@@ -77,15 +77,17 @@ class WideResNet(nn.Module):
 
     def grouped_parameters(self):
         # iterate over parameters and separate those in ACDC layers
-        acdc_params, other_params = [], []
+        lowrank_params, other_params = [], []
         for n,p in self.named_parameters():
             if 'A' in n or 'D' in n:
-                acdc_params.append(p)
+                lowrank_params.append(p)
             elif 'grouped' in n:
-                acdc_params.append(p)
+                lowrank_params.append(p)
+            elif 'hashed' in n:
+                lowrank_params.append(p)
             else:
                 other_params.append(p)
-        return [{'params': acdc_params, 'weight_decay': 8.8e-6},
+        return [{'params': lowrank_params, 'weight_decay': 8.8e-6},
                 {'params': other_params}] 
 
     def forward(self, x):

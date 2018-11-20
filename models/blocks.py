@@ -6,6 +6,17 @@ import torch.nn.functional as F
 
 from torch.autograd import Variable
 
+from .hashed import HashedConv2d
+
+
+def HashedDecimate(in_channels, out_channels, kernel_size, stride=1,
+        padding=0, dilation=1, groups=1, bias=False):
+    # Hashed Conv2d using 1/10 the original parameters
+    original_params = out_channels*in_channels*kernel_size // groups
+    budget = original_params//10
+    return HashedConv2d(in_channels, out_channels, kernel_size, budget, stride=stride, padding=padding, dilation=dilation, groups=groups, bias=bias)
+
+
 from pytorch_acdc.layers import FastStackedConvACDC
 
 
@@ -387,6 +398,8 @@ def conv_function(convtype):
         conv = ACDC
     elif convtype =='OriginalACDC':
         conv = OriginalACDC
+    elif convtype == 'HashedDecimate':
+        conv = HashedDecimate
     else:
         raise ValueError('Conv "%s" not recognised'%convtype)
     return conv
