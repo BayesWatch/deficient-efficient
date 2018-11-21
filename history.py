@@ -8,7 +8,6 @@ if __name__ == '__main__':
         try:
             ckpt = torch.load("checkpoints/"+p)
             if 'args' in ckpt.keys():
-                print(p)
-                print("  " + " ".join(ckpt['args']))
+                print(p + ":  " + " ".join(ckpt['args']))
         except:
             pass
