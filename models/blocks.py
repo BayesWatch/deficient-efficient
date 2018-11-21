@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 from torch.autograd import Variable
 
-from .hashed import HashedConv2d
+from .hashed import HashedConv2d, SeparableHashedConv2d
 
 
 def HashedDecimate(in_channels, out_channels, kernel_size, stride=1,
@@ -14,7 +14,18 @@ def HashedDecimate(in_channels, out_channels, kernel_size, stride=1,
     # Hashed Conv2d using 1/10 the original parameters
     original_params = out_channels*in_channels*kernel_size*kernel_size // groups
     budget = original_params//10
-    return HashedConv2d(in_channels, out_channels, kernel_size, budget, stride=stride, padding=padding, dilation=dilation, groups=groups, bias=bias)
+    return HashedConv2d(in_channels, out_channels, kernel_size, budget,
+            stride=stride, padding=padding, dilation=dilation, groups=groups,
+            bias=bias)
+
+def SepHashedDecimate(in_channels, out_channels, kernel_size, stride=1,
+        padding=0, dilation=1, groups=1, bias=False):
+    # Hashed Conv2d using 1/10 the original parameters
+    original_params = out_channels*in_channels*kernel_size*kernel_size // groups
+    budget = original_params//10
+    return SeparableHashedConv2d(in_channels, out_channels, kernel_size,
+            budget, stride=stride, padding=padding, dilation=dilation,
+            groups=groups, bias=bias)
 
 
 from pytorch_acdc.layers import FastStackedConvACDC
@@ -400,6 +411,8 @@ def conv_function(convtype):
         conv = OriginalACDC
     elif convtype == 'HashedDecimate':
         conv = HashedDecimate
+    elif convtype == 'SepHashedDecimate':
+        conv = SepHashedDecimate
     else:
         raise ValueError('Conv "%s" not recognised'%convtype)
     return conv
@@ -495,8 +508,6 @@ class BottleBlock(nn.Module):
             out = F.dropout(out, p=self.droprate, training=self.training)
         out = out
         return torch.add(x if self.equalInOut else self.convShortcut(x), out)
-
-
 
 
 class NetworkBlock(nn.Module):
