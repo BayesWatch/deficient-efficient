@@ -401,8 +401,6 @@ if __name__ == '__main__':
             return n_params(net)
         hyperparam = set_for_budget(eval_network_size, args.conv, args.budget)
         args.conv = args.conv + "_%s"%hyperparam
-        print(args.conv)
-        assert False
     # get the classes implementing the Conv and Blocks we're going to use in
     # the network
     Conv, Block = what_conv_block(args.conv, args.blocktype, args.module)
