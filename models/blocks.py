@@ -330,78 +330,101 @@ class DConv3D(nn.Module):
 
 
 def conv_function(convtype):
-    if convtype == 'Conv':
-        conv = Conv
-    elif convtype == 'DConv':
-        conv = DConv
-    elif convtype == 'DConvG2':
-        conv = DConvG2
-    elif convtype == 'DConvG4':
-        conv = DConvG4
-    elif convtype == 'DConvG8':
-        conv = DConvG8
-    elif convtype == 'DConvG16':
-        conv = DConvG16
-    elif convtype == 'DConvA2':
-        conv = DConvA2
-    elif convtype == 'DConvA4':
-        conv = DConvA4
-    elif convtype == 'DConvA8':
-        conv = DConvA8
-    elif convtype == 'DConvA16':
-        conv = DConvA16
-    elif convtype == 'Conv2x2':
-        conv = Conv2x2
-    elif convtype == 'ConvB2':
-        conv = ConvB2
-    elif convtype == 'ConvB4':
-        conv = ConvB4
-    elif convtype == 'ConvB8':
-        conv = ConvB8
-    elif convtype == 'ConvB16':
-        conv = ConvB16
-    elif convtype == 'DConvB2':
-        conv = DConvB2
-    elif convtype == 'DConvB4':
-        conv = DConvB4
-    elif convtype == 'DConvB8':
-        conv = DConvB8
-    elif convtype == 'DConvB16':
-        conv = DConvB16
-    elif convtype == 'DConv3D':
-        conv = DConv3D
-    elif convtype =='G2B2':
-        conv = G2B2
-    elif convtype =='G4B2':
-        conv = G4B2
-    elif convtype =='G8B2':
-        conv = G8B2
-    elif convtype =='G16B2':
-        conv = G16B2
-    elif convtype =='G2B4':
-        conv = G2B4
-    elif convtype =='G4B4':
-        conv = G4B4
-    elif convtype =='G8B4':
-        conv = G8B4
-    elif convtype =='G16B4':
-        conv = G16B4
-    elif convtype =='A2B2':
-        conv = A2B2
-    elif convtype =='A4B2':
-        conv = A4B2
-    elif convtype =='A8B2':
-        conv = A8B2
-    elif convtype =='A16B2':
-        conv = A16B2
-    elif convtype =='ACDC':
-        conv = ACDC
-    elif convtype =='OriginalACDC':
-        conv = OriginalACDC
-    elif convtype == 'HashedDecimate':
-        conv = HashedDecimate
+    # if convtype contains an underscore, it must have a hyperparam in it
+    if "_" in convtype:
+        convtype, hyperparam = convtype.split("_")
+        if convtype == 'ACDC':
+            # then hyperparam controls how many layers in each conv
+            n_layers = int(hyperparam)
+            def conv(in_channels, out_channels, kernel_size, stride=1,
+                    padding=0, dilation=1, groups=1, bias=False):
+                return FastStackedConvACDC(in_channels, out_channels,
+                        kernel_size, n_layers, stride=stride,
+                        padding=padding, dilation=dilation, groups=groups,
+                        bias=bias)
+        elif convtype == 'Hashed':
+            # then hyperparam controls relative budget for each layer
+            budget_scale = float(hyperparam)
+            def conv(in_channels, out_channels, kernel_size, stride=1,
+                    padding=0, dilation=1, groups=1, bias=False):
+                # Hashed Conv2d using 1/10 the original parameters
+                original_params = out_channels*in_channels*kernel_size*kernel_size // groups
+                budget = int(original_params*budget_scale)
+                return HashedConv2d(in_channels, out_channels, kernel_size, budget, stride=stride, padding=padding, dilation=dilation, groups=groups, bias=bias)
+
     else:
-        raise ValueError('Conv "%s" not recognised'%convtype)
+        if convtype == 'Conv':
+            conv = Conv
+        elif convtype == 'DConv':
+            conv = DConv
+        elif convtype == 'DConvG2':
+            conv = DConvG2
+        elif convtype == 'DConvG4':
+            conv = DConvG4
+        elif convtype == 'DConvG8':
+            conv = DConvG8
+        elif convtype == 'DConvG16':
+            conv = DConvG16
+        elif convtype == 'DConvA2':
+            conv = DConvA2
+        elif convtype == 'DConvA4':
+            conv = DConvA4
+        elif convtype == 'DConvA8':
+            conv = DConvA8
+        elif convtype == 'DConvA16':
+            conv = DConvA16
+        elif convtype == 'Conv2x2':
+            conv = Conv2x2
+        elif convtype == 'ConvB2':
+            conv = ConvB2
+        elif convtype == 'ConvB4':
+            conv = ConvB4
+        elif convtype == 'ConvB8':
+            conv = ConvB8
+        elif convtype == 'ConvB16':
+            conv = ConvB16
+        elif convtype == 'DConvB2':
+            conv = DConvB2
+        elif convtype == 'DConvB4':
+            conv = DConvB4
+        elif convtype == 'DConvB8':
+            conv = DConvB8
+        elif convtype == 'DConvB16':
+            conv = DConvB16
+        elif convtype == 'DConv3D':
+            conv = DConv3D
+        elif convtype =='G2B2':
+            conv = G2B2
+        elif convtype =='G4B2':
+            conv = G4B2
+        elif convtype =='G8B2':
+            conv = G8B2
+        elif convtype =='G16B2':
+            conv = G16B2
+        elif convtype =='G2B4':
+            conv = G2B4
+        elif convtype =='G4B4':
+            conv = G4B4
+        elif convtype =='G8B4':
+            conv = G8B4
+        elif convtype =='G16B4':
+            conv = G16B4
+        elif convtype =='A2B2':
+            conv = A2B2
+        elif convtype =='A4B2':
+            conv = A4B2
+        elif convtype =='A8B2':
+            conv = A8B2
+        elif convtype =='A16B2':
+            conv = A16B2
+        elif convtype =='ACDC':
+            conv = ACDC
+        elif convtype =='OriginalACDC':
+            conv = OriginalACDC
+        elif convtype == 'HashedDecimate':
+            conv = HashedDecimate
+        else:
+            raise ValueError('Conv "%s" not recognised'%convtype)
     return conv
 
 

@@ -75,5 +75,28 @@ Sanity check, parameters: 3.91190E+06
 Don't know what performance this network might get, though. Presumably a
 little better.
 
+Started an experiment with a SeparableHashedNet, including this fix. So
+far, it is performing better, but that could easily be because of the 3x
+larger parameter budget in each layer.
+
 [acdc]: https://github.com/gngdb/pytorch-acdc/blob/master/research-log.md
+
+Budget Parameterisation
+-----------------------
+
+I wanted to, regardless of the low-rank approximation method chosen, be
+able to set a budget in parameters for a network then the code would just
+set the hyperparameter controlling how many parameters are used by the
+network to meet that. To do that, I need to be able to pass options to the
+module implementing the `Conv` that is substituted into the WRN used in
+this code.
+
+Currently, the argument given on the command line is just crudely matched
+to the name of a `Conv` in `blocks.py`. There's even a horrible `if` block
+involved.
+
+Seems like the easiest way to do this is going to be to have a generator
+function in `blocks.py` that returns a `Conv` with a hyperparameter set to
+whatever we like. Then, it's easy enough to search through a range of
+settings when a budget is prescribed.
 
