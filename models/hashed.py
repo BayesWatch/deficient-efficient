@@ -18,7 +18,7 @@ class HashedConv2d(nn.Conv2d):
         budgeted = self.weight.data.view(-1)[:budget]
         del self.weight
         # register non-budgeted weights
-        self.register_parameter('weight', nn.Parameter(budgeted))
+        self.register_parameter('hashed_weight', nn.Parameter(budgeted))
         # precompute random index matrix
         idxs = torch.randint(high=budget, size=self.weight_size).long()
         idxs = idxs.view(-1)
@@ -28,8 +28,7 @@ class HashedConv2d(nn.Conv2d):
 
     def forward(self, x):
         # index to make weight matrix
-        #W = self.weight[self.idxs]
-        W = self.weight.index_select(0, self.idxs).view(self.weight_size)
+        W = self.hashed_weight.index_select(0, self.idxs).view(self.weight_size)
         # complete forward pass as normal
         return F.conv2d(x, W, self.bias, self.stride, self.padding,
                 self.dilation, self.groups)
@@ -40,4 +39,3 @@ if __name__ == '__main__':
     print("HashedConv2d: ", timeit("_ = conv(X)", setup=setup, number=100))
     setup = "import torch.nn as nn; import torch; X = torch.randn(128, 256, 28, 28).cuda(); conv = nn.Conv2d(256, 512, 3, bias=False).cuda()"
     print("Conv2d: ", timeit("_ = conv(X)", setup=setup, number=100))
-
