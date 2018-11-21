@@ -38,7 +38,28 @@ networks:
 
 ![](images/val_loss_Nov21.png)
 
+The original network had the following number of parameters and mult-adds:
 
+```
+Mult-Adds: 5.24564E+09
+Params: 3.64792E+07
+```
+
+And we are able to reduce that to be about a 10th, because these HashedNet
+layers have been set to use 1/10 the parameters of the original layer.
+
+```
+Mult-Adds: 5.24564E+09
+Params: 1.49884E+06
+```
+
+I'm not sure why the number of parameters even smaller than a 1/10. That
+suggests there might be a problem in the script counting parameters.
+
+To check, added a sanity check explicitly checking the number of parameters
+in the whole network. Result was the same for both networks, so it could be
+that the HashedNet layer's method of choosing how many parameters to budget
+for is broken somehow.
 
 [acdc]: https://github.com/gngdb/pytorch-acdc/blob/master/research-log.md
 

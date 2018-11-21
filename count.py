@@ -18,7 +18,7 @@ parser.add_argument('--wrn_width', default=2, type=float, help='width for WRN')
 parser.add_argument('--module', default=None, type=str, help='path to file containing custom Conv and maybe Block module definitions')
 parser.add_argument('--blocktype', default='Basic',type=str, help='blocktype used if specify a --conv')
 parser.add_argument('--conv',
-                    choices=['Conv','ConvB2','ConvB4','ConvB8','ConvB16','DConv', 'ACDC', 'OriginalACDC',
+                    choices=['Conv','ConvB2','ConvB4','ConvB8','ConvB16','DConv', 'ACDC', 'OriginalACDC', 'HashedDecimate',
                              'Conv2x2','DConvB2','DConvB4','DConvB8','DConvB16','DConv3D','DConvG2','DConvG4','DConvG8','DConvG16'
                         ,'custom','DConvA2','DConvA4','DConvA8','DConvA16','G2B2','G2B4','G4B2','G4B4','G8B2','G8B4','G16B2','G16B4','A2B2','A4B2','A8B2','A16B2'],
                     default=None, type=str, help='Conv type')
@@ -133,6 +133,17 @@ def measure_layer(layer, x):
         delta_ops += ops*out_h*out_w
         delta_params += 2*N
 
+    ### HashedNet Convolution
+    elif type_name in ['HashedConv2d']:
+        # same number of ops as convolution
+        out_h = int((x.size()[2] + 2 * layer.padding[0] - layer.kernel_size[0]) /
+                    layer.stride[0] + 1)
+        out_w = int((x.size()[3] + 2 * layer.padding[1] - layer.kernel_size[1]) /
+                    layer.stride[1] + 1)
+        delta_ops = layer.in_channels * layer.out_channels * layer.kernel_size[0] *  \
+                layer.kernel_size[1] * out_h * out_w / layer.groups * multi_add
+        delta_params = get_layer_param(layer)
+
     ### unknown layer type
     else:
         if type_name not in ignored_modules:
@@ -208,3 +219,4 @@ if __name__ == '__main__':
     flops, params = measure_model(model, 32, 32)
     print("Mult-Adds: %.5E"%flops)
     print("Params: %.5E"%params)
+    print("Sanity check, parameters: %.5E"%sum([reduce(lambda x,y: x*y, p.size()) for p in model.parameters()]))
