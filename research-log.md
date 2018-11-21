@@ -61,5 +61,19 @@ in the whole network. Result was the same for both networks, so it could be
 that the HashedNet layer's method of choosing how many parameters to budget
 for is broken somehow.
 
+Update: found the mistake. Number of original parameters was being
+estimated using only one of the kernel dimensions, meaning it was out by,
+on average, a factor of three. Fixed it and the network using
+HashedDecimate is indeed about 10 times smaller:
+
+```
+Mult-Adds: 5.24564E+09
+Params: 3.91190E+06
+Sanity check, parameters: 3.91190E+06
+```
+
+Don't know what performance this network might get, though. Presumably a
+little better.
+
 [acdc]: https://github.com/gngdb/pytorch-acdc/blob/master/research-log.md
 
