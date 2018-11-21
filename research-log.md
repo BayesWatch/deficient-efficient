@@ -27,5 +27,18 @@ CIFAR-10. Strangely, the network trained without a teacher worked better,
 achieving a final top-1 error of 6.48%. The student network converged to
 7.47%.
 
+The training loss converges to zero in the case of the network trained
+without a teacher. Student networks typically don't converge to zero; the
+attention transfer loss is hard to minimise.
+
+![](images/train_loss_Nov21.png)
+
+The overfitting here is not bad, similar to experiments with traditional
+networks:
+
+![](images/val_loss_Nov21.png)
+
+
+
 [acdc]: https://github.com/gngdb/pytorch-acdc/blob/master/research-log.md
 
