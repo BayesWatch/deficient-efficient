@@ -347,7 +347,7 @@ def conv_function(convtype):
         convtype, hyperparam = convtype.split("_")
         if convtype == 'ACDC':
             # then hyperparam controls how many layers in each conv
-            n_layers = int(hyperparam)
+            n_layers = int(round(float(hyperparam)))
             def conv(in_channels, out_channels, kernel_size, stride=1,
                     padding=0, dilation=1, groups=1, bias=False):
                 return FastStackedConvACDC(in_channels, out_channels,

@@ -1,5 +1,11 @@
 ''''Writing everything into one script..'''
 from __future__ import print_function
+import os
+import imp
+import sys
+import time
+import json
+import argparse
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -7,17 +13,15 @@ import torch.optim.lr_scheduler as lr_scheduler
 import torch.nn.functional as F
 import torchvision
 import torchvision.transforms as transforms
-import json
-import argparse
 from torch.autograd import Variable
-from models.wide_resnet import WideResNet
-import os
-import imp
-import sys
+from scipy.optimize import minimize_scalar
+from functools import reduce
+
 from tqdm import tqdm
 from tensorboardX import SummaryWriter
-import time
+
 from funcs import *
+from models.wide_resnet import WideResNet
 
 os.mkdir('checkpoints/') if not os.path.isdir('checkpoints/') else None
 
@@ -38,6 +42,7 @@ parser.add_argument('--module', default=None, type=str, help='path to file conta
 parser.add_argument('--blocktype', default='Basic',type=str, help='blocktype used if specify a --conv')
 parser.add_argument('--conv', default=None, type=str, help='Conv type')
 parser.add_argument('--AT_split', default=1, type=int, help='group splitting for AT loss')
+parser.add_argument('--budget', default=None, type=float, help='budget of parameters to use for the network')
 
 #learning stuff
 parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
@@ -273,10 +278,25 @@ def validate(net, checkpoint=None):
         print('SAVED!')
         torch.save(state, 'checkpoints/%s.t7' % checkpoint)
 
+def set_for_budget(eval_network_size, conv_type, budget):
+    # set bounds using knowledge of conv_type hyperparam domain
+    if 'ACDC' == conv_type:
+        bounds = (2, 128)
+        post_process = lambda x: int(round(x))
+    elif 'Hashed' == conv_type:
+        bounds = (0.001,0.9)
+        post_process = lambda x: x # do nothing
+    else:
+        raise ValueError("Don't know: "+conv_type)
+    def obj(h):
+        return abs(budget-eval_network_size(h))
+    minimizer = minimize_scalar(obj, bounds=bounds, method='bounded')
+    return post_process(minimizer.x)
+
+def n_params(net):
+    return sum([reduce(lambda x,y:x*y, p.size()) for p in net.parameters()])
 
 if __name__ == '__main__':
-    # Stuff happens from here:
-    Conv, Block = what_conv_block(args.conv, args.blocktype, args.module)
 
     if args.aux_loss == 'AT':
         aux_loss = at_loss
@@ -368,12 +388,32 @@ if __name__ == '__main__':
 
     criterion = nn.CrossEntropyLoss()
 
+    # a function for building networks
+    def build_network(Conv, Block):
+        return WideResNet(args.wrn_depth, args.wrn_width, Conv, Block,
+                num_classes=num_classes, dropRate=0, s=args.AT_split)
+
+    # if a budget is specified, figure out what we have to set the
+    # hyperparameter to
+    if args.budget is not None:
+        def eval_network_size(hyperparam):
+            net = build_network(*what_conv_block(args.conv+"_%s"%hyperparam, args.blocktype, args.module))
+            return n_params(net)
+        hyperparam = set_for_budget(eval_network_size, args.conv, args.budget)
+        args.conv = args.conv + "_%s"%hyperparam
+        print(args.conv)
+        assert False
+    # get the classes implementing the Conv and Blocks we're going to use in
+    # the network
+    Conv, Block = what_conv_block(args.conv, args.blocktype, args.module)
+
+
     def load_network(loc):
         net_checkpoint = torch.load(loc)
         start_epoch = net_checkpoint['epoch']
         SavedConv, SavedBlock = what_conv_block(net_checkpoint['conv'],
                 net_checkpoint['blocktype'], net_checkpoint['module'])
-        net = WideResNet(args.wrn_depth, args.wrn_width, SavedConv, SavedBlock, num_classes=num_classes, dropRate=0).cuda()
+        net = build_network(SavedConv, SavedBlock).cuda()
         net.load_state_dict(net_checkpoint['net'])
         return net, start_epoch
 
@@ -384,7 +424,7 @@ if __name__ == '__main__':
             teach, start_epoch = load_network('checkpoints/%s.t7' % args.teacher_checkpoint)
         else:
             print('Mode Teacher: Making a teacher network from scratch and training it...')
-            teach = WideResNet(args.wrn_depth, args.wrn_width, Conv, Block, num_classes=num_classes, dropRate=0).cuda()
+            teach = build_network(Conv, Block).cuda()
 
 
         get_no_params(teach)
@@ -418,9 +458,7 @@ if __name__ == '__main__':
             student, start_epoch = load_network('checkpoints/%s.t7' % args.student_checkpoint)
         else:
             print('Mode Student: Making a student network from scratch and training it...')
-            student = WideResNet(args.wrn_depth, args.wrn_width, Conv, Block,
-                    num_classes=num_classes, dropRate=0,
-                    s=args.AT_split).cuda()
+            student = build_network(Conv, Block).cuda()
 
         optimizer = optim.SGD(student.grouped_parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
         scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=epoch_step, gamma=args.lr_decay_ratio)
