@@ -1,24 +1,6 @@
-# moonshine
+# Deficient Linear Transforms for Efficient Deep Learning
 
-Code used to produce https://arxiv.org/abs/1711.02613
-
-## Installation Instructions
-
-Best done with conda. Make sure your conda is up to date.
-
-Make a new environment then activate it. Python version probably doesn't matter but I use 2 for no apparent reason.
-```
-conda create -n torch python=2
-source activate torch
-```
-then
-
-```
-conda install pytorch torchvision -c pytorch
-pip install tqdm
-pip install tensorboardX
-pip install tensorflow
-```
+Using distillation as described here: https://arxiv.org/abs/1711.02613
 
 ## Training a Teacher
 
