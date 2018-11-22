@@ -110,3 +110,34 @@ Would like to run experiments on a state of the art network. DARTS is,
 conventiently, one of the best CIFAR-10 networks published, and they
 provided a stored model in PyTorch.
 
+22nd November 2018
+==================
+
+### DARTS results
+
+Trained a DARTS network with our default training settings overnight. The
+final top 1 error was only 5.06%. The accuracy of the pre-trained network
+supplied with the paper is below 3%, so their training strategy seems to
+also be important. If we're going to use this network in these experiments,
+we'll have to port their training script into ours and make sure everything
+is the same. This could involve also using the extra augmentations they
+use, which could slow down training.
+
+### ACDC results
+
+Also, overnight I ran another experiment with a WRN-28-10 and the original
+ACDC parameterisation using a full permutation instead of a riffle shuffle.
+The final top 1 error was 5.35%, which is slightly worse than the 5.23%
+achieved with the riffle shuffle. Although, they are so similar it seems
+likely that how the shuffle is done isn't very important.
+
+### HashedNet results
+
+Trained separable HashedNet WRN-28-10 with and without distillation using
+the same teacher used in other experiments. Before, for reference, the
+network has `3.64792E+07` parameters, and after it has `3.91190E+06`
+parameters, so approximately 10x fewer. Trained without distillation, the
+top-1 error is 5.95%, with distillation it decreases to 3.84%: similar to
+the results obtained with grouping and bottlenecks described in the
+[pytorch-acdc research log][acdc].
+
