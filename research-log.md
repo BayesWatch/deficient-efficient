@@ -100,3 +100,13 @@ function in `blocks.py` that returns a `Conv` with a hyperparameter set to
 whatever we like. Then, it's easy enough to search through a range of
 settings when a budget is prescribed.
 
+Wrote it to used scipy's scalar_minimize to set the hyperparameter to match
+the budget specified.
+
+DARTS
+-----
+
+Would like to run experiments on a state of the art network. DARTS is,
+conventiently, one of the best CIFAR-10 networks published, and they
+provided a stored model in PyTorch.
+

@@ -43,6 +43,22 @@ def OriginalACDC(in_channels, out_channels, kernel_size, stride=1,
             stride=stride, padding=padding, dilation=dilation, groups=groups,
             bias=bias, original=True)
 
+
+class DepthwiseSep(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1,
+        padding=0, dilation=1, groups=1, bias=True):
+        super(DepthwiseSep, self).__init__()
+        assert groups == 1
+        self.grouped = nn.Conv2d(in_channels, in_channels, kernel_size,
+                stride=stride, padding=padding, dilation=dilation,
+                groups=in_channels, bias=False)
+        self.pointwise = nn.Conv2d(in_channels, out_channels, 1, bias=bias)
+
+    def forward(self, x):
+        out = self.grouped(x)
+        return self.pointwise(out)
+
+
 class Conv(nn.Module):
     def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
         super(Conv, self).__init__()
@@ -436,6 +452,8 @@ def conv_function(convtype):
             conv = HashedDecimate
         elif convtype == 'SepHashedDecimate':
             conv = SepHashedDecimate
+        elif convtype == 'Sep':
+            conv = DepthwiseSep
         else:
             raise ValueError('Conv "%s" not recognised'%convtype)
     return conv

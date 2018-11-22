@@ -4,28 +4,31 @@ import torch.nn as nn
 
 from collections import namedtuple
 
+from .blocks import DepthwiseSep
+
 Genotype = namedtuple('Genotype', 'normal normal_concat reduce reduce_concat')
 
 DARTS_V2 = Genotype(normal=[('sep_conv_3x3', 0), ('sep_conv_3x3', 1), ('sep_conv_3x3', 0), ('sep_conv_3x3', 1), ('sep_conv_3x3', 1), ('skip_connect', 0), ('skip_connect', 0), ('dil_conv_3x3', 2)], normal_concat=[2, 3, 4, 5], reduce=[('max_pool_3x3', 0), ('max_pool_3x3', 1), ('skip_connect', 2), ('max_pool_3x3', 1), ('max_pool_3x3', 0), ('skip_connect', 2), ('skip_connect', 2), ('max_pool_3x3', 1)], reduce_concat=[2, 3, 4, 5])
 
 
 OPS = {
-  'none' : lambda C, stride, affine: Zero(stride),
-  'avg_pool_3x3' : lambda C, stride, affine: nn.AvgPool2d(3, stride=stride, padding=1, count_include_pad=False),
-  'max_pool_3x3' : lambda C, stride, affine: nn.MaxPool2d(3, stride=stride, padding=1),
-  'skip_connect' : lambda C, stride, affine: Identity() if stride == 1 else FactorizedReduce(C, C, affine=affine),
-  'sep_conv_3x3' : lambda C, stride, affine: SepConv(C, C, 3, stride, 1, affine=affine),
-  'sep_conv_5x5' : lambda C, stride, affine: SepConv(C, C, 5, stride, 2, affine=affine),
-  'sep_conv_7x7' : lambda C, stride, affine: SepConv(C, C, 7, stride, 3, affine=affine),
-  'dil_conv_3x3' : lambda C, stride, affine: DilConv(C, C, 3, stride, 2, 2, affine=affine),
-  'dil_conv_5x5' : lambda C, stride, affine: DilConv(C, C, 5, stride, 4, 2, affine=affine),
-  'conv_7x1_1x7' : lambda C, stride, affine: nn.Sequential(
+  'none' : lambda C, stride, affine, conv: Zero(stride),
+  'avg_pool_3x3' : lambda C, stride, affine, conv: nn.AvgPool2d(3, stride=stride, padding=1, count_include_pad=False),
+  'max_pool_3x3' : lambda C, stride, affine, conv: nn.MaxPool2d(3, stride=stride, padding=1),
+  'skip_connect' : lambda C, stride, affine, conv: Identity() if stride == 1 else FactorizedReduce(C, C, affine=affine),
+  'sep_conv_3x3' : lambda C, stride, affine, conv: SepConv(C, C, 3, stride, 1, Conv=conv, affine=affine),
+  'sep_conv_5x5' : lambda C, stride, affine, conv: SepConv(C, C, 5, stride, 2, Conv=conv, affine=affine),
+  'sep_conv_7x7' : lambda C, stride, affine, conv: SepConv(C, C, 7, stride, 3, Conv=conv, affine=affine),
+  'dil_conv_3x3' : lambda C, stride, affine, conv: DilConv(C, C, 3, stride, 2, 2, Conv=conv, affine=affine),
+  'dil_conv_5x5' : lambda C, stride, affine, conv: DilConv(C, C, 5, stride, 4, 2, Conv=conv, affine=affine),
+  'conv_7x1_1x7' : lambda C, stride, affine, conv: nn.Sequential(
     nn.ReLU(inplace=False),
     nn.Conv2d(C, C, (1,7), stride=(1, stride), padding=(0, 3), bias=False),
     nn.Conv2d(C, C, (7,1), stride=(stride, 1), padding=(3, 0), bias=False),
     nn.BatchNorm2d(C, affine=affine)
     ),
 }
+
 
 class ReLUConvBN(nn.Module):
 
@@ -42,12 +45,11 @@ class ReLUConvBN(nn.Module):
 
 class DilConv(nn.Module):
     
-  def __init__(self, C_in, C_out, kernel_size, stride, padding, dilation, affine=True):
+  def __init__(self, C_in, C_out, kernel_size, stride, padding, dilation, Conv=DepthwiseSep, affine=True):
     super(DilConv, self).__init__()
     self.op = nn.Sequential(
       nn.ReLU(inplace=False),
-      nn.Conv2d(C_in, C_in, kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation, groups=C_in, bias=False),
-      nn.Conv2d(C_in, C_out, kernel_size=1, padding=0, bias=False),
+      Conv(C_in, C_out, kernel_size=kernel_size, stride=stride, padding=padding, dilation=dilation, bias=False),
       nn.BatchNorm2d(C_out, affine=affine),
       )
 
@@ -57,16 +59,14 @@ class DilConv(nn.Module):
 
 class SepConv(nn.Module):
     
-  def __init__(self, C_in, C_out, kernel_size, stride, padding, affine=True):
+  def __init__(self, C_in, C_out, kernel_size, stride, padding, Conv=DepthwiseSep, affine=True):
     super(SepConv, self).__init__()
     self.op = nn.Sequential(
       nn.ReLU(inplace=False),
-      nn.Conv2d(C_in, C_in, kernel_size=kernel_size, stride=stride, padding=padding, groups=C_in, bias=False),
-      nn.Conv2d(C_in, C_in, kernel_size=1, padding=0, bias=False),
+      Conv(C_in, C_in, kernel_size=kernel_size, stride=stride, padding=padding, bias=False),
       nn.BatchNorm2d(C_in, affine=affine),
       nn.ReLU(inplace=False),
-      nn.Conv2d(C_in, C_in, kernel_size=kernel_size, stride=1, padding=padding, groups=C_in, bias=False),
-      nn.Conv2d(C_in, C_out, kernel_size=1, padding=0, bias=False),
+      Conv(C_in, C_out, kernel_size=kernel_size, stride=1, padding=padding, bias=False),
       nn.BatchNorm2d(C_out, affine=affine),
       )
 
@@ -113,9 +113,9 @@ class FactorizedReduce(nn.Module):
 
 
 class Cell(nn.Module):
-  def __init__(self, genotype, C_prev_prev, C_prev, C, reduction, reduction_prev):
+  def __init__(self, genotype, C_prev_prev, C_prev, C, reduction, reduction_prev, Conv):
     super(Cell, self).__init__()
-    print(C_prev_prev, C_prev, C)
+    self.Conv = Conv
 
     if reduction_prev:
       self.preprocess0 = FactorizedReduce(C_prev_prev, C)
@@ -140,7 +140,7 @@ class Cell(nn.Module):
     self._ops = nn.ModuleList()
     for name, index in zip(op_names, indices):
       stride = 2 if reduction and index < 2 else 1
-      op = OPS[name](C, stride, True)
+      op = OPS[name](C, stride, True, self.Conv)
       self._ops += [op]
     self._indices = indices
 
@@ -200,7 +200,7 @@ def drop_path(x, drop_prob):
 
 
 class DARTS(nn.Module):
-  def __init__(self, C=36, num_classes=10, layers=20, auxiliary=True,
+  def __init__(self, Conv=DepthwiseSep, C=36, num_classes=10, layers=20, auxiliary=True,
           genotype=DARTS_V2, drop_path_prob=0.2):
     super(DARTS, self).__init__()
     self.drop_path_prob = drop_path_prob
@@ -223,7 +223,7 @@ class DARTS(nn.Module):
         reduction = True
       else:
         reduction = False
-      cell = Cell(genotype, C_prev_prev, C_prev, C_curr, reduction, reduction_prev)
+      cell = Cell(genotype, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, Conv)
       reduction_prev = reduction
       self.cells += [cell]
       C_prev_prev, C_prev = C_prev, cell.multiplier*C_curr
@@ -234,6 +234,21 @@ class DARTS(nn.Module):
       self.auxiliary_head = AuxiliaryHeadCIFAR(C_to_auxiliary, num_classes)
     self.global_pooling = nn.AdaptiveAvgPool2d(1)
     self.classifier = nn.Linear(C_prev, num_classes)
+
+  def grouped_parameters(self):
+    # iterate over parameters and separate those in ACDC layers
+    lowrank_params, other_params = [], []
+    for n,p in self.named_parameters():
+        if 'A' in n or 'D' in n:
+            lowrank_params.append(p)
+        elif 'grouped' in n:
+            lowrank_params.append(p)
+        elif 'hashed' in n:
+            lowrank_params.append(p)
+        else:
+            other_params.append(p)
+    return [{'params': lowrank_params, 'weight_decay': 8.8e-6},
+            {'params': other_params}] 
 
   def forward(self, input):
     logits_aux = None

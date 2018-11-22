@@ -22,6 +22,7 @@ from tensorboardX import SummaryWriter
 
 from funcs import *
 from models.wide_resnet import WideResNet
+from models.darts import DARTS
 
 os.mkdir('checkpoints/') if not os.path.isdir('checkpoints/') else None
 
@@ -36,6 +37,7 @@ parser.add_argument('--student_checkpoint', '-s', default='wrn_40_2_student_KT',
 parser.add_argument('--teacher_checkpoint', '-t', default='wrn_40_2_T',type=str, help='checkpoint to load in teacher')
 
 #network stuff
+parser.add_argument('--network', default='WideResNet', type=str, help='network to use')
 parser.add_argument('--wrn_depth', default=40, type=int, help='depth for WRN')
 parser.add_argument('--wrn_width', default=2, type=float, help='width for WRN')
 parser.add_argument('--module', default=None, type=str, help='path to file containing custom Conv and maybe Block module definitions')
@@ -94,7 +96,12 @@ def train_teacher(net):
         if use_cuda:
             inputs, targets = inputs.cuda(), targets.cuda()
         inputs, targets = Variable(inputs), Variable(targets)
-        outputs, _ = net(inputs)
+        if isinstance(net, DARTS):
+            outputs, aux = net(inputs)
+            outputs = torch.cat([outputs, aux], 0)
+            targets = torch.cat([targets, targets], 0)
+        else:
+            outputs, _ = net(inputs)
         loss = criterion(outputs, targets)
 
         # measure accuracy and record loss
@@ -390,8 +397,11 @@ if __name__ == '__main__':
 
     # a function for building networks
     def build_network(Conv, Block):
-        return WideResNet(args.wrn_depth, args.wrn_width, Conv, Block,
-                num_classes=num_classes, dropRate=0, s=args.AT_split)
+        if args.network == 'WideResNet':
+            return WideResNet(args.wrn_depth, args.wrn_width, Conv, Block,
+                    num_classes=num_classes, dropRate=0, s=args.AT_split)
+        elif args.network == 'DARTS':
+            return DARTS(Conv, num_classes=num_classes)
 
     # if a budget is specified, figure out what we have to set the
     # hyperparameter to
