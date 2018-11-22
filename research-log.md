@@ -116,7 +116,7 @@ provided a stored model in PyTorch.
 ### DARTS results
 
 Trained a DARTS network with our default training settings overnight. The
-final top 1 error was only 5.06%. The accuracy of the pre-trained network
+final top 1 error was only 4.96%. The accuracy of the pre-trained network
 supplied with the paper is below 3%, so their training strategy seems to
 also be important. If we're going to use this network in these experiments,
 we'll have to port their training script into ours and make sure everything
