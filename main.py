@@ -306,7 +306,7 @@ def n_params(net):
 
 def darts_defaults(args):
     args.batch_size = 96
-    args.learning_rate = 0.1
+    args.lr = 0.025
     args.momentum = 0.9
     args.weight_decay = 3e-4
     args.epochs = 600
