@@ -22,7 +22,7 @@ from tensorboardX import SummaryWriter
 
 from funcs import *
 from models.wide_resnet import WideResNet
-from models.darts import DARTS
+from models.darts import DARTS, _data_transforms_cifar10 as darts_transforms
 
 os.mkdir('checkpoints/') if not os.path.isdir('checkpoints/') else None
 
@@ -48,6 +48,7 @@ parser.add_argument('--budget', default=None, type=float, help='budget of parame
 
 #learning stuff
 parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
+parser.add_argument('--momentum', default=0.9, type=float, help='momentum')
 parser.add_argument('--lr_decay_ratio', default=0.2, type=float, help='learning rate decay')
 parser.add_argument('--temperature', default=4, type=float, help='temp for KD')
 parser.add_argument('--alpha', default=0.0, type=float, help='alpha for KD')
@@ -60,7 +61,7 @@ parser.add_argument('--epochs', default=200, type=int, metavar='N',
 parser.add_argument('--print_freq', default=10, type=int, help="print stats frequency")
 parser.add_argument('--batch_size', default=128, type=int,
                     help='minibatch size')
-parser.add_argument('--weightDecay', default=0.0005, type=float)
+parser.add_argument('--weight_decay', default=0.0005, type=float)
 parser.add_argument('--clip_grad', default=None, type=float)
 
 args = parser.parse_args()
@@ -303,12 +304,29 @@ def set_for_budget(eval_network_size, conv_type, budget):
 def n_params(net):
     return sum([reduce(lambda x,y:x*y, p.size()) for p in net.parameters()])
 
-if __name__ == '__main__':
+def darts_defaults(args):
+    args.batch_size = 96
+    args.learning_rate = 0.1
+    args.momentum = 0.9
+    args.weight_decay = 3e-4
+    args.epochs = 600
+    return args
 
+def get_scheduler(optimizer, epoch_step, args):
+    if args.network == 'WideResNet':
+        scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=epoch_step, gamma=args.lr_decay_ratio)
+    elif args.network == 'DARTS':
+        scheduler = lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
+    return scheduler
+
+if __name__ == '__main__':
     if args.aux_loss == 'AT':
         aux_loss = at_loss
     elif args.aux_loss == 'SE':
         aux_loss = se_loss
+
+    if args.network == 'DARTS':
+        args = darts_defaults(args) # different training hyperparameters
 
     print(vars(args))
     if args.GPU is not None:
@@ -328,38 +346,45 @@ if __name__ == '__main__':
 
     # Data and loaders
     print('==> Preparing data..')
+
+
     if args.dataset == 'cifar10':
         num_classes = 10
-        transform_train = transforms.Compose([
-            transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-        ])
-        transform_validate = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-        ])
+        if args.network == 'DARTS':
+            transforms_train, transforms_validate = darts_transforms()
+        else:
+            transforms_train =  transforms.Compose([
+                    transforms.RandomCrop(32, padding=4),
+                    transforms.RandomHorizontalFlip(),
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.4914, 0.4822, 0.4465),
+                                         (0.2023, 0.1994, 0.2010)),])
+            transforms_validate = transforms.Compose([
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.4914, 0.4822, 0.4465),
+                                         (0.2023, 0.1994, 0.2010)),])
         trainset = torchvision.datasets.CIFAR10(root='/disk/scratch/datasets/cifar',
-                                                train=True, download=False, transform=transform_train)
+                                                train=True, download=False, transform=transforms_train)
         valset = torchvision.datasets.CIFAR10(root='/disk/scratch/datasets/cifar',
-                                               train=False, download=False, transform=transform_validate)
+                                               train=False, download=False, transform=transforms_validate)
     elif args.dataset == 'cifar100':
         num_classes = 100
-        transform_train = transforms.Compose([
+        if args.network == 'DARTS':
+            raise NotImplementedError("Could use transforms for CIFAR-10, but not ported yet.")
+        transforms_train = transforms.Compose([
             transforms.RandomCrop(32, padding=4),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize((0.5071, 0.4866, 0.4409), (0.2009, 0.1984, 0.2023)),
         ])
-        transform_validate = transforms.Compose([
+        transforms_validate = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.5071, 0.4866, 0.4409), (0.2009, 0.1984, 0.2023)),
         ])
         trainset = torchvision.datasets.CIFAR100(root='/disk/scratch/datasets/cifar100',
-                                                train=True, download=True, transform=transform_train)
+                                                train=True, download=True, transform=transforms_train)
         validateset = torchvision.datasets.CIFAR100(root='/disk/scratch/datasets/cifar100',
-                                               train=False, download=True, transform=transform_validate)
+                                               train=False, download=True, transform=transforms_validate)
 
     elif args.dataset == 'imagenet':
         num_classes = 1000
@@ -385,7 +410,6 @@ if __name__ == '__main__':
         valset = torchvision.datasets.ImageFolder(valdir, transform_validate)
 
 
-
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True,
                                               num_workers=args.workers,
                                               pin_memory = True if args.dataset == 'imagenet' else False)
@@ -402,6 +426,8 @@ if __name__ == '__main__':
                     num_classes=num_classes, dropRate=0, s=args.AT_split)
         elif args.network == 'DARTS':
             return DARTS(Conv, num_classes=num_classes)
+    def schedule_drop_path(epoch, net):
+        net.drop_path_prob = 0.2 * epoch / args.epochs
 
     # if a budget is specified, figure out what we have to set the
     # hyperparameter to
@@ -414,7 +440,6 @@ if __name__ == '__main__':
     # get the classes implementing the Conv and Blocks we're going to use in
     # the network
     Conv, Block = what_conv_block(args.conv, args.blocktype, args.module)
-
 
     def load_network(loc):
         net_checkpoint = torch.load(loc)
@@ -436,8 +461,8 @@ if __name__ == '__main__':
 
 
         get_no_params(teach)
-        optimizer = optim.SGD(teach.grouped_parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
-        scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=epoch_step, gamma=args.lr_decay_ratio)
+        optimizer = optim.SGD(teach.grouped_parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
+        scheduler = get_scheduler(optimizer, epoch_step, args)
 
         # Decay the learning rate depending on the epoch
         for e in range(0,start_epoch):
@@ -445,6 +470,7 @@ if __name__ == '__main__':
 
         for epoch in tqdm(range(start_epoch, args.epochs)):
             scheduler.step()
+            if args.network == 'DARTS': schedule_drop_path(epoch, teach)
             print('Teacher Epoch %d:' % epoch)
             print('Learning rate is %s' % [v['lr'] for v in optimizer.param_groups][0])
             writer.add_scalar('learning_rate', [v['lr'] for v in optimizer.param_groups][0], epoch)
@@ -468,8 +494,8 @@ if __name__ == '__main__':
             print('Mode Student: Making a student network from scratch and training it...')
             student = build_network(Conv, Block).cuda()
 
-        optimizer = optim.SGD(student.grouped_parameters(), lr=args.lr, momentum=0.9, weight_decay=args.weightDecay)
-        scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=epoch_step, gamma=args.lr_decay_ratio)
+        optimizer = optim.SGD(student.grouped_parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
+        scheduler = get_scheduler(optimizer, epoch_step, args)
 
         # Decay the learning rate depending on the epoch
         for e in range(0, start_epoch):
@@ -477,6 +503,7 @@ if __name__ == '__main__':
 
         for epoch in tqdm(range(start_epoch, args.epochs)):
             scheduler.step()
+            if args.network == 'DARTS': schedule_drop_path(epoch, student)
 
             print('Student Epoch %d:' % epoch)
             print('Learning rate is %s' % [v['lr'] for v in optimizer.param_groups][0])

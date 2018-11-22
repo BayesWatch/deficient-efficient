@@ -141,3 +141,31 @@ top-1 error is 5.95%, with distillation it decreases to 3.84%: similar to
 the results obtained with grouping and bottlenecks described in the
 [pytorch-acdc research log][acdc].
 
+### Matching DARTS training protocol
+
+Looking at the code provided for training DARTS models, and trying to make
+sure we do exactly the same thing when we train one. Hyperparameters:
+
+* `batch_size = 96`
+* `learning_rate = 0.025`
+* `momentum = 0.9`
+* `weight_decay = 3e-4`
+* `epochs = 600` !!!
+
+Data tranforms:
+
+* port `_data_transforms_cifar10` functions from `utils.py` and use it
+* will also need to port `Cutout` (succint implementation of Cutout), also
+in `utils.py`
+
+Training specifics:
+
+* Cosine annealing learning rate schedule, annealing over the entire
+training schedule.
+* Linearly schedule `drop_path_prob` in the model object from 0 to 0.2
+over the entire training schedule.
+
+Training will probably take about 24 hours, with these changes.
+
+Did some hacky `if` statements to make these changes when running with a
+`DARTS` network. Should work.
