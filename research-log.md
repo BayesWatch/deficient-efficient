@@ -170,6 +170,15 @@ Training will probably take about 24 hours, with these changes.
 Did some hacky `if` statements to make these changes when running with a
 `DARTS` network. Should work.
 
+Started an experiment training the DARTS network with the proposed
+settings. Unfortunately, my estimate of 24 hours looks to be optimistic.
+The estimate given by the code itself is currently 42 hours. I think the
+training code provided in the DARTS repo was a little faster than this.
+
+Started parallel experiment running the original training code from scratch
+on a separate GPU. Should be able to compare the learning curves later, if
+required.
+
 ### Matching Teacher/Student WRN-28-10 Training
 
 Currently, the experiments reported here with WRN-28-10 used a WRN-28-10
