@@ -169,3 +169,16 @@ Training will probably take about 24 hours, with these changes.
 
 Did some hacky `if` statements to make these changes when running with a
 `DARTS` network. Should work.
+
+### Matching Teacher/Student WRN-28-10 Training
+
+Currently, the experiments reported here with WRN-28-10 used a WRN-28-10
+that had been trained using Cutout augmentation, but the student hadn't
+used this augmentation. I thought it better to use a teacher network that
+wasn't trained with Cutout augmentation in order that they match, and then
+the results will match the performance of WRN-28-10 reported in the
+literature.
+
+I got a pretrained WRN-28-10 from someone else in our group, who tested it
+and found it's test error was 3.95%, but after loading it into this code I
+tested it at 4.2%. I'm not sure what the source of error might be.
