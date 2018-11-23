@@ -214,3 +214,31 @@ explain that 0.5%. Committing the version of the script I ran,
 [here](https://gist.github.com/gngdb/c5855e10dea83c99a44b338acc76759f).
 
 [func]: https://github.com/szagoruyko/functional-zoo/blob/master/wide-resnet-50-2-export.ipynb
+
+### Testing ImageNet Training
+
+Before we train a student network, we need to know that our training
+routine works for this WRN-50-2 network. Looking at the original paper,
+they report the learning rate, weight decay and momentum match what we
+already set to do CIFAR-10 training with these WideResNets. Unfortunately,
+they don't give more details on the ImageNet training, other than saying
+they use `fb.resnet.torch`. That gives no clear single prescription for a
+ResNet-50, beyond setting the minibatch size to 256 and using 4 GPUs in
+parallel.
+
+As I've trained ImageNet models in the past using PyTorch, I'm just going
+to use those settings. Matching the [PyTorch ImageNet
+example][imagenetexample]:
+
+* 90 epochs
+* learning rate decays every 30 epochs to 1/10 of prior
+* batch size 256 (unlikely to fit on 1 GPU)
+
+Only have 1 GPU free right now. Was not able to start an experiment with
+batch size 256, or 64. Had to set it to 32. Unfortunately, by my estimate
+it will take two weeks and may not even converge properly with the wrong
+batch size. Hopefully, this is only because we're not using multi-gpu
+training and not a problem with our training script.
+
+[imagenetexample]: https://github.com/pytorch/examples/blob/master/imagenet/main.py
+

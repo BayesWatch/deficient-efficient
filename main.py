@@ -312,6 +312,13 @@ def darts_defaults(args):
     args.epochs = 600
     return args
 
+def imagenet_defaults(args):
+    args.epochs = 90
+    args.lr_decay_ratio = 0.1
+    args.epoch_step = '[30,60]'
+    args.workers = 4
+    return args
+
 def get_scheduler(optimizer, epoch_step, args):
     if args.network == 'WideResNet' or args.network == 'WRN_50_2':
         scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=epoch_step,
@@ -328,6 +335,8 @@ if __name__ == '__main__':
 
     if args.network == 'DARTS':
         args = darts_defaults(args) # different training hyperparameters
+    elif args.network == 'WRN_50_2':
+        args = imagenet_defaults(args)
 
     print(vars(args))
     if args.GPU is not None:

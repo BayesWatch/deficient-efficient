@@ -30,6 +30,20 @@ def parse_options(convtype, blocktype):
         block = None
     return conv, block
 
+def group_lowrank(named_parameters):
+    lowrank_params, other_params = [], []
+    for n,p in named_parameters:
+        if 'A' in n or 'D' in n:
+            lowrank_params.append(p)
+        elif 'grouped' in n:
+            lowrank_params.append(p)
+        elif 'hashed' in n:
+            lowrank_params.append(p)
+        else:
+            other_params.append(p)
+    return [{'params': lowrank_params, 'weight_decay': 8.8e-6},
+            {'params': other_params}] 
+
 
 class WideResNet(nn.Module):
     def __init__(self, depth, widen_factor, conv, block, num_classes=10, dropRate=0.0, s = 1):
@@ -82,18 +96,7 @@ class WideResNet(nn.Module):
 
     def grouped_parameters(self):
         # iterate over parameters and separate those in ACDC layers
-        lowrank_params, other_params = [], []
-        for n,p in self.named_parameters():
-            if 'A' in n or 'D' in n:
-                lowrank_params.append(p)
-            elif 'grouped' in n:
-                lowrank_params.append(p)
-            elif 'hashed' in n:
-                lowrank_params.append(p)
-            else:
-                other_params.append(p)
-        return [{'params': lowrank_params, 'weight_decay': 8.8e-6},
-                {'params': other_params}] 
+        return group_lowrank(self.named_parameters())
 
     def forward(self, x):
         activations = []
@@ -161,6 +164,11 @@ class ResNet(nn.Module):
             layers.append(block(self.inplanes, planes, self.Conv, expansion=self.expansion))
 
         return nn.Sequential(*layers)
+
+
+    def grouped_parameters(self):
+        # iterate over parameters and separate those in ACDC layers
+        return group_lowrank(self.named_parameters())
 
     def forward(self, x):
         x = self.conv1(x)
