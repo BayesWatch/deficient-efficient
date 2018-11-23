@@ -200,4 +200,17 @@ Not sure why that might be, if there had been a problem loading parameters
 (if something hadn't matched properly) I would've expected it to fail
 completely.
 
+To double check, updated `load_wrn_50_2.py` to run a random input through
+both networks and check the output is always the same. The max absolute
+error never gets about 1e-3, so they're doing the same thing. The
+difference in error may just be because this is an old implementation and
+some small thing may have changed in the PyTorch code. The only way to know
+for sure would be to run the original validation script and see if the
+results still hold.
+
+So, I did that, and the results matched the results got from my own
+experiment on the validation set (top-1/top-5): `[77.47, 93.594]`. I can't
+explain that 0.5%. Committing the version of the script I ran,
+[here](https://gist.github.com/gngdb/c5855e10dea83c99a44b338acc76759f).
+
 [func]: https://github.com/szagoruyko/functional-zoo/blob/master/wide-resnet-50-2-export.ipynb

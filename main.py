@@ -414,7 +414,7 @@ if __name__ == '__main__':
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True,
                                               num_workers=args.workers,
                                               pin_memory = True if args.dataset == 'imagenet' else False)
-    valloader = torch.utils.data.DataLoader(valset, batch_size=100, shuffle=False,
+    valloader = torch.utils.data.DataLoader(valset, batch_size=min(100,args.batch_size), shuffle=False,
                                              num_workers=args.workers,
                                              pin_memory=True if args.dataset == 'imagenet' else False)
 

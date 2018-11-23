@@ -94,6 +94,7 @@ if __name__ == '__main__':
     func_out, net_out = f(X, params), net(X)[0]
     error = torch.abs(func_out - net_out)
     assert error.max() < 1e-3, "%f"%error.max()
+    print("Output given random input is equal within %f"%error.max())
 
     # now save a new checkpoint file, with correct saved terms
     save_dict = {}
