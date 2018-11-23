@@ -21,7 +21,7 @@ from tqdm import tqdm
 from tensorboardX import SummaryWriter
 
 from funcs import *
-from models.wide_resnet import WideResNet
+from models.wide_resnet import WideResNet, WRN_50_2
 from models.darts import DARTS, _data_transforms_cifar10 as darts_transforms
 
 os.mkdir('checkpoints/') if not os.path.isdir('checkpoints/') else None
@@ -313,8 +313,9 @@ def darts_defaults(args):
     return args
 
 def get_scheduler(optimizer, epoch_step, args):
-    if args.network == 'WideResNet':
-        scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=epoch_step, gamma=args.lr_decay_ratio)
+    if args.network == 'WideResNet' or args.network == 'WRN_50_2':
+        scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=epoch_step,
+                gamma=args.lr_decay_ratio)
     elif args.network == 'DARTS':
         scheduler = lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
     return scheduler
@@ -424,6 +425,8 @@ if __name__ == '__main__':
         if args.network == 'WideResNet':
             return WideResNet(args.wrn_depth, args.wrn_width, Conv, Block,
                     num_classes=num_classes, dropRate=0, s=args.AT_split)
+        elif args.network == 'WRN_50_2':
+            return WRN_50_2(Conv)
         elif args.network == 'DARTS':
             return DARTS(Conv, num_classes=num_classes)
     def schedule_drop_path(epoch, net):

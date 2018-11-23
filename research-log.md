@@ -169,3 +169,35 @@ Training will probably take about 24 hours, with these changes.
 
 Did some hacky `if` statements to make these changes when running with a
 `DARTS` network. Should work.
+
+23rd November 2018
+==================
+
+Seemed reasonable to use the best reported WRN architecture in our ImageNet
+experiments, as that is a reasonable benchmark. Unfortunately, it turns out
+the WRN-50-2 reported in the paper, and provided with an esoteric
+functional implementation [here][func] is slightly different from the
+models trained on CIFAR-10. It doesn't match the figures in the paper on
+the structure of the network.
+
+Maybe it's mentioned somewhere in the paper in passing but I didn't see it.
+It turns out it's a ResNet-50, but with `expansion=2` and all channels
+doubled.
+
+So, I adapted the official ResNet50 implementation from torchvision and
+loaded the supplied parameters: implemeneted in the script
+`load_wrn_50_2.py`. Luckily, the ordering of parameters matched without too
+much difficulty.
+
+Testing this over the validation set:
+
+```
+Error@1 22.530 Error@5 6.406
+```
+
+Which is unfortunately 0.5% short of the expected top-1/top-5 of 22.0/6.05.
+Not sure why that might be, if there had been a problem loading parameters
+(if something hadn't matched properly) I would've expected it to fail
+completely.
+
+[func]: https://github.com/szagoruyko/functional-zoo/blob/master/wide-resnet-50-2-export.ipynb
