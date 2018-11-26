@@ -191,3 +191,76 @@ literature.
 I got a pretrained WRN-28-10 from someone else in our group, who tested it
 and found it's test error was 3.95%, but after loading it into this code I
 tested it at 4.2%. I'm not sure what the source of error might be.
+
+23rd November 2018
+==================
+
+Seemed reasonable to use the best reported WRN architecture in our ImageNet
+experiments, as that is a reasonable benchmark. Unfortunately, it turns out
+the WRN-50-2 reported in the paper, and provided with an esoteric
+functional implementation [here][func] is slightly different from the
+models trained on CIFAR-10. It doesn't match the figures in the paper on
+the structure of the network.
+
+Maybe it's mentioned somewhere in the paper in passing but I didn't see it.
+It turns out it's a ResNet-50, but with `expansion=2` and all channels
+doubled.
+
+So, I adapted the official ResNet50 implementation from torchvision and
+loaded the supplied parameters: implemeneted in the script
+`load_wrn_50_2.py`. Luckily, the ordering of parameters matched without too
+much difficulty.
+
+Testing this over the validation set:
+
+```
+Error@1 22.530 Error@5 6.406
+```
+
+Which is unfortunately 0.5% short of the expected top-1/top-5 of 22.0/6.05.
+Not sure why that might be, if there had been a problem loading parameters
+(if something hadn't matched properly) I would've expected it to fail
+completely.
+
+To double check, updated `load_wrn_50_2.py` to run a random input through
+both networks and check the output is always the same. The max absolute
+error never gets about 1e-3, so they're doing the same thing. The
+difference in error may just be because this is an old implementation and
+some small thing may have changed in the PyTorch code. The only way to know
+for sure would be to run the original validation script and see if the
+results still hold.
+
+So, I did that, and the results matched the results got from my own
+experiment on the validation set (top-1/top-5): `[77.47, 93.594]`. I can't
+explain that 0.5%. Committing the version of the script I ran,
+[here](https://gist.github.com/gngdb/c5855e10dea83c99a44b338acc76759f).
+
+[func]: https://github.com/szagoruyko/functional-zoo/blob/master/wide-resnet-50-2-export.ipynb
+
+### Testing ImageNet Training
+
+Before we train a student network, we need to know that our training
+routine works for this WRN-50-2 network. Looking at the original paper,
+they report the learning rate, weight decay and momentum match what we
+already set to do CIFAR-10 training with these WideResNets. Unfortunately,
+they don't give more details on the ImageNet training, other than saying
+they use `fb.resnet.torch`. That gives no clear single prescription for a
+ResNet-50, beyond setting the minibatch size to 256 and using 4 GPUs in
+parallel.
+
+As I've trained ImageNet models in the past using PyTorch, I'm just going
+to use those settings. Matching the [PyTorch ImageNet
+example][imagenetexample]:
+
+* 90 epochs
+* learning rate decays every 30 epochs to 1/10 of prior
+* batch size 256 (unlikely to fit on 1 GPU)
+
+Only have 1 GPU free right now. Was not able to start an experiment with
+batch size 256, or 64. Had to set it to 32. Unfortunately, by my estimate
+it will take two weeks and may not even converge properly with the wrong
+batch size. Hopefully, this is only because we're not using multi-gpu
+training and not a problem with our training script.
+
+[imagenetexample]: https://github.com/pytorch/examples/blob/master/imagenet/main.py
+
