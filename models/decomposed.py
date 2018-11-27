@@ -9,22 +9,27 @@ import torch.nn.functional as F
 import tntorch as tn
 
 
-class TensorTrain(nn.Conv2d):
-    def __init__(self, in_channels, out_channels, kernel_size, rank, stride=1,
-            padding=0, dilation=1, groups=1, bias=True):
+class TnTorchConv2d(nn.Conv2d):
+    def __init__(self, in_channels, out_channels, kernel_size, rank,
+            TnConstructor, stride=1, padding=0, dilation=1, groups=1,
+            bias=True):
+        self.TnConstructor = TnConstructor
         assert groups == 1
-        super(TensorTrain, self).__init__(in_channels, out_channels, 1, bias=bias)
+        super(TnTorchConv2d, self).__init__(in_channels, out_channels, 1, bias=bias)
         self.grouped = nn.Conv2d(in_channels, in_channels,
                 kernel_size, stride=stride, padding=padding, dilation=dilation,
                 groups=in_channels, bias=False)
         self.rank = rank
-        self.tn_weight = tn.Tensor(self.weight.data, ranks_tt=self.rank)
+        self.tn_weight = self.TnConstructor(self.weight.data, ranks=self.rank)
         # delete the original weight
         del self.weight
         # then register the cores of the Tensor Train as parameters
-        self.register_cores(self.tn_weight.cores)
+        self.register_tnparams(self.tn_weight.cores, self.tn_weight.Us)
 
-    def register_cores(self, cores):
+    def register_tnparams(self, cores, Us):
+        cores = [] if all([c is None for c in cores]) else cores
+        Us = [] if all([u is None for u in Us]) else Us
+        # tensor train or cp cores
         for i,core in enumerate(cores):
             core_name = 'weight_core_%i'%i
             if hasattr(self, core_name):
@@ -33,6 +38,16 @@ class TensorTrain(nn.Conv2d):
             self.register_parameter(core_name, nn.Parameter(core))
             # replace Parameter in tn.Tensor object
             self.tn_weight.cores[i] = getattr(self, core_name)
+        for i, u in enumerate(Us):
+            u_name = 'weight_u_%i'%i
+            if hasattr(self, u_name):
+                delattr(self, u_name)
+            import ipdb
+            ipdb.set_trace()
+            u.requires_grad = True
+            self.register_parameter(u_name, nn.Parameter(u))
+            # replace Parameter in tn.Tensor object
+            self.tn_weight.Us[i] = getattr(self, u_name)
 
     def reset_parameters(self):
         if hasattr(self, 'tn_weight'):
@@ -46,9 +61,9 @@ class TensorTrain(nn.Conv2d):
         stdv = 1. / math.sqrt(n)
         weight.data.uniform_(-stdv, stdv)
         if hasattr(self, 'tn_weight'):
-            self.tn_weight = tn.Tensor(weight.data, ranks_tt=self.rank)
+            self.tn_weight = self.TnConstructor(weight.data, ranks=self.rank)
             # update cores
-            self.register_cores(self.tn_weight.cores)
+            self.register_tnparams(self.tn_weight.cores, self.tn_weight.Us)
         else:
             self.weight.data = weight
         if self.bias is not None:
@@ -59,6 +74,16 @@ class TensorTrain(nn.Conv2d):
         weight = self.tn_weight.torch()
         return F.conv2d(out, weight, self.bias, self.stride, self.padding,
                 self.dilation, self.groups)
+
+
+class TensorTrain(TnTorchConv2d):
+    def __init__(self, in_channels, out_channels, kernel_size, rank, stride=1,
+            padding=0, dilation=1, groups=1, bias=True):
+        def TT(tensor, ranks):
+            return tn.Tensor(tensor, ranks_tt=ranks)
+        super(TensorTrain, self).__init__(in_channels, out_channels, kernel_size, rank,
+            TT, stride=1, padding=0, dilation=1, groups=1,
+            bias=True)
 
 
 if __name__ == '__main__':
