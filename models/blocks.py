@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 from torch.autograd import Variable
 
-if __name__ == 'blocks':
+if __name__ == 'blocks' or __name__ == '__main__':
     from hashed import HashedConv2d, SeparableHashedConv2d
 else:
     from .hashed import HashedConv2d, SeparableHashedConv2d
@@ -44,6 +44,25 @@ def OriginalACDC(in_channels, out_channels, kernel_size, stride=1,
     return FastStackedConvACDC(in_channels, out_channels, kernel_size, 12,
             stride=stride, padding=padding, dilation=dilation, groups=groups,
             bias=bias, original=True)
+
+
+class GenericLowRank(nn.Module):
+    """A generic low rank layer implemented with a linear bottleneck, using two
+    Conv2ds in sequence. Preceded by a depthwise grouped convolution in keeping
+    with the other low-rank layers here."""
+    def __init__(self, in_channels, out_channels, kernel_size, rank, stride=1,
+        padding=0, dilation=1, groups=1, bias=False):
+        assert groups == 1
+        super(GenericLowRank, self).__init__()
+        self.grouped = nn.Conv2d(in_channels, in_channels, kernel_size,
+                stride=stride, padding=padding, dilation=dilation,
+                groups=in_channels, bias=False)
+        self.contract = nn.Conv2d(in_channels, rank, 1, bias=False)
+        self.expand = nn.Conv2d(rank, out_channels, 1, bias=bias)
+    def forward(self, x):
+        x = self.grouped(x)
+        x = self.contract(x)
+        return self.expand(x)
 
 
 class DepthwiseSep(nn.Module):
@@ -96,6 +115,15 @@ def conv_function(convtype):
                 budget = int(original_params*budget_scale)
                 return HashedConv2d(in_channels, out_channels, kernel_size,
                         budget, stride=stride, padding=padding,
+                        dilation=dilation, groups=groups, bias=bias)
+        elif convtype == 'Generic':
+            rank_scale = float(hyperparam)
+            def conv(in_channels, out_channels, kernel_size, stride=1,
+                    padding=0, dilation=1, groups=1, bias=False):
+                full_rank = max(in_channels,out_channels)
+                rank = int(rank_scale*full_rank)
+                return GenericLowRank(in_channels, out_channels, kernel_size,
+                        rank, stride=stride, padding=padding,
                         dilation=dilation, groups=groups, bias=bias)
     else:
         if convtype == 'Conv':
@@ -195,3 +223,11 @@ class NetworkBlock(nn.Module):
     def forward(self, x):
         return self.layer(x)
 
+if __name__ == '__main__':
+    X = torch.randn(5,3,32,32)
+    # sanity of generic low-rank layer
+    generic = GenericLowRank(3, 32, 3, 1)
+    for p in generic.parameters():
+        print(p.size())
+    out = generic(X)
+    print(out.size())

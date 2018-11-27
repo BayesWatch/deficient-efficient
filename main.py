@@ -294,6 +294,9 @@ def set_for_budget(eval_network_size, conv_type, budget):
     elif 'Hashed' == conv_type:
         bounds = (0.001,0.9)
         post_process = lambda x: x # do nothing
+    elif 'Generic' == conv_type:
+        bounds = (0.1,0.9)
+        post_process = lambda x: x # do nothing
     else:
         raise ValueError("Don't know: "+conv_type)
     def obj(h):
