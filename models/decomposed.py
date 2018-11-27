@@ -78,6 +78,17 @@ class TnTorchConv2d(nn.Conv2d):
         return F.conv2d(out, weight, self.bias, self.stride, self.padding,
                 self.dilation, self.groups)
 
+    def extra_repr(self):
+        t = self.tn_weight
+        full = t.torch()
+        extra = []
+        extra.append(t.__repr__())
+        extra.append('Compression ratio: {}/{} = {:g}'.format(full.numel(), t.numel(), full.numel() / t.numel()))
+        extra.append('Relative error: %f'%tn.relative_error(full, t))
+        extra.append('RMSE: %f'%tn.rmse(full, t))
+        extra.append('R^2: %f'%tn.r_squared(full, t))
+        return "\n".join(extra)
+
 
 class TensorTrain(TnTorchConv2d):
     def __init__(self, in_channels, out_channels, kernel_size, rank, stride=1,
@@ -112,16 +123,17 @@ class CP(TnTorchConv2d):
 if __name__ == '__main__':
     for ConvClass in [TensorTrain, Tucker, CP]:
         X = torch.randn(5,16,32,32)
-        tt = ConvClass(16,16,3,3, bias=False)
-        tt.reset_parameters()
-        tt.zero_grad()
-        y = tt(X)
+        tnlayer = ConvClass(16,16,3,3, bias=False)
+        tnlayer.reset_parameters()
+        print(tnlayer)
+        tnlayer.zero_grad()
+        y = tnlayer(X)
         l = y.sum()
         l.backward()
-        for n,p in tt.named_parameters():
+        for n,p in tnlayer.named_parameters():
             assert p.requires_grad, n
-        assert torch.abs(tt.weight_core_0.grad - tt.tn_weight.cores[0].grad).max() < 1e-5
+        assert torch.abs(tnlayer.weight_core_0.grad - tnlayer.tn_weight.cores[0].grad).max() < 1e-5
         # same output on the GPU
-        tt, X = tt.cuda(), X.cuda()
-        assert torch.abs(tt(X).cpu() - y).max() < 1e-5
+        tnlayer, X = tnlayer.cuda(), X.cuda()
+        assert torch.abs(tnlayer(X).cpu() - y).max() < 1e-5
 
