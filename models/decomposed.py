@@ -20,7 +20,7 @@ class TnTorchConv2d(nn.Conv2d):
                 kernel_size, stride=stride, padding=padding, dilation=dilation,
                 groups=in_channels, bias=False)
         self.rank = rank
-        self.tn_weight = self.TnConstructor(self.weight.data, ranks=self.rank)
+        self.tn_weight = self.TnConstructor(self.weight.data.squeeze(), ranks=self.rank)
         # delete the original weight
         del self.weight
         # then register the cores of the Tensor Train as parameters
@@ -42,17 +42,20 @@ class TnTorchConv2d(nn.Conv2d):
             u_name = 'weight_u_%i'%i
             if hasattr(self, u_name):
                 delattr(self, u_name)
-            import ipdb
-            ipdb.set_trace()
             u.requires_grad = True
             self.register_parameter(u_name, nn.Parameter(u))
             # replace Parameter in tn.Tensor object
             self.tn_weight.Us[i] = getattr(self, u_name)
 
+    def conv_weight(self):
+        weight = self.tn_weight.torch()
+        n,d = weight.size()
+        return weight.view(n,d,1,1)
+
     def reset_parameters(self):
         if hasattr(self, 'tn_weight'):
             # full rank weight tensor
-            weight = self.tn_weight.torch()
+            weight = self.conv_weight()
         else:
             weight = self.weight.data
         n = self.in_channels
@@ -61,7 +64,7 @@ class TnTorchConv2d(nn.Conv2d):
         stdv = 1. / math.sqrt(n)
         weight.data.uniform_(-stdv, stdv)
         if hasattr(self, 'tn_weight'):
-            self.tn_weight = self.TnConstructor(weight.data, ranks=self.rank)
+            self.tn_weight = self.TnConstructor(weight.data.squeeze(), ranks=self.rank)
             # update cores
             self.register_tnparams(self.tn_weight.cores, self.tn_weight.Us)
         else:
@@ -71,7 +74,7 @@ class TnTorchConv2d(nn.Conv2d):
 
     def forward(self, x):
         out = self.grouped(x)
-        weight = self.tn_weight.torch()
+        weight = self.conv_weight()
         return F.conv2d(out, weight, self.bias, self.stride, self.padding,
                 self.dilation, self.groups)
 
@@ -86,18 +89,39 @@ class TensorTrain(TnTorchConv2d):
             bias=True)
 
 
+class Tucker(TnTorchConv2d):
+    def __init__(self, in_channels, out_channels, kernel_size, rank, stride=1,
+            padding=0, dilation=1, groups=1, bias=True):
+        def tucker(tensor, ranks):
+            return tn.Tensor(tensor, ranks_tucker=ranks)
+        super(Tucker, self).__init__(in_channels, out_channels, kernel_size, rank,
+            tucker, stride=1, padding=0, dilation=1, groups=1,
+            bias=True)
+
+
+class CP(TnTorchConv2d):
+    def __init__(self, in_channels, out_channels, kernel_size, rank, stride=1,
+            padding=0, dilation=1, groups=1, bias=True):
+        def cp(tensor, ranks):
+            return tn.Tensor(tensor, ranks_cp=ranks)
+        super(CP, self).__init__(in_channels, out_channels, kernel_size, rank,
+            cp, stride=1, padding=0, dilation=1, groups=1,
+            bias=True)
+
+
 if __name__ == '__main__':
-    X = torch.randn(5,16,32,32)
-    tt = TensorTrain(16,16,3,3, bias=False)
-    tt.reset_parameters()
-    tt.zero_grad()
-    y = tt(X)
-    l = y.sum()
-    l.backward()
-    for n,p in tt.named_parameters():
-        assert p.requires_grad, n
-    assert torch.abs(tt.weight_core_0.grad - tt.tn_weight.cores[0].grad).max() < 1e-5
-    # same output on the GPU
-    tt, X = tt.cuda(), X.cuda()
-    assert torch.abs(tt(X).cpu() - y).max() < 1e-5
+    for ConvClass in [TensorTrain, Tucker, CP]:
+        X = torch.randn(5,16,32,32)
+        tt = ConvClass(16,16,3,3, bias=False)
+        tt.reset_parameters()
+        tt.zero_grad()
+        y = tt(X)
+        l = y.sum()
+        l.backward()
+        for n,p in tt.named_parameters():
+            assert p.requires_grad, n
+        assert torch.abs(tt.weight_core_0.grad - tt.tn_weight.cores[0].grad).max() < 1e-5
+        # same output on the GPU
+        tt, X = tt.cuda(), X.cuda()
+        assert torch.abs(tt(X).cpu() - y).max() < 1e-5
 
