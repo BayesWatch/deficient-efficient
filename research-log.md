@@ -264,3 +264,8 @@ training and not a problem with our training script.
 
 [imagenetexample]: https://github.com/pytorch/examples/blob/master/imagenet/main.py
 
+26th November 2018
+==================
+
+Talking to Amos, seems like using cutout in all experiments is probably a
+safer course of action. Don't want to arbitrarily limit the results.
