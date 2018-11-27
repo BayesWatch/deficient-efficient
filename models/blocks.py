@@ -8,8 +8,10 @@ from torch.autograd import Variable
 
 if __name__ == 'blocks' or __name__ == '__main__':
     from hashed import HashedConv2d, SeparableHashedConv2d
+    from decomposed import TensorTrain, Tucker, CP
 else:
     from .hashed import HashedConv2d, SeparableHashedConv2d
+    from .decomposed import TensorTrain, Tucker, CP
 
 def HashedDecimate(in_channels, out_channels, kernel_size, stride=1,
         padding=0, dilation=1, groups=1, bias=False):
@@ -168,6 +170,33 @@ def conv_function(convtype):
                 return GenericLowRank(in_channels, out_channels, kernel_size,
                         rank, stride=stride, padding=padding,
                         dilation=dilation, groups=groups, bias=bias)
+        elif convtype == 'TensorTrain':
+            rank_scale = float(hyperparam)
+            def conv(in_channels, out_channels, kernel_size, stride=1,
+                    padding=0, dilation=1, groups=1, bias=False):
+                full_rank = max(in_channels,out_channels)
+                rank = int(rank_scale*full_rank)
+                return TensorTrain(in_channels, out_channels, kernel_size,
+                        rank, stride=stride, padding=padding,
+                        dilation=dilation, groups=groups, bias=bias)
+        elif convtype == 'Tucker':
+            rank_scale = float(hyperparam)
+            def conv(in_channels, out_channels, kernel_size, stride=1,
+                    padding=0, dilation=1, groups=1, bias=False):
+                full_rank = max(in_channels,out_channels)
+                rank = int(rank_scale*full_rank)
+                return Tucker(in_channels, out_channels, kernel_size,
+                        rank, stride=stride, padding=padding,
+                        dilation=dilation, groups=groups, bias=bias)
+        elif convtype == 'CP':
+            rank_scale = float(hyperparam)
+            def conv(in_channels, out_channels, kernel_size, stride=1,
+                    padding=0, dilation=1, groups=1, bias=False):
+                full_rank = max(in_channels,out_channels)
+                rank = int(rank_scale*full_rank)
+                return CP(in_channels, out_channels, kernel_size,
+                        rank, stride=stride, padding=padding,
+                        dilation=dilation, groups=groups, bias=bias)
     else:
         if convtype == 'Conv':
             conv = Conv
@@ -277,6 +306,9 @@ if __name__ == '__main__':
     # check we don't initialise a grouped conv when not required
     assert GenericLowRank(3,32,1,1).grouped is None
     assert SeparableHashedConv2d(3,32,1,10).grouped is None
+    assert getattr(TensorTrain(3,32,1,3), 'grouped', None) is None
+    assert getattr(Tucker(3,32,1,3), 'grouped', None) is None
+    assert getattr(CP(3,32,1,3), 'grouped', None) is None
     # sanity of LinearShuffleNet
     X = torch.randn(5,16,32,32)
     shuffle = LinearShuffleNet(16,32,3,4)

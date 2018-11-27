@@ -16,9 +16,10 @@ class TnTorchConv2d(nn.Conv2d):
         self.TnConstructor = TnConstructor
         assert groups == 1
         super(TnTorchConv2d, self).__init__(in_channels, out_channels, 1, bias=bias)
-        self.grouped = nn.Conv2d(in_channels, in_channels,
-                kernel_size, stride=stride, padding=padding, dilation=dilation,
-                groups=in_channels, bias=False)
+        if max(self.kernel_size) > 1:
+            self.grouped = nn.Conv2d(in_channels, in_channels,
+                    kernel_size, stride=stride, padding=padding, dilation=dilation,
+                    groups=in_channels, bias=False)
         self.rank = rank
         self.tn_weight = self.TnConstructor(self.weight.data.squeeze(), ranks=self.rank)
         # delete the original weight
@@ -73,7 +74,10 @@ class TnTorchConv2d(nn.Conv2d):
             self.bias.data.uniform_(-stdv, stdv)
 
     def forward(self, x):
-        out = self.grouped(x)
+        if hasattr(self, 'grouped'):
+            out = self.grouped(x)
+        else:
+            out = x
         weight = self.conv_weight()
         return F.conv2d(out, weight, self.bias, self.stride, self.padding,
                 self.dilation, self.groups)
