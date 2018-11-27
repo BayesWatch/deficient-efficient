@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import tntorch as tn
 
+
 class TensorTrain(nn.Conv2d):
     def __init__(self, in_channels, out_channels, kernel_size, rank, stride=1,
             padding=0, dilation=1, groups=1, bias=True):
@@ -59,6 +60,7 @@ class TensorTrain(nn.Conv2d):
         return F.conv2d(out, weight, self.bias, self.stride, self.padding,
                 self.dilation, self.groups)
 
+
 if __name__ == '__main__':
     X = torch.randn(5,16,32,32)
     tt = TensorTrain(16,16,3,3, bias=False)
@@ -70,3 +72,7 @@ if __name__ == '__main__':
     for n,p in tt.named_parameters():
         assert p.requires_grad, n
     assert torch.abs(tt.weight_core_0.grad - tt.tn_weight.cores[0].grad).max() < 1e-5
+    # same output on the GPU
+    tt, X = tt.cuda(), X.cuda()
+    assert torch.abs(tt(X).cpu() - y).max() < 1e-5
+
