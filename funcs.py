@@ -7,7 +7,6 @@ def distillation(y, teacher_scores, labels, T, alpha):
     return F.kl_div(F.log_softmax(y/T, dim=1), F.softmax(teacher_scores/T, dim=1)) * (T*T * 2. * alpha)\
            + F.cross_entropy(y, labels) * (1. - alpha)
 
-
 def at(x):
     return F.normalize(x.pow(2).mean(1).view(x.size(0), -1))
 
