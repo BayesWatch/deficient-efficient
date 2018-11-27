@@ -22,7 +22,7 @@ from tensorboardX import SummaryWriter
 
 from funcs import *
 from models.wide_resnet import WideResNet, WRN_50_2
-from models.darts import DARTS, _data_transforms_cifar10 as darts_transforms
+from models.darts import DARTS, Cutout, _data_transforms_cifar10 as darts_transforms
 
 os.mkdir('checkpoints/') if not os.path.isdir('checkpoints/') else None
 
@@ -368,7 +368,8 @@ if __name__ == '__main__':
                     transforms.RandomHorizontalFlip(),
                     transforms.ToTensor(),
                     transforms.Normalize((0.4914, 0.4822, 0.4465),
-                                         (0.2023, 0.1994, 0.2010)),])
+                                         (0.2023, 0.1994, 0.2010)),
+                    Cutout(16)])
             transforms_validate = transforms.Compose([
                     transforms.ToTensor(),
                     transforms.Normalize((0.4914, 0.4822, 0.4465),
