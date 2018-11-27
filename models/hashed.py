@@ -48,7 +48,8 @@ class SeparableHashedConv2d(nn.Module):
                     stride=stride, padding=padding, dilation=dilation,
                     groups=in_channels, bias=False)
             # we spent some of the budget on that grouped convolution
-            budget = budget - reduce(lambda x,y: x*y, self.grouped.weight.size())
+            assert self.grouped.numel() == reduce(lambda x,y: x*y, self.grouped.weight.size())
+            budget = budget - self.grouped.numel()
         else:
             self.grouped = None
         assert budget > 0, \
