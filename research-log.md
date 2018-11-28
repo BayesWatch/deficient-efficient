@@ -262,5 +262,19 @@ it will take two weeks and may not even converge properly with the wrong
 batch size. Hopefully, this is only because we're not using multi-gpu
 training and not a problem with our training script.
 
+**update**: killed this experiment, after a few days it did not appear to
+be converging.
+
 [imagenetexample]: https://github.com/pytorch/examples/blob/master/imagenet/main.py
+
+28th November 2018
+==================
+
+Tested running student WRN-28-10 with Cutout enabled, as the teacher was
+also trained with Cutout. Used the Separable-Hashed-Decimate substitute
+convolution layer, as we've already done an experiment with this same
+network so we can compare. The results (found above) were previously 3.84%
+top-1 error at the end of training. With Cutout, it actually performed
+worse, with a top-1 error of 3.99%.
+
 
