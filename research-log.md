@@ -267,6 +267,15 @@ be converging.
 
 [imagenetexample]: https://github.com/pytorch/examples/blob/master/imagenet/main.py
 
+26th November 2018
+==================
+
+Talking to Amos, seems like using cutout in all experiments is probably a
+safer course of action. Don't want to arbitrarily limit the results.
+
+Started experiment to test chosen AT taps, and distillation in general,
+when using a DARTS network. Used Separabled-Hashed-Decimate substitution.
+
 28th November 2018
 ==================
 
@@ -276,5 +285,4 @@ convolution layer, as we've already done an experiment with this same
 network so we can compare. The results (found above) were previously 3.84%
 top-1 error at the end of training. With Cutout, it actually performed
 worse, with a top-1 error of 3.99%.
-
 

@@ -6,10 +6,12 @@ import torch.nn.functional as F
 
 from torch.autograd import Variable
 
-if __name__ == 'blocks':
+if __name__ == 'blocks' or __name__ == '__main__':
     from hashed import HashedConv2d, SeparableHashedConv2d
+    from decomposed import TensorTrain, Tucker, CP
 else:
     from .hashed import HashedConv2d, SeparableHashedConv2d
+    from .decomposed import TensorTrain, Tucker, CP
 
 def HashedDecimate(in_channels, out_channels, kernel_size, stride=1,
         padding=0, dilation=1, groups=1, bias=False):
@@ -44,6 +46,68 @@ def OriginalACDC(in_channels, out_channels, kernel_size, stride=1,
     return FastStackedConvACDC(in_channels, out_channels, kernel_size, 12,
             stride=stride, padding=padding, dilation=dilation, groups=groups,
             bias=bias, original=True)
+
+
+class GenericLowRank(nn.Module):
+    """A generic low rank layer implemented with a linear bottleneck, using two
+    Conv2ds in sequence. Preceded by a depthwise grouped convolution in keeping
+    with the other low-rank layers here."""
+    def __init__(self, in_channels, out_channels, kernel_size, rank, stride=1,
+        padding=0, dilation=1, groups=1, bias=False):
+        assert groups == 1
+        super(GenericLowRank, self).__init__()
+        if kernel_size > 1:
+            self.grouped = nn.Conv2d(in_channels, in_channels, kernel_size,
+                    stride=stride, padding=padding, dilation=dilation,
+                    groups=in_channels, bias=False)
+        else:
+            self.grouped = None
+        self.contract = nn.Conv2d(in_channels, rank, 1, bias=False)
+        self.expand = nn.Conv2d(rank, out_channels, 1, bias=bias)
+    def forward(self, x):
+        if self.grouped is not None:
+            x = self.grouped(x)
+        x = self.contract(x)
+        return self.expand(x)
+
+
+# from: https://github.com/kuangliu/pytorch-cifar/blob/master/models/shufflenet.py#L10-L19
+class ShuffleBlock(nn.Module):
+    def __init__(self, groups):
+        super(ShuffleBlock, self).__init__()
+        self.groups = groups
+
+    def forward(self, x):
+        '''Channel shuffle: [N,C,H,W] -> [N,g,C/g,H,W] -> [N,C/g,g,H,w] -> [N,C,H,W]'''
+        N,C,H,W = x.size()
+        g = self.groups
+        return x.view(N,g,C//g,H,W).permute(0,2,1,3,4).contiguous().view(N,C,H,W)
+
+
+class LinearShuffleNet(nn.Module):
+    """Linear version of the ShuffleNet block, minus the shortcut connection,
+    as we assume relevant shortcuts already exist in the network having a
+    substitution. When linear, this can be viewed as a low-rank tensor
+    decomposition."""
+    def __init__(self, in_channels, out_channels, kernel_size, shuffle_groups,
+            stride=1, padding=0, dilation=1, groups=1, bias=False):
+        assert groups == 1
+        super(LinearShuffleNet, self).__init__()
+        # why 4? https://github.com/jaxony/ShuffleNet/blob/master/model.py#L67
+        bottleneck_channels = out_channels // 4
+        self.gconv1 = nn.Conv2d(in_channels, bottleneck_channels, 1,
+                groups=shuffle_groups, bias=False)
+        self.shuffle = ShuffleBlock(shuffle_groups)
+        self.dwconv = nn.Conv2d(bottleneck_channels, bottleneck_channels,
+                kernel_size, stride=stride, padding=padding, dilation=dilation,
+                groups=bottleneck_channels, bias=False)
+        self.gconv2 = nn.Conv2d(bottleneck_channels, out_channels, 1,
+                groups=shuffle_groups, bias=bias)
+    def forward(self, x):
+        x = self.gconv1(x)
+        x = self.shuffle(x)
+        x = self.dwconv(x)
+        return self.gconv2(x)
 
 
 class DepthwiseSep(nn.Module):
@@ -96,6 +160,42 @@ def conv_function(convtype):
                 budget = int(original_params*budget_scale)
                 return HashedConv2d(in_channels, out_channels, kernel_size,
                         budget, stride=stride, padding=padding,
+                        dilation=dilation, groups=groups, bias=bias)
+        elif convtype == 'Generic':
+            rank_scale = float(hyperparam)
+            def conv(in_channels, out_channels, kernel_size, stride=1,
+                    padding=0, dilation=1, groups=1, bias=False):
+                full_rank = max(in_channels,out_channels)
+                rank = int(rank_scale*full_rank)
+                return GenericLowRank(in_channels, out_channels, kernel_size,
+                        rank, stride=stride, padding=padding,
+                        dilation=dilation, groups=groups, bias=bias)
+        elif convtype == 'TensorTrain':
+            rank_scale = float(hyperparam)
+            def conv(in_channels, out_channels, kernel_size, stride=1,
+                    padding=0, dilation=1, groups=1, bias=False):
+                full_rank = max(in_channels,out_channels)
+                rank = int(rank_scale*full_rank)
+                return TensorTrain(in_channels, out_channels, kernel_size,
+                        rank, stride=stride, padding=padding,
+                        dilation=dilation, groups=groups, bias=bias)
+        elif convtype == 'Tucker':
+            rank_scale = float(hyperparam)
+            def conv(in_channels, out_channels, kernel_size, stride=1,
+                    padding=0, dilation=1, groups=1, bias=False):
+                full_rank = max(in_channels,out_channels)
+                rank = int(rank_scale*full_rank)
+                return Tucker(in_channels, out_channels, kernel_size,
+                        rank, stride=stride, padding=padding,
+                        dilation=dilation, groups=groups, bias=bias)
+        elif convtype == 'CP':
+            rank_scale = float(hyperparam)
+            def conv(in_channels, out_channels, kernel_size, stride=1,
+                    padding=0, dilation=1, groups=1, bias=False):
+                full_rank = max(in_channels,out_channels)
+                rank = int(rank_scale*full_rank)
+                return CP(in_channels, out_channels, kernel_size,
+                        rank, stride=stride, padding=padding,
                         dilation=dilation, groups=groups, bias=bias)
     else:
         if convtype == 'Conv':
@@ -195,3 +295,21 @@ class NetworkBlock(nn.Module):
     def forward(self, x):
         return self.layer(x)
 
+if __name__ == '__main__':
+    X = torch.randn(5,3,32,32)
+    # sanity of generic low-rank layer
+    generic = GenericLowRank(3, 32, 3, 1)
+    for p in generic.parameters():
+        print(p.size())
+    out = generic(X)
+    print(out.size())
+    # check we don't initialise a grouped conv when not required
+    assert GenericLowRank(3,32,1,1).grouped is None
+    assert SeparableHashedConv2d(3,32,1,10).grouped is None
+    assert getattr(TensorTrain(3,32,1,3), 'grouped', None) is None
+    assert getattr(Tucker(3,32,1,3), 'grouped', None) is None
+    assert getattr(CP(3,32,1,3), 'grouped', None) is None
+    # sanity of LinearShuffleNet
+    X = torch.randn(5,16,32,32)
+    shuffle = LinearShuffleNet(16,32,3,4)
+    print(shuffle(X).size())

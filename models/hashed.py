@@ -43,18 +43,23 @@ class SeparableHashedConv2d(nn.Module):
         super(SeparableHashedConv2d, self).__init__()
         # has to have hashed in the name to get caught by alternative weight
         # decay setting, it is not actually hashed
-        self.pre_hashed = nn.Conv2d(in_channels, in_channels, kernel_size,
-                stride=stride, padding=padding, dilation=dilation,
-                groups=in_channels, bias=False)
-        # we spent some of the budget on that grouped convolution
-        budget = budget - reduce(lambda x,y: x*y, self.pre_hashed.weight.size())
+        if kernel_size > 1:
+            self.grouped = nn.Conv2d(in_channels, in_channels, kernel_size,
+                    stride=stride, padding=padding, dilation=dilation,
+                    groups=in_channels, bias=False)
+            # we spent some of the budget on that grouped convolution
+            assert self.grouped.numel() == reduce(lambda x,y: x*y, self.grouped.weight.size())
+            budget = budget - self.grouped.numel()
+        else:
+            self.grouped = None
         assert budget > 0, \
                 "budget exceeded by grouped convolution: %i too many"%(-budget)
         self.hashed = HashedConv2d(in_channels, out_channels, 1, budget,
                 bias=bias)
 
     def forward(self, x):
-        out = self.pre_hashed(x)
+        if self.grouped is not None:
+            out = self.grouped(x)
         return self.hashed(out)
 
 if __name__ == '__main__':
