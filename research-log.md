@@ -286,3 +286,32 @@ network so we can compare. The results (found above) were previously 3.84%
 top-1 error at the end of training. With Cutout, it actually performed
 worse, with a top-1 error of 3.99%.
 
+Investigating this, I found something I hadn't previously noticed. The
+hashed network layers overfit very heavily without Cutout. The train top-1
+of the same Separable-Hashed-Decimate substitute convolution before Cutout
+was used in training:
+
+![](images/sephashed.top-1.Nov21.png)
+
+And this is the same when the network is trained without a teacher network.
+The weight decay setting for the hashed network real weights is probably
+set too low, because we set it simply to be the value used for ACDC
+experiments.
+
+However, when Cutout is used, the top-1 error no longer has this issue:
+
+![](images/sephashed.cutout.top-1.Nov28.png)
+
+Now, it's underfitting. It never reaches zero top-1 error, despite the
+validation top-1 being very similar in both cases. So, maybe in this case
+the weight decay setting is OK. If we assume this means that using Cutout
+in experiments can make setting the weight decay more robust, then it's
+probably better to include it.
+
+Finally, the final validation cross-entropy loss is slightly lower, at
+0.1388 versus 0.1401 when using Cutout, so it's probably still better to
+use it.
+
+We have plans for setting the weight decay based on the compression factor
+of the low-rank approximation. It would be worth running these experiments
+now sooner, rather than later.
