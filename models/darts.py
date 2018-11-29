@@ -307,14 +307,19 @@ class DARTS(nn.Module):
   def forward(self, input):
     logits_aux = None
     s0 = s1 = self.stem(input)
+    cells_out = []
+    layers = len(self.cells)
     for i, cell in enumerate(self.cells):
       s0, s1 = s1, cell(s0, s1, self.drop_path_prob)
+      if i in [layers//3, 2*layers//3]:
+        cells_out.append(s0)
       if i == 2*self._layers//3:
         if self._auxiliary and self.training:
           logits_aux = self.auxiliary_head(s1)
     out = self.global_pooling(s1)
     logits = self.classifier(out.view(out.size(0),-1))
-    return logits, logits_aux
+    #return logits, logits_aux
+    return logits, cells_out
 
 
 if __name__ == '__main__':

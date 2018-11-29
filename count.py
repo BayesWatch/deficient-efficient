@@ -6,6 +6,7 @@ import argparse
 from functools import reduce
 from torch.autograd import Variable
 from models.wide_resnet import WideResNet
+from models.darts import DARTS
 
 from funcs import what_conv_block
 
@@ -13,6 +14,7 @@ parser = argparse.ArgumentParser(description='WRN parameter/flop usage')
 parser.add_argument('dataset', type=str, choices=['cifar10', 'cifar100', 'imagenet'], help='Choose between Cifar10/100/imagenet.')
 
 #network stuff
+parser.add_argument('--network', default='WideResNet', type=str, help='network to use')
 parser.add_argument('--wrn_depth', default=40, type=int, help='depth for WRN')
 parser.add_argument('--wrn_width', default=2, type=float, help='width for WRN')
 parser.add_argument('--module', default=None, type=str, help='path to file containing custom Conv and maybe Block module definitions')
@@ -39,6 +41,7 @@ def measure_layer(layer, x):
     delta_params = 0
     multi_add = 1
     type_name = get_layer_info(layer)
+    x = x[0]
 
     ### ops_conv
     if type_name in ['Conv2d']:
@@ -163,10 +166,10 @@ def measure_model(model, H, W):
         for child in model.modules():
             #if should_measure(child):
             def new_forward(m):
-                def lambda_forward(x):
+                def lambda_forward(*x):
                     measure_layer(m, x)
                     try:
-                        return m.old_forward(x)
+                        return m.old_forward(*x)
                     except NotImplementedError as e:
                         print(m)
                         raise e
@@ -209,7 +212,15 @@ if __name__ == '__main__':
         raise ValueError(args.dataset)
 
     # instance the model
-    model = WideResNet(args.wrn_depth, args.wrn_width, Conv, Block, num_classes=num_classes, dropRate=0)
+    def build_network(Conv, Block):
+        if args.network == 'WideResNet':
+            return WideResNet(args.wrn_depth, args.wrn_width, Conv, Block,
+                    num_classes=num_classes, dropRate=0)
+        elif args.network == 'WRN_50_2':
+            return WRN_50_2(Conv)
+        elif args.network == 'DARTS':
+            return DARTS(Conv, num_classes=num_classes, drop_path_prob=0., auxiliary=False)
+    model = build_network(Conv, Block)
 
     # count how many parameters are in it
     flops, params = measure_model(model, 32, 32)
