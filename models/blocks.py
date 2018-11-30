@@ -161,6 +161,18 @@ def conv_function(convtype):
                 return HashedConv2d(in_channels, out_channels, kernel_size,
                         budget, stride=stride, padding=padding,
                         dilation=dilation, groups=groups, bias=bias)
+        elif convtype == 'SepHashed':
+            # then hyperparam controls relative budget for each layer
+            budget_scale = float(hyperparam)
+            def conv(in_channels, out_channels, kernel_size, stride=1,
+                    padding=0, dilation=1, groups=1, bias=False):
+                # Hashed Conv2d using 1/10 the original parameters
+                original_params = out_channels*in_channels*kernel_size*kernel_size // groups
+                budget = int(original_params*budget_scale)
+                budget += in_channels*kernel_size*kernel_size
+                return SeparableHashedConv2d(in_channels, out_channels, kernel_size,
+                        budget, stride=stride, padding=padding,
+                        dilation=dilation, groups=groups, bias=bias)
         elif convtype == 'Generic':
             rank_scale = float(hyperparam)
             def conv(in_channels, out_channels, kernel_size, stride=1,
