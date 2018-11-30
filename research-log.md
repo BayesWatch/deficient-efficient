@@ -316,6 +316,39 @@ We have plans for setting the weight decay based on the compression factor
 of the low-rank approximation. It would be worth running these experiments
 now sooner, rather than later.
 
+29th November 2019
+==================
+
+Test using a student network in DARTS with a Separable Hashed Decimate
+substitution finished today. It took 58 hours total, but at least it only
+needs one GPU to run on. Before substitution:
+
+```
+> python count.py cifar10 --conv Sep --network DARTS
+Mult-Adds: 5.38201E+08
+Params: 3.34934E+06
+Sanity check, parameters: 3.34934E+06
+```
+
+With HashedNet conv blocks substituted, we don't see much reduction in
+parameters, because DARTS already uses small separable convolutions, and
+the number of parameters used in the "Decimate" layers is calculated based
+on a full convolution.
+
+```
+> python count.py cifar10 --conv SepHashedDecimate --network DARTS
+Mult-Adds: 5.38201E+08
+Params: 3.03657E+06
+Sanity check, parameters: 3.03657E+06
+```
+
+So, we have reduced it only by 10% of the parameters. It would really have
+been a good idea to check this before running the experiment, but here we
+are. And, we can at least say the student network training works, because
+it converged to 2.94% top-1 error, which is still better than most networks
+on CIFAR-10. The teacher scored 2.86%, so only a relative difference of
+0.02, or 0.08% absolute.
+
 30th November 2018
 ==================
 
@@ -331,5 +364,4 @@ factor by SGD. I tried this a little in a script called `weight_decay.py`, in co
 unstable (the loss function varied by many orders of magnitude depending on
 the input). Unsure exactly what is going wrong here, but I've spent enough
 time on this. We'll just set the weight decay uniformly low in experiments.
-
 
