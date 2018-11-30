@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import tntorch as tn
+torch.set_default_dtype(torch.float32)
 
 
 class TnTorchConv2d(nn.Conv2d):
