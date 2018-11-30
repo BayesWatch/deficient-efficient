@@ -365,3 +365,16 @@ unstable (the loss function varied by many orders of magnitude depending on
 the input). Unsure exactly what is going wrong here, but I've spent enough
 time on this. We'll just set the weight decay uniformly low in experiments.
 
+Default Tensor dtype
+--------------------
+
+It seems that the `tntorch` import in `decomposed.py` sets all tensors to
+initialise with `Double` precision, which breaks everything else. 
+
+It's because this line is in `tntorch.tensor`:
+`torch.set_default_dtype(torch.float64)`. I don't particularly want to pull
+request a fix for this as well, so I'll just set the default dtype back to
+normal after the import.
+
+
+
