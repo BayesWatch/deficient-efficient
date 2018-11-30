@@ -349,3 +349,19 @@ it converged to 2.94% top-1 error, which is still better than most networks
 on CIFAR-10. The teacher scored 2.86%, so only a relative difference of
 0.02, or 0.08% absolute.
 
+30th November 2018
+==================
+
+Looked into better theory on what to set the weight decay to. It's not
+possible to use a change of variables in general here, because the low-rank
+approximations are all one-to-many. I hoped there might be some
+approximation that would give a good guide on how much to reduce the weight
+decay factor by, but couldn't find anything.
+
+Matt Graham suggested we might be able to find an appropriate scaling
+factor by SGD. I tried this a little in a script called `weight_decay.py`, in commit
+`9da1d0afdb73b7019312ac7475e733c1c65dd59e` and removed after. It was very
+unstable (the loss function varied by many orders of magnitude depending on
+the input). Unsure exactly what is going wrong here, but I've spent enough
+time on this. We'll just set the weight decay uniformly low in experiments.
+
