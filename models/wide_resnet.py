@@ -143,7 +143,8 @@ class ResNet(nn.Module):
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                w = m.weight if hasattr(m, 'weight') else m.hashed_weight
+                nn.init.kaiming_normal_(w, mode='fan_out', nonlinearity='relu')
             elif isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
@@ -199,7 +200,7 @@ def WRN_50_2(Conv, Block=None):
 
 def test():
     net = WRN_50_2(Conv)
-    x = torch.randn(1,3,224,224)
+    x = torch.randn(1,3,224,224).float()
     y, _ = net(Variable(x))
     print(y.size())
 
