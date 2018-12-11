@@ -90,7 +90,7 @@ class ReLUConvBN(nn.Module):
 
   def __init__(self, C_in, C_out, ConvClass, kernel_size, stride, padding, affine=True):
     super(ReLUConvBN, self).__init__()
-    ConvClass = nn.Conv2d if ConvClass is DepthwiseSep else ConvClass
+    #ConvClass = nn.Conv2d if ConvClass is DepthwiseSep else ConvClass
     #ConvClass = nn.Conv2d
     self.op = nn.Sequential(
       nn.ReLU(inplace=False),
@@ -160,7 +160,7 @@ class FactorizedReduce(nn.Module):
     super(FactorizedReduce, self).__init__()
     assert C_out % 2 == 0
     self.relu = nn.ReLU(inplace=False)
-    ConvClass = nn.Conv2d if ConvClass is DepthwiseSep else ConvClass
+    #ConvClass = nn.Conv2d if ConvClass is DepthwiseSep else ConvClass
     #ConvClass = nn.Conv2d
     self.conv_1 = ConvClass(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
     self.conv_2 = ConvClass(C_in, C_out // 2, 1, stride=2, padding=0, bias=False) 
@@ -330,8 +330,7 @@ class DARTS(nn.Module):
           logits_aux = self.auxiliary_head(s1)
     out = self.global_pooling(s1)
     logits = self.classifier(out.view(out.size(0),-1))
-    #return logits, logits_aux
-    return logits, cells_out
+    return logits, cells_out, logits_aux
 
 
 if __name__ == '__main__':

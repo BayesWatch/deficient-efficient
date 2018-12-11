@@ -98,7 +98,7 @@ def train_teacher(net):
             inputs, targets = inputs.cuda(), targets.cuda()
         inputs, targets = Variable(inputs), Variable(targets)
         if isinstance(net, DARTS):
-            outputs, aux = net(inputs)
+            outputs, _, aux = net(inputs)
             outputs = torch.cat([outputs, aux], 0)
             targets = torch.cat([targets, targets], 0)
         else:
@@ -156,7 +156,13 @@ def train_student(net, teach):
     for batch_idx, (inputs, targets) in enumerate(trainloader):
         inputs = Variable(inputs.cuda())
         targets = Variable(targets.cuda())
-        outputs_student, ints_student = net(inputs)
+
+        if isinstance(net, DARTS):
+            outputs_student, ints_student, aux = net(inputs)
+            outputs = torch.cat([outputs, aux], 0)
+            targets = torch.cat([targets, targets], 0)
+        else:
+            outputs_student, ints_student = net(inputs)
         with torch.no_grad():
             outputs_teacher, ints_teacher = teach(inputs)
 
@@ -230,7 +236,7 @@ def validate(net, checkpoint=None):
         inputs, targets = inputs.cuda(), targets.cuda()
         with torch.no_grad():
             inputs, targets = Variable(inputs), Variable(targets)
-            outputs, _ = net(inputs)
+            outputs, _, _ = net(inputs)
             if isinstance(outputs,tuple):
                 outputs = outputs[0]
 
