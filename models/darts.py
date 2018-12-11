@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
+from torch.utils.checkpoint import checkpoint
 
 from collections import namedtuple
 
@@ -222,7 +223,10 @@ class Cell(nn.Module):
           h2 = drop_path(h2, drop_prob)
       s = h1 + h2
       states += [s]
-    return torch.cat([states[i] for i in self._concat], dim=1)
+    #return torch.cat([states[i] for i in self._concat], dim=1)
+    def cat_1(*states):
+      return torch.cat(states, dim=1)
+    return checkpoint(cat_1, *[states[i] for i in self._concat])
 
 
 class AuxiliaryHeadCIFAR(nn.Module):
