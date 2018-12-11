@@ -17,7 +17,7 @@ class TnTorchConv2d(nn.Conv2d):
         self.TnConstructor = TnConstructor
         assert groups == 1
         super(TnTorchConv2d, self).__init__(in_channels, out_channels, 1, bias=bias)
-        if max(self.kernel_size) > 1:
+        if kernel_size > 1:
             self.grouped = nn.Conv2d(in_channels, in_channels,
                     kernel_size, stride=stride, padding=padding, dilation=dilation,
                     groups=in_channels, bias=False)
@@ -101,8 +101,8 @@ class TensorTrain(TnTorchConv2d):
         def TT(tensor, ranks):
             return tn.Tensor(tensor, ranks_tt=ranks)
         super(TensorTrain, self).__init__(in_channels, out_channels, kernel_size, rank,
-            TT, stride=1, padding=0, dilation=1, groups=1,
-            bias=True)
+            TT, stride=stride, padding=padding, dilation=dilation, groups=groups,
+            bias=bias)
 
 
 class Tucker(TnTorchConv2d):
@@ -111,8 +111,8 @@ class Tucker(TnTorchConv2d):
         def tucker(tensor, ranks):
             return tn.Tensor(tensor, ranks_tucker=ranks)
         super(Tucker, self).__init__(in_channels, out_channels, kernel_size, rank,
-            tucker, stride=1, padding=0, dilation=1, groups=1,
-            bias=True)
+            tucker, stride=stride, padding=padding, dilation=dilation, groups=groups,
+            bias=bias)
 
 
 class CP(TnTorchConv2d):
@@ -121,8 +121,8 @@ class CP(TnTorchConv2d):
         def cp(tensor, ranks):
             return tn.Tensor(tensor, ranks_cp=ranks)
         super(CP, self).__init__(in_channels, out_channels, kernel_size, rank,
-            cp, stride=1, padding=0, dilation=1, groups=1,
-            bias=True)
+            cp, stride=stride, padding=padding, dilation=dilation, groups=groups,
+            bias=bias)
 
 
 if __name__ == '__main__':
