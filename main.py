@@ -157,7 +157,8 @@ def train_student(net, teach):
         inputs = Variable(inputs.cuda())
         targets = Variable(targets.cuda())
         outputs_student, ints_student = net(inputs)
-        outputs_teacher, ints_teacher = teach(inputs)
+        with torch.no_grad():
+            outputs_teacher, ints_teacher = teach(inputs)
 
         # If alpha is 0 then this loss is just a cross entropy.
         loss = distillation(outputs_student, outputs_teacher, targets, args.temperature, args.alpha)
