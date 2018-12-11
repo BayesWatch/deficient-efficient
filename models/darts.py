@@ -99,7 +99,8 @@ class ReLUConvBN(nn.Module):
     )
 
   def forward(self, x):
-    return self.op(x)
+    #return self.op(x)
+    return checkpoint(self.op, x)
 
 class DilConv(nn.Module):
     
@@ -166,10 +167,14 @@ class FactorizedReduce(nn.Module):
     self.bn = nn.BatchNorm2d(C_out, affine=affine)
 
   def forward(self, x):
-    x = self.relu(x)
-    out = torch.cat([self.conv_1(x), self.conv_2(x[:,:,1:,1:])], dim=1)
-    out = self.bn(out)
-    return out
+    def factorized_reduce(x):
+      x = self.relu(x)
+      out = torch.cat([self.conv_1(x), self.conv_2(x[:,:,1:,1:])], dim=1)
+      return self.bn(out)
+    #out = checkpoint(cat_1, *[self.conv_1(x), self.conv_2(x[:,:,1:,1:])])
+    #return factorized_reduce(x)
+    return checkpoint(factorized_reduce, x)
+    #return out
 
 
 class Cell(nn.Module):
@@ -223,10 +228,8 @@ class Cell(nn.Module):
           h2 = drop_path(h2, drop_prob)
       s = h1 + h2
       states += [s]
-    #return torch.cat([states[i] for i in self._concat], dim=1)
-    def cat_1(*states):
-      return torch.cat(states, dim=1)
-    return checkpoint(cat_1, *[states[i] for i in self._concat])
+    return torch.cat([states[i] for i in self._concat], dim=1)
+    #return checkpoint(cat_1, *[states[i] for i in self._concat])
 
 
 class AuxiliaryHeadCIFAR(nn.Module):
