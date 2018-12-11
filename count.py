@@ -227,3 +227,7 @@ if __name__ == '__main__':
     print("Mult-Adds: %.5E"%flops)
     print("Params: %.5E"%params)
     print("Sanity check, parameters: %.5E"%sum([reduce(lambda x,y: x*y, p.size()) for p in model.parameters()]))
+    #import time
+    #for m in model.modules():
+    #    time.sleep(0.2)
+    #    print(get_layer_info(m), sum([p.numel() for p in m.parameters()]))

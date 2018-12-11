@@ -7,10 +7,10 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 
 if __name__ == 'blocks' or __name__ == '__main__':
-    from hashed import HashedConv2d, SeparableHashedConv2d
+    from hashed import HashedConv2d, HalfHashedSeparable, HashedSeparable
     from decomposed import TensorTrain, Tucker, CP
 else:
-    from .hashed import HashedConv2d, SeparableHashedConv2d
+    from .hashed import HashedConv2d, HalfHashedSeparable, HashedSeparable
     from .decomposed import TensorTrain, Tucker, CP
 
 def HashedDecimate(in_channels, out_channels, kernel_size, stride=1,
@@ -25,11 +25,24 @@ def HashedDecimate(in_channels, out_channels, kernel_size, stride=1,
 def SepHashedDecimate(in_channels, out_channels, kernel_size, stride=1,
         padding=0, dilation=1, groups=1, bias=False):
     # Hashed Conv2d using 1/10 the original parameters
-    original_params = out_channels*in_channels*kernel_size*kernel_size // groups
+    assert groups == 1
+    original_params = out_channels*in_channels
+    if kernel_size > 1:
+        original_params += in_channels*kernel_size*kernel_size
     budget = original_params//10
-    return SeparableHashedConv2d(in_channels, out_channels, kernel_size,
+    #budget = original_params
+    sep = DepthwiseSep(in_channels, out_channels, kernel_size,
+            stride=stride, padding=padding, dilation=dilation,
+            groups=groups, bias=bias)
+    n_sep = sum([p.numel() for p in sep.parameters()])
+    conv = HashedSeparable(in_channels, out_channels, kernel_size,
             budget, stride=stride, padding=padding, dilation=dilation,
             groups=groups, bias=bias)
+    n_params = sum([p.numel() for p in conv.parameters()])
+    #assert n_params <= budget+out_channels, f"{n_params} > {budget+out_channels}"
+    assert n_params < n_sep, f"{n_params} =/= {n_sep}"
+    #print(n_params, n_sep, n_params/n_sep)
+    return conv
 
 
 from pytorch_acdc.layers import FastStackedConvACDC
@@ -170,7 +183,7 @@ def conv_function(convtype):
                 original_params = out_channels*in_channels*kernel_size*kernel_size // groups
                 budget = int(original_params*budget_scale)
                 budget += in_channels*kernel_size*kernel_size
-                return SeparableHashedConv2d(in_channels, out_channels, kernel_size,
+                return HalfHashedSeparable(in_channels, out_channels, kernel_size,
                         budget, stride=stride, padding=padding,
                         dilation=dilation, groups=groups, bias=bias)
         elif convtype == 'Generic':
@@ -238,6 +251,7 @@ class BasicBlock(nn.Module):
         self.relu2 = nn.ReLU(inplace=True)
         self.conv2 = conv(out_planes, out_planes, kernel_size=3, stride=1,
                                padding=1, bias=False)
+        assert self.conv2.grouped.padding[0] == 1
         self.droprate = dropRate
         self.equalInOut = (in_planes == out_planes)
         self.convShortcut = (not self.equalInOut) and nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride,
@@ -317,7 +331,7 @@ if __name__ == '__main__':
     print(out.size())
     # check we don't initialise a grouped conv when not required
     assert GenericLowRank(3,32,1,1).grouped is None
-    assert SeparableHashedConv2d(3,32,1,10).grouped is None
+    assert HalfHashedSeparable(3,32,1,10).grouped is None
     assert getattr(TensorTrain(3,32,1,3), 'grouped', None) is None
     assert getattr(Tucker(3,32,1,3), 'grouped', None) is None
     assert getattr(CP(3,32,1,3), 'grouped', None) is None

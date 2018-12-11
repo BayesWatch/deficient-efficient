@@ -376,5 +376,54 @@ It's because this line is in `tntorch.tensor`:
 request a fix for this as well, so I'll just set the default dtype back to
 normal after the import.
 
+11th December 2018
+==================
 
+Unfortunately, wasn't able to start experiments before NeurIPS. Turns out
+it's not so easy to substitute layers into DARTS to save parameters. While
+at NeurIPS, I had a spare moment to investigate.
 
+It looks like a fairly large proportion of the parameters in the learnt
+DARTS architecture are used in the skip connections. Those employ full
+convolutions, while the rest of the network uses depthwise separable
+convolutions. I don't know if it's necessary that they do, but it makes the
+job of substitution more difficult.
+
+Previously, wherever there was a grouped convolution followed by a
+pointwise convolution in the original network structure I would replace
+that by whatever alternative low-parameter convolutional block we were
+looking at: usually a grouped convolution followed by a low-rank pointwise.
+I thought this would be simple enough to work with, and makes some of the
+layers easier to design.
+
+The problem with these skip connections is, now I'll be doing a different
+substitution. It's a full convolution, and it might be necessary that it be
+so for the current performance of the network. So, substituting
+modifications using depthwise-separable convolutions is changing the
+underlying network.
+
+More practically, it means that we can't load the teacher network so
+easily, because it will try to load the parameters for a full convolution
+to a place where we've now substituted in a separable convolution. This is
+just due to how the code works.
+
+Continuing without substituting the skip connections is not going to work,
+because then we can, at best, only reduce the size of the DARTS network by
+about half, regardless of which method we use. We'd like to be able to aim
+for higher compression factors than that. But, we should find out how much
+changing that convolution to separable affects the DARTS network - will it
+still achieve the same accuracy?
+
+So, two experiments to start: one where we substitute these layers and
+actually reduce the size of the DARTS network by 10 times using a HashedNet
+substitution, and another where we train a DARTS network from scratch but
+with separable substitutions.
+
+With these changes to the code, the `SepHashedDecimate` substitution
+reduces the approximately 3M parameter DARTS network to:
+
+```
+Mult-Adds: 5.41629E+08
+Params: 4.28400E+05
+Sanity check, parameters: 4.28400E+05
+```

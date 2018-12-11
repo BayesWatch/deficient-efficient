@@ -69,28 +69,31 @@ OPS = {
   'none' : lambda C, stride, affine, conv: Zero(stride),
   'avg_pool_3x3' : lambda C, stride, affine, conv: nn.AvgPool2d(3, stride=stride, padding=1, count_include_pad=False),
   'max_pool_3x3' : lambda C, stride, affine, conv: nn.MaxPool2d(3, stride=stride, padding=1),
-  'skip_connect' : lambda C, stride, affine, conv: Identity() if stride == 1 else FactorizedReduce(C, C, affine=affine),
+  'skip_connect' : lambda C, stride, affine, conv: Identity() if stride == 1 else FactorizedReduce(C, C, conv, affine=affine),
   'sep_conv_3x3' : lambda C, stride, affine, conv: SepConv(C, C, 3, stride, 1, Conv=conv, affine=affine),
   'sep_conv_5x5' : lambda C, stride, affine, conv: SepConv(C, C, 5, stride, 2, Conv=conv, affine=affine),
   'sep_conv_7x7' : lambda C, stride, affine, conv: SepConv(C, C, 7, stride, 3, Conv=conv, affine=affine),
   'dil_conv_3x3' : lambda C, stride, affine, conv: DilConv(C, C, 3, stride, 2, 2, Conv=conv, affine=affine),
   'dil_conv_5x5' : lambda C, stride, affine, conv: DilConv(C, C, 5, stride, 4, 2, Conv=conv, affine=affine),
-  'conv_7x1_1x7' : lambda C, stride, affine, conv: nn.Sequential(
-    nn.ReLU(inplace=False),
-    nn.Conv2d(C, C, (1,7), stride=(1, stride), padding=(0, 3), bias=False),
-    nn.Conv2d(C, C, (7,1), stride=(stride, 1), padding=(3, 0), bias=False),
-    nn.BatchNorm2d(C, affine=affine)
-    ),
+# this is never used so you can remove it without hitting any errors
+#  'conv_7x1_1x7' : lambda C, stride, affine, conv: nn.Sequential(
+#    nn.ReLU(inplace=False),
+#    nn.Conv2d(C, C, (1,7), stride=(1, stride), padding=(0, 3), bias=False),
+#    nn.Conv2d(C, C, (7,1), stride=(stride, 1), padding=(3, 0), bias=False),
+#    nn.BatchNorm2d(C, affine=affine)
+#    ),
 }
 
 
 class ReLUConvBN(nn.Module):
 
-  def __init__(self, C_in, C_out, kernel_size, stride, padding, affine=True):
+  def __init__(self, C_in, C_out, ConvClass, kernel_size, stride, padding, affine=True):
     super(ReLUConvBN, self).__init__()
+    ConvClass = nn.Conv2d if ConvClass is DepthwiseSep else ConvClass
+    #ConvClass = nn.Conv2d
     self.op = nn.Sequential(
       nn.ReLU(inplace=False),
-      nn.Conv2d(C_in, C_out, kernel_size, stride=stride, padding=padding, bias=False),
+      ConvClass(C_in, C_out, kernel_size, stride=stride, padding=padding, bias=False),
       nn.BatchNorm2d(C_out, affine=affine)
     )
 
@@ -151,12 +154,14 @@ class Zero(nn.Module):
 
 class FactorizedReduce(nn.Module):
 
-  def __init__(self, C_in, C_out, affine=True):
+  def __init__(self, C_in, C_out, ConvClass, affine=True):
     super(FactorizedReduce, self).__init__()
     assert C_out % 2 == 0
     self.relu = nn.ReLU(inplace=False)
-    self.conv_1 = nn.Conv2d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
-    self.conv_2 = nn.Conv2d(C_in, C_out // 2, 1, stride=2, padding=0, bias=False) 
+    ConvClass = nn.Conv2d if ConvClass is DepthwiseSep else ConvClass
+    #ConvClass = nn.Conv2d
+    self.conv_1 = ConvClass(C_in, C_out // 2, 1, stride=2, padding=0, bias=False)
+    self.conv_2 = ConvClass(C_in, C_out // 2, 1, stride=2, padding=0, bias=False) 
     self.bn = nn.BatchNorm2d(C_out, affine=affine)
 
   def forward(self, x):
@@ -172,10 +177,10 @@ class Cell(nn.Module):
     self.Conv = Conv
 
     if reduction_prev:
-      self.preprocess0 = FactorizedReduce(C_prev_prev, C)
+      self.preprocess0 = FactorizedReduce(C_prev_prev, C, Conv)
     else:
-      self.preprocess0 = ReLUConvBN(C_prev_prev, C, 1, 1, 0)
-    self.preprocess1 = ReLUConvBN(C_prev, C, 1, 1, 0)
+      self.preprocess0 = ReLUConvBN(C_prev_prev, C, Conv, 1, 1, 0)
+    self.preprocess1 = ReLUConvBN(C_prev, C, Conv, 1, 1, 0)
     
     if reduction:
       op_names, indices = zip(*genotype.reduce)
