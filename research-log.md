@@ -495,3 +495,21 @@ show significant underfitting.
 
 The final test top-1 error of `Hashed_0.01` was 29.81%, which is a complete
 failure, even for that low parameter budget.
+
+It should be noted that the HashedNet implementation now applies the
+hashing to both the grouped and pointwise convolutions when substituting,
+and this experiment has failed to test whether that significantly affects
+training. So, running another experiment using a HashedNet that decimates a
+`wrn_28_10`.
+
+More Naming Mistakes
+--------------------
+
+When training the DARTS network from scratch, but substituting skip
+connections with a separable convolution, I forgot to change the date tag,
+so it has the same `darts.Nov22` tag as the original run. This could be a
+problem, because it's overwritten the model checkpoint. Luckily, I've
+already copied it to other machines, so I have backups. The real loss is
+that it's just appended to the original log file, making the graphs harder
+to read on TensorBoard.
+
