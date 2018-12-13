@@ -427,3 +427,54 @@ Mult-Adds: 5.41629E+08
 Params: 4.28400E+05
 Sanity check, parameters: 4.28400E+05
 ```
+
+Started experiments described above, to check that this is a valid change
+to make for experiments. Will be finished in 3 days.
+
+Accidentally named the experiment training a DARTS network from scratch
+with separable convolutions in the shortcuts with the date tag Nov22
+because I forgot to change it. Currently running on tullibardine.
+
+12th December 2018
+==================
+
+Coming back to the idea for a justification for setting a lower weight
+decay, so that we might be able to figure out what weight decay to set
+based on the compression factor that the compressed weight matrix is
+achieving, Joe Mellor suggested that we just preserve the total
+variance of the prior.
+
+I've written out what this derivation would look like
+[here](https://hackmd.io/yU6X1jIfTuqGaCTsjUekFQ).
+
+To check if it makes sense, I'm going to run an experiment we've run before
+using HashedNet layers, setting the weight decay according to this. Should
+hopefully see a difference.
+
+A good choice might be `wrn_28_10.patch.wrn_28_10.acdc.student.5m4.Nov15`,
+which achieved a final test top 1 of 4.95%. This experiment was repeated
+the day after, including the grouped convolution as well to use the lower
+weight decay factor, but the final test error was worse, achieving only
+5.26%. 
+
+Modifying the code to use the compression factor to calculate the appropriate
+weight decay.
+
+Running this command for the experiment:
+
+```
+python main.py cifar10 student --conv ACDC -t wrn_28_10.patch -s wrn_28_10.acdc.student.Dec11 --wrn_depth 28 --wrn_width 10 --alpha 0. --beta 1e3
+```
+
+13th December 2018
+==================
+
+Weight decay
+------------
+
+Ended up forgetting to rename the date properly, so the experiment was
+saved as: `wrn_28_10.patch.wrn_28_10.acdc.student.5m4.Nov15`. Should really
+be doing the date automatically.
+
+It converged to a final test top-1 of 5.02%, as we would expect. So, this
+isn't a worse way to set the weight decay factor.
