@@ -469,4 +469,29 @@ python main.py cifar10 student --conv ACDC -t wrn_28_10.patch -s wrn_28_10.acdc.
 13th December 2018
 ==================
 
+High Compression with HashedNets
+--------------------------------
 
+After thinking that the experiment described on the 11th had completed (it
+had not), I ran two experiments to test high compression factors using
+HashedNet. One used 1/100 the parameters in each layer that the original
+network used, and the other was attempting to meet a budget of 1e5
+parameters total, both using `wrn_28_10`.
+
+Looking at the number of parameters used here:
+
+```
+> python count.py cifar10 --conv Hashed_0.01 --wrn_depth 28 --wrn_width 10
+Mult-Adds: 5.24564E+09
+Params: 6.54272E+05
+Sanity check, parameters: 6.54272E+05
+```
+
+And the budgeted one, we can assume reached close to 1e5 parameters.
+
+Neither performed well. Budgetat at 1e5 parameters, the wide resnet failed
+to converge at all, although the training loss didn't become unstable. Both
+show significant underfitting.
+
+The final test top-1 error of `Hashed_0.01` was 29.81%, which is a complete
+failure, even for that low parameter budget.
