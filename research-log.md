@@ -469,12 +469,4 @@ python main.py cifar10 student --conv ACDC -t wrn_28_10.patch -s wrn_28_10.acdc.
 13th December 2018
 ==================
 
-Weight decay
-------------
 
-Ended up forgetting to rename the date properly, so the experiment was
-saved as: `wrn_28_10.patch.wrn_28_10.acdc.student.5m4.Nov15`. Should really
-be doing the date automatically.
-
-It converged to a final test top-1 of 5.02%, as we would expect. So, this
-isn't a worse way to set the weight decay factor.
