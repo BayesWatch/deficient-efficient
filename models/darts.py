@@ -92,6 +92,10 @@ class ReLUConvBN(nn.Module):
     super(ReLUConvBN, self).__init__()
     #ConvClass = nn.Conv2d if ConvClass is DepthwiseSep else ConvClass
     #ConvClass = nn.Conv2d
+    sep = DepthwiseSep(C_in, C_out, kernel_size, stride=stride, padding=padding, bias=False)
+    c = nn.Conv2d(C_in, C_out, kernel_size, stride=stride, padding=padding, bias=False)
+    n_params = lambda m: sum([p.numel() for p in m.parameters()])
+    assert n_params(sep) <= n_params(c), f"{n_params(sep)} > {n_params(c)} {[p.numel() for p in sep.parameters()]}"
     self.op = nn.Sequential(
       nn.ReLU(inplace=False),
       ConvClass(C_in, C_out, kernel_size, stride=stride, padding=padding, bias=False),

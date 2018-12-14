@@ -126,15 +126,24 @@ class LinearShuffleNet(nn.Module):
 class DepthwiseSep(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1,
         padding=0, dilation=1, groups=1, bias=True):
+
         super(DepthwiseSep, self).__init__()
         assert groups == 1
-        self.grouped = nn.Conv2d(in_channels, in_channels, kernel_size,
-                stride=stride, padding=padding, dilation=dilation,
-                groups=in_channels, bias=False)
-        self.pointwise = nn.Conv2d(in_channels, out_channels, 1, bias=bias)
+        if kernel_size > 1:
+            self.grouped = nn.Conv2d(in_channels, in_channels, kernel_size,
+                    stride=stride, padding=padding, dilation=dilation,
+                    groups=in_channels, bias=False)
+            self.pointwise = nn.Conv2d(in_channels, out_channels, 1, bias=bias)
+        else:
+            self.pointwise = nn.Conv2d(in_channels, out_channels, 1,
+                    stride=stride, padding=padding, dilation=dilation,
+                    bias=bias)
 
     def forward(self, x):
-        out = self.grouped(x)
+        if hasattr(self, 'grouped'):
+            out = self.grouped(x)
+        else:
+            out = x
         return self.pointwise(out)
 
 
@@ -251,7 +260,7 @@ class BasicBlock(nn.Module):
         self.relu2 = nn.ReLU(inplace=True)
         self.conv2 = conv(out_planes, out_planes, kernel_size=3, stride=1,
                                padding=1, bias=False)
-        assert self.conv2.grouped.padding[0] == 1
+        #assert self.conv2.grouped.padding[0] == 1
         self.droprate = dropRate
         self.equalInOut = (in_planes == out_planes)
         self.convShortcut = (not self.equalInOut) and nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride,

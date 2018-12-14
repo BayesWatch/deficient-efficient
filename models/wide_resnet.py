@@ -30,24 +30,35 @@ def parse_options(convtype, blocktype):
         block = None
     return conv, block
 
-def group_lowrank(named_parameters):
+def group_lowrank(named_parameters, weight_decay, compression_ratio):
     lowrank_params, other_params = [], []
     for n,p in named_parameters:
         if 'A' in n or 'D' in n:
             lowrank_params.append(p)
-        elif 'grouped' in n:
-            lowrank_params.append(p)
+        #elif 'grouped' in n:
+        #    lowrank_params.append(p)
         elif 'hashed' in n:
             lowrank_params.append(p)
         else:
             other_params.append(p)
-    return [{'params': lowrank_params, 'weight_decay': 8.8e-6},
+    return [{'params': lowrank_params,
+                'weight_decay': compression_ratio*weight_decay},
             {'params': other_params}] 
 
+def compression(model_class, kwargs):
+    # assume there is a kwarg "conv", which is the convolution we've chosen
+    compressed_params = sum([p.numel() for p in
+        model_class(**kwargs).parameters()])
+    kwargs['conv'] = Conv
+    uncompressed_params = sum([p.numel() for p in
+        model_class(**kwargs).parameters()])
+    return float(compressed_params)/float(uncompressed_params)
 
 class WideResNet(nn.Module):
     def __init__(self, depth, widen_factor, conv, block, num_classes=10, dropRate=0.0, s = 1):
         super(WideResNet, self).__init__()
+        self.kwargs = dict(depth=depth, widen_factor=widen_factor, conv=conv,
+                block=block, num_classes=num_classes, dropRate=dropRate, s=s)
         nChannels = [16, 16 * widen_factor, 32 * widen_factor, 64 * widen_factor]
         nChannels = [int(a) for a in nChannels]
         assert ((depth - 4) % 6 == 0) # why?
@@ -94,9 +105,13 @@ class WideResNet(nn.Module):
             elif isinstance(m, nn.Linear):
                 m.bias.data.zero_()
 
-    def grouped_parameters(self):
+    def compression_ratio(self):
+        return compression(self.__class__, self.kwargs)
+
+    def grouped_parameters(self, weight_decay):
         # iterate over parameters and separate those in ACDC layers
-        return group_lowrank(self.named_parameters())
+        return group_lowrank(self.named_parameters(), weight_decay,
+                self.compression_ratio())
 
     def forward(self, x):
         activations = []
