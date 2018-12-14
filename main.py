@@ -236,7 +236,10 @@ def validate(net, checkpoint=None):
         inputs, targets = inputs.cuda(), targets.cuda()
         with torch.no_grad():
             inputs, targets = Variable(inputs), Variable(targets)
-            outputs, _, _ = net(inputs)
+            if isinstance(net, DARTS):
+                outputs, _, _ = net(inputs)
+            else:
+                outputs, _ = net(inputs)
             if isinstance(outputs,tuple):
                 outputs = outputs[0]
 
@@ -496,7 +499,9 @@ if __name__ == '__main__':
 
 
         get_no_params(teach)
-        optimizer = optim.SGD(teach.grouped_parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
+        optimizer = optim.SGD(teach.grouped_parameters(args.weight_decay),
+                lr=args.lr, momentum=args.momentum,
+                weight_decay=args.weight_decay)
         scheduler = get_scheduler(optimizer, epoch_step, args)
 
         # Decay the learning rate depending on the epoch
@@ -529,7 +534,9 @@ if __name__ == '__main__':
             print('Mode Student: Making a student network from scratch and training it...')
             student = build_network(Conv, Block).cuda()
 
-        optimizer = optim.SGD(student.grouped_parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
+        optimizer = optim.SGD(student.grouped_parameters(args.weight_decay),
+                lr=args.lr, momentum=args.momentum,
+                weight_decay=args.weight_decay)
         scheduler = get_scheduler(optimizer, epoch_step, args)
 
         # Decay the learning rate depending on the epoch
