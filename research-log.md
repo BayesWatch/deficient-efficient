@@ -561,3 +561,64 @@ SegFaults at random intervals during training. Trying to figure out a
 reasonable way to debug this. May just try running it on a different
 machine; at least, if that is the problem, our experiments on cloud
 providers aren't completely ruined.
+
+WRN, appropriate weight decay
+-----------------------------
+
+Started experiments with ACDC and HashedNet substitutions. To recap, the
+original, full-rank WRN-28-10 uses the following number of parameters:
+
+```
+> python count.py cifar10 --conv Conv --wrn_width 10 --wrn_depth 28
+Mult-Adds: 5.24564E+09
+Params: 3.64792E+07
+Sanity check, parameters: 3.64792E+07
+```
+
+With the ACDC substitution:
+
+```
+> python count.py cifar10 --conv ACDC --wrn_width 10 --wrn_depth 28
+Mult-Adds: 7.99262E+08
+Params: 5.55498E+05
+Sanity check, parameters: 5.55498E+05
+```
+
+And with the HashedNet substitution:
+
+```
+> python count.py cifar10 --conv SepHashedDecimate --wrn_width 10 --wrn_depth 28
+Mult-Adds: 6.29697E+08
+Params: 7.10327E+05
+Sanity check, parameters: 7.10327E+05
+```
+
+Which is a bit more compression that just 10% of the parameters. This is
+because it was changed to be 10% of the equivalent *separable convolution*.
+
+These two networks are very similar sizes and achieve similar performance.
+The HashedNet substitution:
+
+```
+Error@1 5.040 Error@5 0.100
+```
+
+And the ACDC substitution:
+
+```
+Error@1 4.990 Error@5 0.150
+```
+
+For comparison, the HashedNet result on 22nd November showed better top-1
+error, but the network used several times more parameters, `3.91190E+06`
+for a top-1 error of 3.84%.
+
+The same network structure with ACDC was tested and the results reported
+[here](https://github.com/gngdb/pytorch-acdc/blob/master/research-log.md#15th-november-2018).
+Unfortunately, even this isn't directly comparable because I have since
+added cutout augmentation to the training protocol in distillation. But, I
+think we can safely conclude that this setting for weight decay is no
+worse, for the architectures we've already tried. And, the fact that it
+reverts to normal weight decay when we apply no compression is neat.
+
+
