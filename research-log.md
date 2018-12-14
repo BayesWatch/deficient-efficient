@@ -513,3 +513,51 @@ already copied it to other machines, so I have backups. The real loss is
 that it's just appended to the original log file, making the graphs harder
 to read on TensorBoard.
 
+14th December 2018
+==================
+
+DARTS with Separable Shortcuts
+------------------------------
+
+Training a DARTS network from scratch, using the same training protocol but
+using separable convolutions in the shortcut connections finished training
+with 3.16% top-1 error. Originally, it scored 2.86%, so we've lost some
+performance.
+
+```
+> python count.py cifar10 --network DARTS --conv Sep                          
+Mult-Adds: 5.41629E+08
+Params: 3.36219E+06
+Sanity check, parameters: 3.36219E+06
+```
+
+Although, it turns out that I made a mistake in the substitution. I didn't
+realise that these skip layers are only ever 1x1 convolutions and the
+DepthwiseSep module I used as a substitution *always* added a grouped
+convolution (should really have at least added a check to see if a spatial
+convolution was required). So, all we did was add extra scaling parameters
+in a 1x1 grouped convolution prior to the 1x1 pointwise convolution that
+was already there. So, the number of parameters stayed the same actually
+increased. Before the substitution this is how many parameters the network
+used:
+
+```
+Mult-Adds: 5.38201E+08
+Params: 3.34934E+06
+Sanity check, parameters: 3.34934E+06
+```
+
+Strange then that this should so negatively affect the results. But it
+does at least make the substitution easier. We may even be able to maintain
+full rank grouped convolutions in these experiments.
+
+Also, I fixed the DepthwiseSep layer so that it only uses grouped
+convolutions when required. Should really add a test to run over all of the
+substitutions modules and make sure this doesn't happen again.
+
+Unfortunately, the experiment distilling the DARTS network down to
+approximately 1/10 the size using HashedNet substitutions keeps hitting
+SegFaults at random intervals during training. Trying to figure out a
+reasonable way to debug this. May just try running it on a different
+machine; at least, if that is the problem, our experiments on cloud
+providers aren't completely ruined.
