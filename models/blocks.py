@@ -26,22 +26,14 @@ def SepHashedDecimate(in_channels, out_channels, kernel_size, stride=1,
         padding=0, dilation=1, groups=1, bias=False):
     # Hashed Conv2d using 1/10 the original parameters
     assert groups == 1
-    original_params = out_channels*in_channels
-    if kernel_size > 1:
-        original_params += in_channels*kernel_size*kernel_size
+    original_params = out_channels*in_channels*kernel_size*kernel_size
     budget = original_params//10
-    #budget = original_params
-    sep = DepthwiseSep(in_channels, out_channels, kernel_size,
-            stride=stride, padding=padding, dilation=dilation,
-            groups=groups, bias=bias)
-    n_sep = sum([p.numel() for p in sep.parameters()])
-    conv = HashedSeparable(in_channels, out_channels, kernel_size,
+    conv = HalfHashedSeparable(in_channels, out_channels, kernel_size,
             budget, stride=stride, padding=padding, dilation=dilation,
             groups=groups, bias=bias)
     n_params = sum([p.numel() for p in conv.parameters()])
-    #assert n_params <= budget+out_channels, f"{n_params} > {budget+out_channels}"
-    assert n_params < n_sep, f"{n_params} =/= {n_sep}"
-    #print(n_params, n_sep, n_params/n_sep)
+    budget = budget + conv.hashed.bias.numel()
+    assert n_params <= budget, f"{n_params} > {budget}"
     return conv
 
 

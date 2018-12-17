@@ -57,12 +57,15 @@ class HalfHashedSeparable(nn.Module):
             # we spent some of the budget on that grouped convolution
             assert self.grouped.weight.numel() == reduce(lambda x,y: x*y, self.grouped.weight.size())
             budget = budget - self.grouped.weight.numel()
+            assert budget > 0, \
+                    "budget exceeded by grouped convolution: %i too many"%(-budget)
+            self.hashed = HashedConv2d(in_channels, out_channels, 1, budget,
+                    bias=bias)
         else:
             self.grouped = None
-        assert budget > 0, \
-                "budget exceeded by grouped convolution: %i too many"%(-budget)
-        self.hashed = HashedConv2d(in_channels, out_channels, 1, budget,
-                bias=bias)
+            self.hashed = HashedConv2d(in_channels, out_channels, 1, budget,
+                    stride=stride, padding=padding, dilation=dilation,
+                    bias=bias)
 
     def forward(self, x):
         if self.grouped is not None:
@@ -83,8 +86,7 @@ class HashedSeparable(nn.Module):
         grouped_budget = int(budget*grouped_params/total_params)
         pointwise_budget = int(budget*pointwise_params/total_params)
         #print(total_params, grouped_budget, pointwise_budget)
-        #if kernel_size > 1:
-        if True:
+        if kernel_size > 1:
             self.grouped = HashedConv2d(in_channels, in_channels, kernel_size,
                     grouped_budget, stride=stride, padding=padding,
                     dilation=dilation, groups=in_channels, bias=False)
