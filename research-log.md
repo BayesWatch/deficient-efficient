@@ -646,5 +646,20 @@ DARTS network. The full-size top-1 training error reduces to 1.5%, while
 this compressed network finishes at 5%; higher than test error due to
 dropout.
 
-Compression ration is 79 times, ie the compressed network contains 1.3% the
+Compression ratio is 79, ie the compressed network contains 1.3% the
 parameters of the full-size network.
+
+Status
+------
+
+The aim is to start running experiments on CIFAR-10 and ImageNet as soon as
+possible. What is left to do until that can happen?
+
+1. Run a test with tntorch decomposition, see if it will converge.
+2. Test sizes of networks with different settings to see if all compressed
+layers can meet the budgets we're interested in.
+3. Test ImageNet distillations settings: can we train a WRN-50-2 on
+ImageNet with distillation using this code as it currently stands?
+4. (Optional) Review code for all layers by eye, to be safe.
+5. Set up AWS to run CIFAR-10 experiments and collate results.
+
