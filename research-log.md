@@ -427,3 +427,42 @@ Mult-Adds: 5.41629E+08
 Params: 4.28400E+05
 Sanity check, parameters: 4.28400E+05
 ```
+
+After making these changes, a new problem occurs. With these extra
+substitutions the computational graph is now much larger, so the model hits
+an OOM while trying to do the backward pass. Specifically, it happens when
+`drop_path` is enabled, otherwise the model *just* fits (around 11GB)
+during training.
+
+To investigate, running with batch size 12 we use 2073MB and then enabling
+`drop_path` this increases to 2207MB; around a 6% increase.
+
+I thought perhaps it would be possible to reduce the memory usage using the
+new [checkpoint][torchcheckpoint] utility in pytorch, but after wrapping
+the function implementing `drop_path`, the memory usage was still 2207MB.
+
+Instead, tried using the checkpoint utility on `torch.cat` calls in the
+model. Then, memory use actually increased to 2277MB, which doesn't make
+much sense.
+
+Instead, replacing the factorized reduction function with a checkpointed
+version reduced memory usage to 2183MB, which is probably not enough.
+
+In addition to that, checkpointing ConvReluBN blocks brought it down to
+1803MB. Putting the batch size back to normal, the model runs using 9235MB.
+However, it now takes about 750ms per iteration, versus 630ms before (when
+not dropping paths). Don't see any way around this though, we do need to be
+able to run this model while using more memory.
+
+Now started an experiment with this code and it looks like it'll take
+around 66 hours to complete.
+
+[torchcheckpoint]: https://pytorch.org/docs/stable/checkpoint.html
+
+13th December 2018
+==================
+
+Keep getting segfaults training the SepHashedDecimate DARTS network, but
+only after many epochs of training. Not sure exactly what's happening here,
+but this could cause big problems training networks on AWS. Restarted
+experiment, will likely take until Saturday now, barring more segfaults.
