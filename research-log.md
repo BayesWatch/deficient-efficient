@@ -621,4 +621,30 @@ think we can safely conclude that this setting for weight decay is no
 worse, for the architectures we've already tried. And, the fact that it
 reverts to normal weight decay when we apply no compression is neat.
 
+18th December 2018
+==================
 
+HashedNet Substitution on DARTS
+-------------------------------
+
+The experiment reducing DARTS to less than 10% it's original size using
+HashedNet substitutions in both the grouped and pointwise parts of the
+separable convolutions has completed. For reference, here is the
+report of it's size:
+
+```
+> python count.py cifar10 --conv SepHashedDecimate --network DARTS
+Mult-Adds: 5.41629E+08
+Params: 4.28400E+05
+Sanity check, parameters: 4.28400E+05
+```
+
+The final top-1 test error was 4.64%.
+
+The learning curves show more underfitting than when training a full-size
+DARTS network. The full-size top-1 training error reduces to 1.5%, while
+this compressed network finishes at 5%; higher than test error due to
+dropout.
+
+Compression ration is 79 times, ie the compressed network contains 1.3% the
+parameters of the full-size network.
