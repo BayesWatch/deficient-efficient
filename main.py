@@ -464,8 +464,6 @@ if __name__ == '__main__':
             return WRN_50_2(Conv)
         elif args.network == 'DARTS':
             return DARTS(Conv, num_classes=num_classes)
-    def schedule_drop_path(epoch, net):
-        net.drop_path_prob = 0.2 * epoch / args.epochs
 
     # if a budget is specified, figure out what we have to set the
     # hyperparameter to
@@ -503,6 +501,8 @@ if __name__ == '__main__':
                 lr=args.lr, momentum=args.momentum,
                 weight_decay=args.weight_decay)
         scheduler = get_scheduler(optimizer, epoch_step, args)
+        def schedule_drop_path(epoch, net):
+            net.drop_path_prob = 0.2 * epoch / (start_epoch+args.epochs)
 
         # Decay the learning rate depending on the epoch
         for e in range(0,start_epoch):
@@ -538,6 +538,8 @@ if __name__ == '__main__':
                 lr=args.lr, momentum=args.momentum,
                 weight_decay=args.weight_decay)
         scheduler = get_scheduler(optimizer, epoch_step, args)
+        def schedule_drop_path(epoch, net):
+            net.drop_path_prob = 0.2 * epoch / (start_epoch+args.epochs)
 
         # Decay the learning rate depending on the epoch
         for e in range(0, start_epoch):
