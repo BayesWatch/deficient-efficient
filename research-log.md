@@ -663,3 +663,23 @@ ImageNet with distillation using this code as it currently stands?
 4. (Optional) Review code for all layers by eye, to be safe.
 5. Set up AWS to run CIFAR-10 experiments and collate results.
 
+tntorch float32
+---------------
+
+rballester pushed an update so that the Tucker decomposition can still be
+calculated if the default dtype is changed. Just ran the tests again, and
+it seems like it works, so don't have to use my hacky solution.
+
+Starting TensorTrain Experiments
+--------------------------------
+
+Started experiments running TensorTrain, with a rank scaling factor of 0.1
+to check that we can use tntorch; ie that forward and backward propagation
+through this parameterisation wouldn't be too slow. For completeness, here
+are the commands, and filenames:
+
+```
+wrn_28_10.tensortrain_0.1.Dec18.t7:  main.py cifar10 teacher --conv TensorTrain_0.1 -t wrn_28_10.tensortrain_0.1.Dec18 --wrn_width 10 --wrn_depth 28 --alpha 0. --beta 1e3
+wrn_28_10.tensortrain_0.1.student.Dec18.t7:  main.py cifar10 student --conv TensorTrain_0.1 -t wrn_28_10.patch -s wrn_28_10.tensortrain_0.1.student.Dec18 --wrn_depth 28 --wrn_width 10 --alpha 0. --beta 1e3
+```
+
