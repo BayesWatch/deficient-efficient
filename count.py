@@ -3,7 +3,6 @@ from __future__ import print_function
 import math
 import torch
 import argparse
-from functools import reduce
 from torch.autograd import Variable
 from models.wide_resnet import WideResNet
 from models.darts import DARTS
@@ -33,7 +32,7 @@ def get_layer_info(layer):
     return type_name
 
 def get_layer_param(model):
-    return sum([reduce(lambda x,y: x*y, i.size(), 1) for i in model.parameters()])
+    return sum([p.numel() for p in model.parameters()])
 
 def measure_layer(layer, x):
     global count_ops, count_params
@@ -143,6 +142,40 @@ def measure_layer(layer, x):
                 layer.kernel_size[1] * out_h * out_w / layer.groups * multi_add
         delta_params = get_layer_param(layer)
 
+    elif type_name in ['TensorTrain']:
+        # number of cores
+        n_cores = 0
+        while hasattr(layer, 'weight_core_%i'%n_cores):
+            core = getattr(layer, 'weight_core_%i'%n_cores)
+            n_cores += 1
+            import ipdb
+            ipdb.set_trace()
+        # number of Us
+        n_us = 0
+        while hasattr(layer, 'weight_core_%i'%n_us):
+            u = getattr(layer, 'weight_u_%i'%n_us)
+            n_us += 1
+        if type_name == 'TensorTrain':
+            # From "Tensorizing Neural Networks"
+            #   For the case of the TT-matrix-by-explicit-vector product c = Wb,
+            #   the computational complexity is O(d r^2 m max(M,N)), where d is
+            #   the number of cores of the TT-matrix W, m is the max_k m_k, r is
+            #   the maximal rank and N = \prod_k=1^d n_k is the length of the
+            #   vector b.
+            #
+            # Seems like, naively, the mult-adds can be estimated as those used
+            # by an independent matrix multiply for each core, with the result
+            # then summed. Reading this from Section 4.
+            d = n_cores
+            r = layer.rank
+            N = x.size(1)
+
+
+        # plus the ops of the grouped convolution? or does that get caught anyway?
+        assert False
+        # this would double count the grouped
+        #delta_params = get_layer_param(layer) 
+
     ### unknown layer type
     else:
         if type_name not in ignored_modules:
@@ -226,7 +259,9 @@ if __name__ == '__main__':
     flops, params = measure_model(model, 32, 32)
     print("Mult-Adds: %.5E"%flops)
     print("Params: %.5E"%params)
-    print("Sanity check, parameters: %.5E"%sum([reduce(lambda x,y: x*y, p.size()) for p in model.parameters()]))
+    sanity = sum([p.numel() for p in model.parameters()])
+    assert sanity == params, "Sanity check, parameters: %.5E =/= %.5E"%(sanity, params)
+    print(ignored_modules)
     #import time
     #for m in model.modules():
     #    time.sleep(0.2)
