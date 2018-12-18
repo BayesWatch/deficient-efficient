@@ -331,11 +331,17 @@ if __name__ == '__main__':
     out = generic(X)
     print(out.size())
     # check we don't initialise a grouped conv when not required
-    assert GenericLowRank(3,32,1,1).grouped is None
-    assert HalfHashedSeparable(3,32,1,10).grouped is None
-    assert getattr(TensorTrain(3,32,1,3), 'grouped', None) is None
-    assert getattr(Tucker(3,32,1,3), 'grouped', None) is None
-    assert getattr(CP(3,32,1,3), 'grouped', None) is None
+    layers_to_test = [GenericLowRank(3,32,1,1), HalfHashedSeparable(3,32,1,10),
+            TensorTrain(3,32,1,3), Tucker(3,32,1,3), CP(3,32,1,3),
+            ACDC(3,32,1)]
+    for layer in layers_to_test:
+        assert getattr(layer, 'grouped', None) is None
+    # and we *do* when it is required
+    layers_to_test = [GenericLowRank(3,32,3,1), HalfHashedSeparable(3,32,3,100),
+            TensorTrain(3,32,3,3), Tucker(3,32,3,3), CP(3,32,3,3),
+            ACDC(3,32,3)]
+    for layer in layers_to_test:
+        assert getattr(layer, 'grouped', None) is not None, layer
     # sanity of LinearShuffleNet
     X = torch.randn(5,16,32,32)
     shuffle = LinearShuffleNet(16,32,3,4)
