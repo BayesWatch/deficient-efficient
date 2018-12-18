@@ -683,3 +683,16 @@ wrn_28_10.tensortrain_0.1.Dec18.t7:  main.py cifar10 teacher --conv TensorTrain_
 wrn_28_10.tensortrain_0.1.student.Dec18.t7:  main.py cifar10 student --conv TensorTrain_0.1 -t wrn_28_10.patch -s wrn_28_10.tensortrain_0.1.student.Dec18 --wrn_depth 28 --wrn_width 10 --alpha 0. --beta 1e3
 ```
 
+Starting Tucker and CP Experiments
+----------------------------------
+
+Had two free GPUs to work with, so started experiments training these
+networks from scratch with the same rank scaling settings as the
+TensorTrain experiment. Should be useful for comparison, and to discover
+any problems with training these networks.
+
+```
+
+wrn_28_10.tucker_0.1.Dec18.t7:  main.py cifar10 teacher --conv Tucker_0.1 -t wrn_28_10.tucker_0.1.Dec18 --wrn_width 10 --wrn_depth 28 --alpha 0. --beta 1e3
+wrn_28_10.cp_0.1.Dec18.t7:  main.py cifar10 teacher --conv CP_0.1 -t wrn_28_10.cp_0.1.Dec18 --wrn_width 10 --wrn_depth 28 --alpha 0. --beta 1e3
+```
