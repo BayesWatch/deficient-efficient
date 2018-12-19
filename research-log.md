@@ -696,3 +696,70 @@ any problems with training these networks.
 wrn_28_10.tucker_0.1.Dec18.t7:  main.py cifar10 teacher --conv Tucker_0.1 -t wrn_28_10.tucker_0.1.Dec18 --wrn_width 10 --wrn_depth 28 --alpha 0. --beta 1e3
 wrn_28_10.cp_0.1.Dec18.t7:  main.py cifar10 teacher --conv CP_0.1 -t wrn_28_10.cp_0.1.Dec18 --wrn_width 10 --wrn_depth 28 --alpha 0. --beta 1e3
 ```
+
+19th December 2018
+==================
+
+Completed: decomposed.py Experiments
+------------------------------------
+
+The experiments described yesterday have finished. Looking at the learning
+curves, the weight decay appears to be well-tuned; there's not much
+evidence of overfitting. Train top-1 tracks the test top-1 relatively
+closely. Results training from scratch:
+
+|               | Train top-1 | Test top-1 |
+|---------------|-------------|------------|
+|TensorTrain_0.1 | 5.61%      | 8.02%      |
+|Tucker_0.1     | 13.7%       | 14.0%      |
+|CP_0.1         | 5.81%       | 8.13%      |
+
+The learning curves for the CP and TensorTrain models track very closely.
+It could be that, with these settings, they're equivalent fit on random
+matrices (I should really look at the maths more closely).
+
+With AT, using the same WRN-28-10 teacher used everywhere in the
+experiments reported here, we only have results for TensorTrain. It seems
+to help, and it converges to 4.57% top-1 test error.
+
+Now, despite setting the arbitrary rank scaling factor to 0.1 in all of
+these cases, these models *don't use the same number of parameters*. But,
+`count.py` needs some work right now to estimate how my mult-add operations
+would be required, in theory, to run these layers in a real network. Until
+then, we can report how many parameters each of these uses:
+
+* `TensorTrain_0.1` : 1.19e6
+* `Tucker_0.1` : 1.28e6
+* `CP_0.1` : 1.19e6
+
+It's a little surprising to find that the Tucker decomposition is using
+more parameters. I was expecting it to be too compressed, to explain why
+it's failing to train, but I suppose there must be something else about the
+parameterisation that isn't amenable to SGD.
+
+These results do raise a problem with the experiments though. There are
+other settings with how we use these decompositions. I've arbitrarily set
+the `rank` setting to make it easy to use, but there's much more control
+about the type of tensor decomposition we might like to build that may make
+a huge difference, like how many cores to use, and their respective ranks
+in TensorTrain. `tntorch` appears to make this relatively easy to modify.
+
+I don't really have the knowledge to know what might make a "good" tensor
+decomposition for this problem (and I'm not sure who would, since the
+problem is to make a tensor decomposition that is more amenable to SGD in a
+deep network).
+
+It doesn't seem fair to arbitrarily set these settings for each of these
+decompositions. We could do some black box search to find "good" settings
+for each, and then use that in all experiments, but that could be very time
+consuming (and would delay starting the main set of experiments).
+
+For now, these settings do appear to be sane, and are training. I'll
+discuss whether to run extra experiments with someone else.
+
+Talked to Amos
+--------------
+
+Amos was of the opinion that this review/comparison of methods must be
+systematic. And so, it is necessary that we configure the substitute
+decompositions to the best of our ability.
