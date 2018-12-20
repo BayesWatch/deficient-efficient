@@ -763,3 +763,43 @@ Talked to Amos
 Amos was of the opinion that this review/comparison of methods must be
 systematic. And so, it is necessary that we configure the substitute
 decompositions to the best of our ability.
+
+20th December 2018
+==================
+
+How many Mult-Adds to Tensor-Train Operations Use?
+--------------------------------------------------
+
+While trying to figure out how I should estimate the number of operations
+used by a Tensor-Train approximation, have run into a lot of difficulties
+understanding exactly how it ought to be implemented. Notes on this can be
+found [here](https://hackmd.io/r-0J8c7MRfKPkadv8WEreg).
+
+My conclusion right now is that I can't count on a direct speedup when
+substituting *some* of the layers of a convolutional network to a
+Tensor-Train format, because then the activations throughout the network
+must also be represented as a Tensor-Train approximation, and there are
+other concerns about the rank, rounding and approximations that would have
+to be considered. I *think*. It may be worth contacting someone with a more
+detailed understanding of it.
+
+Ultimate Tensorization
+----------------------
+
+Went over this paper again, and it provides some more justification for
+going the route of separable convolutions in this investigation. The
+Tensor-Train format to use in a convolutional layer is defined differently
+to a Naive decomposition of the kernel tensor, and this is necessary for
+performance. Luckily, with a pointwise convolution, it's the same
+decomposition of the weight matrix of the linear layer from "Tensorizing
+Neural Networks".
+
+Although, it does motivate me to rethink exactly how we define the
+decomposition. It may be worth reshaping the weight tensor in the
+definition. That seems to be an important part of the Tensor decomposition.
+Although, I don't know what effect this will have on the performance of
+these as weight matrices in neural networks, so we may just have to
+investigate by experiment.
+
+The same experiment may be necessary for the Tucker decomposition as well.
+
