@@ -841,3 +841,15 @@ Keep getting segfaults training the SepHashedDecimate DARTS network, but
 only after many epochs of training. Not sure exactly what's happening here,
 but this could cause big problems training networks on AWS. Restarted
 experiment, will likely take until Saturday now, barring more segfaults.
+
+Lower Bound Tensor-Train
+------------------------
+
+What if I just ignore the operations used in mapping to and from a TT
+representation. Using the cores, I can guess the shape the X-tensor would
+have if I were to do that, and calculate the number of operations required
+to implement said layer. I'll just print a warning that this is a lower
+bound in `count.py`.
+
+
+
