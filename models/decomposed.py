@@ -10,6 +10,35 @@ import tntorch as tn
 torch.set_default_dtype(torch.float32)
 
 
+def dimensionize(t, d):
+    """Take a tensor, t, and reshape so that it has d dimensions, of roughly
+    equal size."""
+    # if the tensor already has d dimensions, just return it
+    if t.ndimension() == d:
+        return t
+    # if not, we have to do some work
+    N = t.numel()
+    # do root in with log
+    equal = math.exp((1./d)*math.log(N))
+    # if this is an integer, our work here is done
+    if int(equal) - equal < 1e-6:
+        dims = [int(equal)]*d
+    # oh no, then we want to build up a list of dimensions it *does* divide by
+    else:
+        dims = []
+        for i in range(d):
+            divisor = closest_divisor(N, int(equal))
+            dims.append(divisor)
+            N = N//divisor
+        assert N == 1
+    return t.view(*dims)
+
+def closest_divisor(N, d):
+    while N%d != 0:
+        d += 1
+    return d
+
+
 class TnTorchConv2d(nn.Conv2d):
     def __init__(self, in_channels, out_channels, kernel_size, rank,
             TnConstructor, stride=1, padding=0, dilation=1, groups=1,
@@ -26,6 +55,10 @@ class TnTorchConv2d(nn.Conv2d):
                     groups=in_channels, bias=False)
         self.rank = rank
         self.tn_weight = self.TnConstructor(self.weight.data.squeeze(), ranks=self.rank)
+        # store the correct size for this weight
+        self.weight_size = self.weight.size()
+        # check the fit to the weight initialisation
+        self.store_metrics(self.weight)
         # delete the original weight
         del self.weight
         # then register the cores of the Tensor Train as parameters
@@ -54,7 +87,7 @@ class TnTorchConv2d(nn.Conv2d):
 
     def conv_weight(self):
         weight = self.tn_weight.torch()
-        n,d = weight.size()
+        n,d,_,_ = self.weight_size
         return weight.view(n,d,1,1)
 
     def reset_parameters(self):
@@ -86,23 +119,29 @@ class TnTorchConv2d(nn.Conv2d):
         return F.conv2d(out, weight, self.bias, self.stride, self.padding,
                 self.dilation, self.groups)
 
-    def extra_repr(self):
+    def store_metrics(self, full):
         t = self.tn_weight
-        full = t.torch()
+        full = full.view(t.torch().size())
+        self.compression = (full.numel(), t.numel(), full.numel() / t.numel())
+        self.relative_error = tn.relative_error(full, t)
+        self.rmse = tn.rmse(full, t)
+        self.r_squared = tn.r_squared(full, t)
+
+    def extra_repr(self):
         extra = []
-        extra.append(t.__repr__())
-        extra.append('Compression ratio: {}/{} = {:g}'.format(full.numel(),
-            t.numel(), full.numel() / t.numel()))
-        extra.append('Relative error: %f'%tn.relative_error(full, t))
-        extra.append('RMSE: %f'%tn.rmse(full, t))
-        extra.append('R^2: %f'%tn.r_squared(full, t))
+        extra.append(self.tn_weight.__repr__())
+        extra.append('Compression ratio: {}/{} = {:g}'.format(*self.compression))
+        extra.append('Relative error: %f'%self.relative_error)
+        extra.append('RMSE: %f'%self.rmse)
+        extra.append('R^2: %f'%self.r_squared)
         return "\n".join(extra)
 
 
 class TensorTrain(TnTorchConv2d):
-    def __init__(self, in_channels, out_channels, kernel_size, rank, stride=1,
-            padding=0, dilation=1, groups=1, bias=True):
+    def __init__(self, in_channels, out_channels, kernel_size, rank,
+            dimensions, stride=1, padding=0, dilation=1, groups=1, bias=True):
         def TT(tensor, ranks):
+            tensor = dimensionize(tensor, dimensions)
             return tn.Tensor(tensor, ranks_tt=ranks)
         super(TensorTrain, self).__init__(in_channels, out_channels, kernel_size, rank,
             TT, stride=stride, padding=padding, dilation=dilation, groups=groups,
@@ -110,9 +149,10 @@ class TensorTrain(TnTorchConv2d):
 
 
 class Tucker(TnTorchConv2d):
-    def __init__(self, in_channels, out_channels, kernel_size, rank, stride=1,
-            padding=0, dilation=1, groups=1, bias=True):
+    def __init__(self, in_channels, out_channels, kernel_size, rank,
+            dimensions, stride=1, padding=0, dilation=1, groups=1, bias=True):
         def tucker(tensor, ranks):
+            tensor = dimensionize(tensor, dimensions)
             return tn.Tensor(tensor, ranks_tucker=ranks)
         super(Tucker, self).__init__(in_channels, out_channels, kernel_size, rank,
             tucker, stride=stride, padding=padding, dilation=dilation, groups=groups,
@@ -120,9 +160,10 @@ class Tucker(TnTorchConv2d):
 
 
 class CP(TnTorchConv2d):
-    def __init__(self, in_channels, out_channels, kernel_size, rank, stride=1,
-            padding=0, dilation=1, groups=1, bias=True):
+    def __init__(self, in_channels, out_channels, kernel_size, rank,
+            dimensions, stride=1, padding=0, dilation=1, groups=1, bias=True):
         def cp(tensor, ranks):
+            tensor = dimensionize(tensor, dimensions)
             return tn.Tensor(tensor, ranks_cp=ranks)
         super(CP, self).__init__(in_channels, out_channels, kernel_size, rank,
             cp, stride=stride, padding=padding, dilation=dilation, groups=groups,
@@ -132,7 +173,7 @@ class CP(TnTorchConv2d):
 if __name__ == '__main__':
     for ConvClass in [TensorTrain, Tucker, CP]:
         X = torch.randn(5,16,32,32)
-        tnlayer = ConvClass(16,16,3,3, bias=False)
+        tnlayer = ConvClass(16,16,3,3,2,bias=False)
         tnlayer.reset_parameters()
         print(tnlayer)
         tnlayer.zero_grad()
@@ -146,3 +187,8 @@ if __name__ == '__main__':
         tnlayer, X = tnlayer.cuda(), X.cuda()
         assert torch.abs(tnlayer(X).cpu() - y).max() < 1e-5
 
+    for ConvClass in [TensorTrain, Tucker, CP]:
+        X = torch.randn(5,16,32,32)
+        tnlayer = ConvClass(16,16,3,3,4,bias=False)
+        tnlayer.reset_parameters()
+        print(tnlayer)
