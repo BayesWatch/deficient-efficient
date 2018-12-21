@@ -16,8 +16,11 @@ class TnTorchConv2d(nn.Conv2d):
             bias=True):
         self.TnConstructor = TnConstructor
         assert groups == 1
-        super(TnTorchConv2d, self).__init__(in_channels, out_channels, 1, bias=bias)
-        if kernel_size > 1:
+        if kernel_size == 1:
+            super(TnTorchConv2d, self).__init__(in_channels, out_channels, 1,
+                    stride=stride, padding=padding, dilation=dilation, bias=bias)
+        elif kernel_size > 1:
+            super(TnTorchConv2d, self).__init__(in_channels, out_channels, 1, bias=bias)
             self.grouped = nn.Conv2d(in_channels, in_channels,
                     kernel_size, stride=stride, padding=padding, dilation=dilation,
                     groups=in_channels, bias=False)
@@ -88,7 +91,8 @@ class TnTorchConv2d(nn.Conv2d):
         full = t.torch()
         extra = []
         extra.append(t.__repr__())
-        extra.append('Compression ratio: {}/{} = {:g}'.format(full.numel(), t.numel(), full.numel() / t.numel()))
+        extra.append('Compression ratio: {}/{} = {:g}'.format(full.numel(),
+            t.numel(), full.numel() / t.numel()))
         extra.append('Relative error: %f'%tn.relative_error(full, t))
         extra.append('RMSE: %f'%tn.rmse(full, t))
         extra.append('R^2: %f'%tn.r_squared(full, t))
