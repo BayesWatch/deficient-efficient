@@ -21,19 +21,21 @@ def dimensionize(t, d):
     # do root in with log
     equal = math.exp((1./d)*math.log(N))
     # if this is an integer, our work here is done
-    if int(equal) - equal < 1e-6:
-        dims = [int(equal)]*d
+    if abs(round(equal) - equal) < 1e-6:
+        dims = [int(round(equal))]*d
     # oh no, then we want to build up a list of dimensions it *does* divide by
     else:
         dims = []
-        for i in range(d):
-            divisor = closest_divisor(N, int(equal))
+        for i in range(d-1):
+            divisor = closest_divisor(N, int(round(equal)))
             dims.append(divisor)
             N = N//divisor
-        assert N == 1
+        dims.append(N)
     return t.view(*dims)
 
 def closest_divisor(N, d):
+    if N < d:
+        return N
     while N%d != 0:
         d += 1
     return d
