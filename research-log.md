@@ -851,5 +851,23 @@ have if I were to do that, and calculate the number of operations required
 to implement said layer. I'll just print a warning that this is a lower
 bound in `count.py`.
 
+28th December 2018
+==================
 
+Tensor-Train Settings
+---------------------
 
+To investigate what "good" settings might be when using tensor-train
+subsitutions, ran 196 cifar-10 experiments to see with differents settings
+for the rank used in the substitution, and the number of dimensions.
+Results are in [this
+notebook](https://gist.github.com/gngdb/2d29e5afbb21869e24952284cc287388).
+
+Seems like a larger number of dimensions than two could help (so far
+haven't been setting that correctly). Unfortunately, this doesn't give me
+much insight as to what settings to use in Tucker or CP-decomposition.
+
+It looks like setting the number of dimensions to between 4 and 6 could be
+a good tradeoff, but the results aren't entirely clear. It could be worth
+running a longer experiment with only a few networks, with the dimension
+set to 4 or 6 and compare to results from before.
