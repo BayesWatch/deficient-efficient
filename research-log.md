@@ -871,3 +871,39 @@ It looks like setting the number of dimensions to between 4 and 6 could be
 a good tradeoff, but the results aren't entirely clear. It could be worth
 running a longer experiment with only a few networks, with the dimension
 set to 4 or 6 and compare to results from before.
+
+ShuffleNet
+----------
+
+Added code to control ShuffleNet settings, and since there were GPUs free,
+started some experimenets with wide ResNets setting different settings. The
+variable is controlling the number of shuffle groups used, with some wiggle
+room to set different shuffle group settings where the number of groups
+would not divide the number of output channels.
+
+Started experiments with the number of groups set to 4, 8, 16 and 32. Below
+are parameter and mult-add counts:
+
+```
+> python count.py cifar10 --wrn_width 10 --wrn_depth 28 --conv Shuffle_4
+Mult-Adds: 1.17201E+08
+Params: 8.23674E+05
+```
+```
+> python count.py cifar10 --wrn_width 10 --wrn_depth 28 --conv Shuffle_8
+Mult-Adds: 7.69784E+07
+Params: 5.63594E+05
+```
+
+```
+> python count.py cifar10 --wrn_width 10 --wrn_depth 28 --conv Shuffle_16
+Mult-Adds: 6.07583E+07
+Params: 4.37354E+05
+```
+
+```
+> python count.py cifar10 --wrn_width 10 --wrn_depth 28 --conv Shuffle_32
+Mult-Adds: 5.12965E+07
+Params: 3.78314E+05
+```
+
