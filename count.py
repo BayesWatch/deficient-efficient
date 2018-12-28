@@ -152,7 +152,7 @@ def measure_layer(layer, x):
             ipdb.set_trace()
         # number of Us
         n_us = 0
-        while hasattr(layer, 'weight_core_%i'%n_us):
+        while hasattr(layer, 'weight_u_%i'%n_us):
             u = getattr(layer, 'weight_u_%i'%n_us)
             n_us += 1
         if type_name == 'TensorTrain':
@@ -172,7 +172,7 @@ def measure_layer(layer, x):
 
 
         # plus the ops of the grouped convolution? or does that get caught anyway?
-        assert False
+        #assert False
         # this would double count the grouped
         #delta_params = get_layer_param(layer) 
 
@@ -260,8 +260,7 @@ if __name__ == '__main__':
     print("Mult-Adds: %.5E"%flops)
     print("Params: %.5E"%params)
     sanity = sum([p.numel() for p in model.parameters()])
-    assert sanity == params, "Sanity check, parameters: %.5E =/= %.5E"%(sanity, params)
-    print(ignored_modules)
+    assert sanity == params, "Sanity check, parameters: %.5E =/= %.5E \n %s"%(sanity, params, str(ignored_modules))
     #import time
     #for m in model.modules():
     #    time.sleep(0.2)

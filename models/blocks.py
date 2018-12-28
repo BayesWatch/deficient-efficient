@@ -140,11 +140,12 @@ class DepthwiseSep(nn.Module):
 
 
 class Conv(nn.Module):
-    def __init__(self, in_planes, out_planes, stride=1, kernel_size=3, padding=1, bias=False):
+    def __init__(self, in_planes, out_planes, kernel_size, stride=1, padding=1,
+            dilation=1, bias=False):
         super(Conv, self).__init__()
         # Dumb normal conv incorporated into a class
         self.conv = nn.Conv2d(in_planes, out_planes, kernel_size=kernel_size,
-                              stride=stride, padding=padding, bias=bias)
+                stride=stride, padding=padding, bias=bias, dilation=dilation)
 
     def forward(self, x):
         return self.conv(x)
@@ -222,6 +223,15 @@ def conv_function(convtype):
                 rank = int(rank_scale*full_rank)
                 return CP(in_channels, out_channels, kernel_size,
                         rank, stride=stride, padding=padding,
+                        dilation=dilation, groups=groups, bias=bias)
+        elif convtype == 'Shuffle':
+            def conv(in_channels, out_channels, kernel_size, stride=1,
+                    padding=0, dilation=1, groups=1, bias=False):
+                shuffle_groups = int(hyperparam)
+                while (out_channels//4)%shuffle_groups != 0:
+                    shuffle_groups += -1
+                return LinearShuffleNet(in_channels, out_channels, kernel_size,
+                        shuffle_groups, stride=stride, padding=padding,
                         dilation=dilation, groups=groups, bias=bias)
     else:
         if convtype == 'Conv':
