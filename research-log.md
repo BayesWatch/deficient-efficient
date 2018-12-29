@@ -907,3 +907,23 @@ Mult-Adds: 5.12965E+07
 Params: 3.78314E+05
 ```
 
+29th December 2018
+==================
+
+Linear ShuffleNet Initial Results
+---------------------------------
+
+Metrics after full 200 epoch training schedule:
+
+| No. Shuffle Groups | No. Parameters | No. Mult-Adds | Train Top-1 | Test Top-1 |
+|--------------------|----------------|---------------|-------------|------------|
+| 4                  | 8.24e5         | 1.17e8        | 2.557%      | 4.758% |
+| 8                  | 5.64e5         | 7.7e7        | 3.742%      | 5.979% |
+| 16                 | 4.37e5         | 6.07e7        | 5.822%      | 7.7% |
+| 32                 | 3.78e5         | 5.13e7       | 10.83%       | 10.02% |
+
+Appears we get quite rapidly diminishing returns. Should note that these
+experiments were using the same teacher network as other experiments
+performed with WRN-28-10 in this research log.
+
+
