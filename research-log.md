@@ -926,4 +926,14 @@ Appears we get quite rapidly diminishing returns. Should note that these
 experiments were using the same teacher network as other experiments
 performed with WRN-28-10 in this research log.
 
+Tucker Investigation
+--------------------
 
+Investigated the effect of the configuration settings we're using for the
+tucker decomposition the same way I investigated for the TT decompositions.
+Results are in [this
+notebook](https://gist.github.com/gngdb/477b310f76510fa29e547d020c2d919b).
+
+Looks like setting this one may be more difficult, and may be impossible to
+hit some parameter budget targets. Around 4 dimensions may be workable, but
+may need to decrease it in order to hit parameter usage budgets.
