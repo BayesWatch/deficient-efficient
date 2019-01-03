@@ -937,3 +937,25 @@ notebook](https://gist.github.com/gngdb/477b310f76510fa29e547d020c2d919b).
 Looks like setting this one may be more difficult, and may be impossible to
 hit some parameter budget targets. Around 4 dimensions may be workable, but
 may need to decrease it in order to hit parameter usage budgets.
+
+3rd January 2018
+================
+
+Experiments with the cifar10-fast code led to using a continuous rank
+scaling factor in `decomposed.py` to control Tensor-Train and Tucker
+decompositions. Ran many experiments with that small CIFAR-10 network to
+justify this choice. In addition, it looks like the CP-decomposition is
+probably not worth considering, as the size of decompositions produced by
+the TnTorch code are too small to be practical, and couldn't get good
+results training many of them. More notes on this can be found in [the
+research log in that
+repo](https://github.com/gngdb/cifar10-fast/blob/tt/research_log.md#3rd-january-2018).
+
+Tensor-Train and Tucker Experiments
+-----------------------------------
+
+In the research log referenced above we decided that the best choice for a
+number of dimensions to use in experiments would be either 3 or 4. To
+decided, we're going to run two experiments for both Tucker-TT and TT
+decompositions, for approximately equivalent parameter counts and see which
+performs better.
