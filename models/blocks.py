@@ -209,28 +209,22 @@ def conv_function(convtype):
             rank_scale = float(hyperparam)
             def conv(in_channels, out_channels, kernel_size, stride=1,
                     padding=0, dilation=1, groups=1, bias=False):
-                full_rank = max(in_channels,out_channels)
-                rank = int(rank_scale*full_rank)
                 return TensorTrain(in_channels, out_channels, kernel_size,
-                        rank, stride=stride, padding=padding,
+                        rank_scale, stride=stride, padding=padding,
                         dilation=dilation, groups=groups, bias=bias)
         elif convtype == 'Tucker':
             rank_scale = float(hyperparam)
             def conv(in_channels, out_channels, kernel_size, stride=1,
                     padding=0, dilation=1, groups=1, bias=False):
-                full_rank = max(in_channels,out_channels)
-                rank = int(rank_scale*full_rank)
                 return Tucker(in_channels, out_channels, kernel_size,
-                        rank, stride=stride, padding=padding,
+                        rank_scale, stride=stride, padding=padding,
                         dilation=dilation, groups=groups, bias=bias)
         elif convtype == 'CP':
             rank_scale = float(hyperparam)
             def conv(in_channels, out_channels, kernel_size, stride=1,
                     padding=0, dilation=1, groups=1, bias=False):
-                full_rank = max(in_channels,out_channels)
-                rank = int(rank_scale*full_rank)
                 return CP(in_channels, out_channels, kernel_size,
-                        rank, stride=stride, padding=padding,
+                        rank_scale, stride=stride, padding=padding,
                         dilation=dilation, groups=groups, bias=bias)
         elif convtype == 'Shuffle':
             def conv(in_channels, out_channels, kernel_size, stride=1,
@@ -350,13 +344,13 @@ if __name__ == '__main__':
     print(out.size())
     # check we don't initialise a grouped conv when not required
     layers_to_test = [GenericLowRank(3,32,1,1), HalfHashedSeparable(3,32,1,10),
-            TensorTrain(3,32,1,3), Tucker(3,32,1,3), CP(3,32,1,3),
+            TensorTrain(3,32,1,0.5), Tucker(3,32,1,0.5), CP(3,32,1,0.5),
             ACDC(3,32,1)]
     for layer in layers_to_test:
         assert getattr(layer, 'grouped', None) is None
     # and we *do* when it is required
     layers_to_test = [GenericLowRank(3,32,3,1), HalfHashedSeparable(3,32,3,100),
-            TensorTrain(3,32,3,3), Tucker(3,32,3,3), CP(3,32,3,3),
+            TensorTrain(3,32,3,0.5), Tucker(3,32,3,0.5), CP(3,32,3,0.5),
             ACDC(3,32,3)]
     for layer in layers_to_test:
         assert getattr(layer, 'grouped', None) is not None, layer
