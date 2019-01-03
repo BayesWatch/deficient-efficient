@@ -115,6 +115,14 @@ class LinearShuffleNet(nn.Module):
         return self.gconv2(x)
 
 
+def cant_be_shuffled(shuffle_groups, in_channels, out_channels):
+    # utility function, true if we can't instance shufflenet block using this
+    divides_in = in_channels%shuffle_groups == 0
+    divides_out = out_channels%shuffle_groups == 0
+    divides_bottleneck = (out_channels//4)%shuffle_groups == 0
+    return not (divides_in and divides_out and divides_bottleneck)
+
+
 class DepthwiseSep(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1,
         padding=0, dilation=1, groups=1, bias=True):
@@ -228,7 +236,7 @@ def conv_function(convtype):
             def conv(in_channels, out_channels, kernel_size, stride=1,
                     padding=0, dilation=1, groups=1, bias=False):
                 shuffle_groups = int(hyperparam)
-                while (out_channels//4)%shuffle_groups != 0:
+                while cant_be_shuffled(shuffle_groups, in_channels, out_channels):
                     shuffle_groups += -1
                 return LinearShuffleNet(in_channels, out_channels, kernel_size,
                         shuffle_groups, stride=stride, padding=padding,
