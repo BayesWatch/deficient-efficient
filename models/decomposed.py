@@ -22,7 +22,7 @@ def dimensionize(t, d, rank_scale):
         dims = [int(round(equal))]*d
     # if the tensor already has d dimensions
     elif t.ndimension() == d:
-        dims = t
+        dims = list(t.size())
     # oh no, then we want to build up a list of dimensions it *does* divide by
     else:
         dims = []
