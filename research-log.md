@@ -938,6 +938,7 @@ Looks like setting this one may be more difficult, and may be impossible to
 hit some parameter budget targets. Around 4 dimensions may be workable, but
 may need to decrease it in order to hit parameter usage budgets.
 
+
 3rd January 2018
 ================
 
@@ -1044,3 +1045,93 @@ when they are intended to be used on high dimensional tensors for greater
 gains.
 
 Hardcoding the dimensions setting to 3 for all future experiments.
+
+Where should we run experiments on EC2?
+---------------------------------------
+
+The tools AWS provides online to figure out where the best regions to run
+experiments on are a bit lacking, so I've tried to write a script that will
+figure it out for me. It takes the average of the last 7 spot prices
+returned when querying, and checks every availability zone in the world;
+ignoring those where that instance type is not available.
+
+```
+p2.xlarge
+   us-east-1e 0.27 price per gpu:  0.27
+   us-east-2b 0.27 price per gpu:  0.27
+   us-east-2c 0.27 price per gpu:  0.27
+   us-west-2a 0.27 price per gpu:  0.27
+   us-west-2b 0.27 price per gpu:  0.27
+   us-west-2c 0.27 price per gpu:  0.27
+   us-east-2a 0.27245714285714284 price per gpu:  0.27245714285714284
+   us-east-1d 0.2753857142857143 price per gpu:  0.2753857142857143
+   us-east-1c 0.27752857142857146 price per gpu:  0.27752857142857146
+   us-east-1a 0.28681428571428574 price per gpu:  0.28681428571428574
+p2.8xlarge
+   us-east-1e 2.16 price per gpu:  0.27
+   us-east-1c 2.1664857142857143 price per gpu:  0.2708107142857143
+   us-east-1d 2.6065857142857145 price per gpu:  0.3258232142857143
+   us-east-1a 3.1467714285714288 price per gpu:  0.3933464285714286
+   us-west-2c 7.0836000000000015 price per gpu:  0.8854500000000002
+   us-east-1b 7.200000000000001 price per gpu:  0.9000000000000001
+   us-east-1f 7.200000000000001 price per gpu:  0.9000000000000001
+   us-east-2a 7.200000000000001 price per gpu:  0.9000000000000001
+   us-east-2b 7.200000000000001 price per gpu:  0.9000000000000001
+   us-east-2c 7.200000000000001 price per gpu:  0.9000000000000001
+p2.16xlarge
+   us-east-1c 4.32 price per gpu:  0.27
+   us-east-1a 4.713771428571428 price per gpu:  0.2946107142857142
+   us-east-1d 5.741614285714285 price per gpu:  0.35885089285714283
+   us-east-1b 14.400000000000002 price per gpu:  0.9000000000000001
+   us-east-1e 14.400000000000002 price per gpu:  0.9000000000000001
+   us-east-2a 14.400000000000002 price per gpu:  0.9000000000000001
+   us-east-2b 14.400000000000002 price per gpu:  0.9000000000000001
+   us-east-2c 14.400000000000002 price per gpu:  0.9000000000000001
+   us-west-2a 14.400000000000002 price per gpu:  0.9000000000000001
+   us-west-2b 14.400000000000002 price per gpu:  0.9000000000000001
+```
+
+Looks like we can see the multi-gpu machines being slightly more popular
+for p2 instances, presumably for running larger datasets.
+
+Checking p3 instances because we can:
+
+```
+p3.2xlarge
+   us-west-2a 0.92 price per gpu:  0.92
+   us-west-2b 0.92 price per gpu:  0.92
+   us-west-2c 0.92 price per gpu:  0.92
+   us-east-1b 0.95 price per gpu:  0.95
+   us-east-1a 0.95 price per gpu:  0.95
+   us-east-1f 0.96 price per gpu:  0.96
+   eu-west-1a 1.00 price per gpu:  1.00
+   ca-central-1b 1.01 price per gpu:  1.01
+   eu-west-1b 1.03 price per gpu:  1.03
+   us-east-1c 1.04 price per gpu:  1.04
+p3.8xlarge
+   us-west-2a 3.67 price per gpu:  0.92
+   us-west-2b 3.67 price per gpu:  0.92
+   us-west-2c 3.70 price per gpu:  0.92
+   us-east-1b 3.76 price per gpu:  0.94
+   us-east-1a 3.78 price per gpu:  0.95
+   us-east-2a 3.93 price per gpu:  0.98
+   eu-west-1a 3.97 price per gpu:  0.99
+   eu-west-1b 3.97 price per gpu:  0.99
+   us-east-1f 4.05 price per gpu:  1.01
+   us-east-2b 4.31 price per gpu:  1.08
+p3.16xlarge
+   us-west-2a 7.34 price per gpu:  0.92
+   us-west-2b 7.34 price per gpu:  0.92
+   us-west-2c 7.34 price per gpu:  0.92
+   us-east-1b 7.35 price per gpu:  0.92
+   us-east-1a 7.39 price per gpu:  0.92
+   us-east-1f 7.43 price per gpu:  0.93
+   eu-west-1a 7.93 price per gpu:  0.99
+   eu-west-1b 7.93 price per gpu:  0.99
+   us-east-2a 23.21 price per gpu:  2.90
+   us-east-1c 24.48 price per gpu:  3.06
+```
+
+Our experiments will probably run best on us-east with p2.xlarge instances.
+Will have to start them programmatically though, because we're going to
+need a lot of them.
