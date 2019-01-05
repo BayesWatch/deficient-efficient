@@ -142,7 +142,8 @@ def measure_layer(layer, x):
                 layer.kernel_size[1] * out_h * out_w / layer.groups * multi_add
         delta_params = get_layer_param(layer)
 
-    elif type_name in ['TensorTrain']:
+    #elif type_name in ['TensorTrain']:
+    elif False:
         # number of cores
         n_cores = 0
         while hasattr(layer, 'weight_core_%i'%n_cores):
