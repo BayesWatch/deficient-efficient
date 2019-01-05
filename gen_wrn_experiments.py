@@ -1,4 +1,5 @@
 import json
+import datetime
 
 settings = ['ACDC_%i'%n for n in [15, 48, 64]] +\
            ['SepHashed_%.2f'%s for s in [0.05, 0.2, 0.5]] +\
@@ -9,15 +10,18 @@ settings = ['ACDC_%i'%n for n in [15, 48, 64]] +\
 
 experiments = []
 
+now = datetime.datetime.now()
+monthday = now.strftime("%B")[:3]+"%i"%now.day
+
 # use these settings to train WideResNets from scratch
 for s in settings:
     experiment = ["python", "main.py", "cifar10", "teacher", "--conv", s,
-                  "-t", "wrn_28_10.%s"%s.lower(), "--wrn_depth", "28", "--wrn_width", "10"]
+                  "-t", "wrn_28_10.%s.%s"%(s.lower(),monthday), "--wrn_depth", "28", "--wrn_width", "10"]
     experiments.append(experiment)
 # and to train WideResNets with a teacher
 for s in settings:
     experiment = ["python", "main.py", "cifar10", "student", "--conv", s, "-t", "wrn_28_10.patch",
-                  "-s", "wrn_28_10.%s.student"%s.lower(), "--wrn_depth", "28", "--wrn_width", "10",
+                  "-s", "wrn_28_10.%s.student.%s"%(s.lower(),monthday), "--wrn_depth", "28", "--wrn_width", "10",
                   "--alpha", "0.", "--beta", "1e3"]
     experiments.append(experiment)
 
