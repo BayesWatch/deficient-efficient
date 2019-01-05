@@ -1135,3 +1135,30 @@ p3.16xlarge
 Our experiments will probably run best on us-east with p2.xlarge instances.
 Will have to start them programmatically though, because we're going to
 need a lot of them.
+
+Settings Range
+--------------
+
+Made a notebook to look at the range of settings we can use for the two
+network types and substitute convolutions that we're interested in trying.
+Trying a reasonable range of settings for each yielded the following graph
+of parameter counts for WRN-28-10:
+
+![](images/params_v_settings.png)
+
+Notebook generating this graph is
+[here](https://gist.github.com/gngdb/7788cf98a1a7cdd4f5daebc771f53bd3).
+
+Also generated is a script to generate a set of experiments using WRN-28-10
+with all of the proposed substitute blocks.
+
+ACDC OOM
+--------
+
+When the ACDC layers use very large numbers of transforms the memory usage
+can become untenable. I'm not sure those networks will be learnable anyway,
+but it could be worth enabling checkpointing in PyTorch when the number of
+layers is large. To hit the high parameter budgets we ought to be using at
+least 100 layers, and the limit for our WRN-28-10 experiments is somewhere
+just above 64.
+
