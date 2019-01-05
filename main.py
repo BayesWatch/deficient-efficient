@@ -297,6 +297,7 @@ def validate(net, checkpoint=None):
         torch.save(state, 'checkpoints/%s.t7' % checkpoint)
 
 def set_for_budget(eval_network_size, conv_type, budget):
+    assert False, "Deprecated this because I don't trust it 100%"
     # set bounds using knowledge of conv_type hyperparam domain
     if 'ACDC' == conv_type:
         bounds = (2, 128)

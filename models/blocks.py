@@ -189,10 +189,10 @@ def conv_function(convtype):
             budget_scale = float(hyperparam)
             def conv(in_channels, out_channels, kernel_size, stride=1,
                     padding=0, dilation=1, groups=1, bias=False):
-                # Hashed Conv2d using 1/10 the original parameters
-                original_params = out_channels*in_channels*kernel_size*kernel_size // groups
+                original_params = out_channels*in_channels // groups
                 budget = int(original_params*budget_scale)
-                budget += in_channels*kernel_size*kernel_size
+                if kernel_size > 1: # budget for a grouped convolution
+                    budget += in_channels*kernel_size*kernel_size
                 return HalfHashedSeparable(in_channels, out_channels, kernel_size,
                         budget, stride=stride, padding=padding,
                         dilation=dilation, groups=groups, bias=bias)
@@ -220,6 +220,7 @@ def conv_function(convtype):
                         rank_scale, 3, stride=stride, padding=padding,
                         dilation=dilation, groups=groups, bias=bias)
         elif convtype == 'CP':
+            assert False, "Deprecated"
             rank_scale = float(hyperparam)
             def conv(in_channels, out_channels, kernel_size, stride=1,
                     padding=0, dilation=1, groups=1, bias=False):
