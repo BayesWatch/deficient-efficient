@@ -202,14 +202,14 @@ def conv_function(convtype):
             def conv(in_channels, out_channels, kernel_size, stride=1,
                     padding=0, dilation=1, groups=1, bias=False):
                 return TensorTrain(in_channels, out_channels, kernel_size,
-                        rank_scale, stride=stride, padding=padding,
+                        rank_scale, 3, stride=stride, padding=padding,
                         dilation=dilation, groups=groups, bias=bias)
         elif convtype == 'Tucker':
             rank_scale = float(hyperparam)
             def conv(in_channels, out_channels, kernel_size, stride=1,
                     padding=0, dilation=1, groups=1, bias=False):
                 return Tucker(in_channels, out_channels, kernel_size,
-                        rank_scale, stride=stride, padding=padding,
+                        rank_scale, 3, stride=stride, padding=padding,
                         dilation=dilation, groups=groups, bias=bias)
         elif convtype == 'CP':
             rank_scale = float(hyperparam)

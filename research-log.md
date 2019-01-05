@@ -959,3 +959,88 @@ number of dimensions to use in experiments would be either 3 or 4. To
 decided, we're going to run two experiments for both Tucker-TT and TT
 decompositions, for approximately equivalent parameter counts and see which
 performs better.
+
+Using the following settings for the case of `dimensions=4`
+
+```
+> python count.py cifar10 --wrn_width 10 --wrn_depth 28 --conv TensorTrain_0.8
+6.71050E+05
+```
+
+```
+> python count.py cifar10 --wrn_width 10 --wrn_depth 28 --conv Tucker_0.4 
+6.85723E+05 
+```
+
+Running both, with and without a teacher network.
+
+4th January 2019
+================
+
+4D Tensor Decomposition Experiments
+-----------------------------------
+
+Ran a 4D experiment with Tucker and TT decompositions, with the following
+settings:
+
+```
+wrn_28_10.tucker_0.4_4.student.Jan3.t7:  main.py cifar10 student --conv Tucker_0.4 -t wrn_28_10.patch -s wrn_28_10.tucker_0.4_4.student.Jan3 --wrn_depth 28 --wrn_width 10 --alpha 0. --beta 1e3
+wrn_28_10.tt_0.8_4.student.Jan3.t7:  main.py cifar10 student --conv TensorTrain_0.8 -t wrn_28_10.patch -s wrn_28_10.tt_0.8_4.student.Jan3 --wrn_depth 28 --wrn_width 10 --alpha 0. --beta 1e3
+wrn_28_10.tt_0.8_4.Jan3.t7:  main.py cifar10 teacher --conv TensorTrain_0.8 -t wrn_28_10.tt_0.8_4.Jan3 --wrn_depth 28 --wrn_width 10
+wrn_28_10.tucker_0.4_4.Jan3.t7:  main.py cifar10 teacher --conv Tucker_0.4 -t wrn_28_10.tucker_0.4_4.Jan3 --wrn_depth 28 --wrn_width 10
+```
+
+All models have practically equivalent parameter counts. The setting for
+dimensions, at 4, was hardcoded while the experiments were running.
+
+* 4D Tucker decomposition with rank scaling of 0.4 converged to 16.13%
+top-1 error without AT and 9.29% with.
+* 4D TT decomposition with rank scaling of 0.8 converged to 10.96% top-1
+error without AT and 5.22% with.
+
+Now starting the same experiments with dimensions set to 3. Checking the
+settings required to keep the parameter count approximately the same:
+
+```
+> python count.py cifar10 --wrn_width 10 --wrn_depth 28 --conv Tucker_0.25
+6.81248E+05
+```
+
+```
+> python count.py cifar10 --wrn_width 10 --wrn_depth 28 --conv TensorTrain_0.26 
+6.64226E+05
+```
+
+5th January 2019
+================
+
+3D Tensor Decomposition Experiments
+-----------------------------------
+
+Having set the rank scaling factor so the overall size of the tensor should
+be approximately the same, we can now compare the results of decomposing a
+3D tensor. The following experiments were run:
+
+```
+wrn_28_10.tucker_0.25_3.student.Jan4.t7:  main.py cifar10 student --conv Tucker_0.25 -t wrn_28_10.patch -s wrn_28_10.tucker_0.25_3.student.Jan4 --wrn_depth 28 --wrn_width 10 --alpha 0. --beta 1e3
+wrn_28_10.tt_0.26_3.student.Jan4.t7:  main.py cifar10 student --conv TensorTrain_0.26 -t wrn_28_10.patch -s wrn_28_10.tt_0.26_3.student.Jan4 --wrn_depth 28 --wrn_width 10 --alpha 0. --beta 1e3
+wrn_28_10.tucker_0.25_3.Jan4.t7:  main.py cifar10 teacher --conv Tucker_0.25 -t wrn_28_10.tucker_0.25_3.Jan4 --wrn_depth 28 --wrn_width 10
+wrn_28_10.tt_0.26_3.Jan4.t7:  main.py cifar10 teacher --conv TensorTrain_0.26 -t wrn_28_10.tt_0.26_3.Jan4 --wrn_depth 28 --wrn_width 10
+```
+
+And we got the following results for top-1 test error:
+
+```
+wrn_28_10.tucker_0.25_3.student.Jan4.t7: 5.06%
+wrn_28_10.tt_0.26_3.student.Jan4.t7: 8.05%
+wrn_28_10.tucker_0.25_3.Jan4.t7: 16.58%
+wrn_28_10.tt_0.26_3.Jan4.t7: 10.18%
+```
+
+These results are a little better for both, and looking at the learning
+curves, both are a little more stable with this setting. It's a little
+annoying to be using these tensor decompositions, but only on 3D tensors,
+when they are intended to be used on high dimensional tensors for greater
+gains.
+
+Hardcoding the dimensions setting to 3 for all future experiments.
