@@ -1162,3 +1162,20 @@ layers is large. To hit the high parameter budgets we ought to be using at
 least 100 layers, and the limit for our WRN-28-10 experiments is somewhere
 just above 64.
 
+6th January 2018
+================
+
+Experiment Progress
+-------------------
+
+Ran the WRN experiment schedule on 10 GPUs and it seems to be finished as
+of now. Appears there were some problems with NaNs in some experiments.
+Haven't checked, but I susepect it will be those with the ACDC layers
+involved.
+
+DARTS Experiments Schedule
+--------------------------
+
+Generated a schedule of DARTS experiments to run in `darts_experiments.py`.
+Notebook generating it is
+[here](git@gist.github.com:0a48cb4ffe769208cd2d64049170c13c.git).
