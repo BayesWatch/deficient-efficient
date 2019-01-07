@@ -292,7 +292,8 @@ class Bottleneck(nn.Module):
                 bias=False)
         self.conv1 = pointwise(inplanes, planes)
         self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = ConvClass(planes, planes, kernel_size=3, stride=stride, bias=False)
+        self.conv2 = ConvClass(planes, planes, kernel_size=3, stride=stride,
+                padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
         self.conv3 = pointwise(planes, planes * self.expansion)
         self.bn3 = nn.BatchNorm2d(planes * self.expansion)
@@ -317,8 +318,12 @@ class Bottleneck(nn.Module):
         if self.downsample is not None:
             residual = self.downsample(x)
 
-        out += residual
-        out = self.relu(out)
+        try:
+            out += residual
+            out = self.relu(out)
+        except RuntimeError:
+            import ipdb
+            ipdb.set_trace()
 
         return out
 

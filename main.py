@@ -32,7 +32,7 @@ parser.add_argument('mode', choices=['student','teacher'], type=str, help='Learn
 parser.add_argument('--imagenet_loc', default='/disk/scratch_ssd/imagenet',type=str, help='folder containing imagenet train and val folders')
 parser.add_argument('--workers', default=2, type=int, help='No. of data loading workers. Make this high for imagenet')
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
-parser.add_argument('--GPU', default=None, type=str,help='GPU to use')
+parser.add_argument('--GPU', default=None, type=str, help='GPU to use')
 parser.add_argument('--student_checkpoint', '-s', default='wrn_40_2_student_KT',type=str, help='checkpoint to save/load student')
 parser.add_argument('--teacher_checkpoint', '-t', default='wrn_40_2_T',type=str, help='checkpoint to load in teacher')
 
@@ -95,8 +95,7 @@ def train_teacher(net):
         data_time.update(time.time() - end)
 
         if use_cuda:
-            inputs, targets = inputs.cuda(), targets.cuda()
-        inputs, targets = Variable(inputs), Variable(targets)
+            inputs, targets = inputs.cuda(non_blocking=True), targets.cuda(non_blocking=True)
         if isinstance(net, DARTS):
             outputs, _, aux = net(inputs)
             outputs = torch.cat([outputs, aux], 0)
@@ -154,8 +153,8 @@ def train_student(net, teach):
     end = time.time()
 
     for batch_idx, (inputs, targets) in enumerate(trainloader):
-        inputs = Variable(inputs.cuda())
-        targets = Variable(targets.cuda())
+        inputs = inputs.cuda(non_blocking=True)
+        targets = targets.cuda(non_blocking=True)
 
         if isinstance(net, DARTS):
             outputs_student, ints_student, aux = net(inputs)
@@ -339,10 +338,11 @@ def darts_defaults(args):
     return args
 
 def imagenet_defaults(args):
+    args.batch_size=256
     args.epochs = 90
     args.lr_decay_ratio = 0.1
     args.epoch_step = '[30,60]'
-    args.workers = 4
+    args.workers = 16
     return args
 
 def get_scheduler(optimizer, epoch_step, args):
@@ -365,8 +365,19 @@ if __name__ == '__main__':
         args = imagenet_defaults(args)
 
     print(vars(args))
+    parallelise = None
     if args.GPU is not None:
-        os.environ["CUDA_VISIBLE_DEVICES"] = args.GPU
+        os.environ['CUDA_VISIBLE_DEVICES'] = args.GPU
+        if args.GPU[0] != '[':
+            args.GPU = '[' + args.GPU + ']'
+        args.GPU = json.loads(args.GPU)
+        if len(args.GPU) > 1:
+            def parallelise(model):
+                model = torch.nn.DataParallel(model, device_ids=args.GPU)
+                model.grouped_parameters = model.module.grouped_parameters
+                return model
+        else:
+            os.environ["CUDA_VISIBLE_DEVICES"] = args.GPU[0]
 
     use_cuda = torch.cuda.is_available()
     assert use_cuda, 'Error: No CUDA!'
@@ -495,7 +506,8 @@ if __name__ == '__main__':
         else:
             print('Mode Teacher: Making a teacher network from scratch and training it...')
             teach = build_network(Conv, Block).cuda()
-
+        if parallelise is not None:
+            teach = parallelise(teach)
 
         get_no_params(teach)
         optimizer = optim.SGD(teach.grouped_parameters(args.weight_decay),
@@ -522,6 +534,8 @@ if __name__ == '__main__':
     elif args.mode == 'student':
         print('Mode Student: First, load a teacher network and convert for (optional) attention transfer')
         teach, _ = load_network('checkpoints/%s.t7' % args.teacher_checkpoint)
+        if parallelise is not None:
+            teach = parallelise(teach)
         # Very important to explicitly say we require no gradients for the teacher network
         for param in teach.parameters():
             param.requires_grad = False
@@ -534,6 +548,8 @@ if __name__ == '__main__':
         else:
             print('Mode Student: Making a student network from scratch and training it...')
             student = build_network(Conv, Block).cuda()
+        if parallelise is not None:
+            student = parallelise(student)
 
         optimizer = optim.SGD(student.grouped_parameters(args.weight_decay),
                 lr=args.lr, momentum=args.momentum,
