@@ -12,7 +12,7 @@ def at(x):
 
 
 def at_loss(x, y):
-    return (at(x) - at(y)).pow(2).mean()
+    return F.mse_loss(at(x), at(y))
 
 
 def accuracy(output, target, topk=(1,)):
