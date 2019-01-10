@@ -160,10 +160,11 @@ def train_student(net, teach):
             outputs_student, ints_student, aux = net(inputs)
             outputs = torch.cat([outputs, aux], 0)
             targets = torch.cat([targets, targets], 0)
+            assert False, "not updated to output attention maps"
         else:
-            outputs_student, ints_student = net(inputs)
+            outputs_student, student_AMs = net(inputs)
         with torch.no_grad():
-            outputs_teacher, ints_teacher = teach(inputs)
+            outputs_teacher, teacher_AMs = teach(inputs)
 
         # If alpha is 0 then this loss is just a cross entropy.
         loss = distillation(outputs_student, outputs_teacher, targets, args.temperature, args.alpha)
@@ -171,9 +172,9 @@ def train_student(net, teach):
         #Add an attention tranfer loss for each intermediate. Let's assume the default is three (as in the original
         #paper) and adjust the beta term accordingly.
 
-        adjusted_beta = (args.beta*3)/len(ints_student)
-        for i in range(len(ints_student)):
-            loss += adjusted_beta * aux_loss(ints_student[i], ints_teacher[i])
+        adjusted_beta = (args.beta*3)/len(student_AMs)
+        for i in range(len(student_AMs)):
+            loss += adjusted_beta * F.mse_loss(student_AMs[i], teacher_AMs[i])
 
         # measure accuracy and record loss
         prec1, prec5 = accuracy(outputs_student.data, targets.data, topk=(1, 5))
@@ -182,7 +183,6 @@ def train_student(net, teach):
         losses.update(loss.item(), inputs.size(0))
         top1.update(err1[0], inputs.size(0))
         top5.update(err5[0], inputs.size(0))
-
 
         # compute gradient and do SGD step
         optimizer.zero_grad()
@@ -279,7 +279,7 @@ def validate(net, checkpoint=None):
 
         print('Saving..')
         state = {
-            'net': net.state_dict(),
+            'net': net.module.state_dict(),
             'epoch': epoch,
             'args': sys.argv,
             'width': args.wrn_width,
@@ -367,17 +367,16 @@ if __name__ == '__main__':
     print(vars(args))
     parallelise = None
     if args.GPU is not None:
-        os.environ['CUDA_VISIBLE_DEVICES'] = args.GPU
         if args.GPU[0] != '[':
             args.GPU = '[' + args.GPU + ']'
-        args.GPU = json.loads(args.GPU)
+        args.GPU = [i for i, _ in enumerate(json.loads(args.GPU))]
         if len(args.GPU) > 1:
             def parallelise(model):
                 model = torch.nn.DataParallel(model, device_ids=args.GPU)
                 model.grouped_parameters = model.module.grouped_parameters
                 return model
         else:
-            os.environ["CUDA_VISIBLE_DEVICES"] = args.GPU[0]
+            os.environ["CUDA_VISIBLE_DEVICES"] = "%i"%args.GPU[0]
 
     use_cuda = torch.cuda.is_available()
     assert use_cuda, 'Error: No CUDA!'

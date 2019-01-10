@@ -54,6 +54,7 @@ def compression(model_class, kwargs):
         model_class(**kwargs).parameters()])
     return float(compressed_params)/float(uncompressed_params)
 
+
 class WideResNet(nn.Module):
     def __init__(self, depth, widen_factor, ConvClass, block, num_classes=10, dropRate=0.0, s = 1):
         super(WideResNet, self).__init__()
@@ -114,26 +115,27 @@ class WideResNet(nn.Module):
                 self.compression_ratio())
 
     def forward(self, x):
-        activations = []
+        activation_maps = []
         out = self.conv1(x)
         #activations.append(out)
+        attention = lambda x: F.normalize(x.pow(2).mean(1).view(x.size(0), -1))
 
         for sub_block in self.block1:
             out = sub_block(out)
-            activations.append(out)
+            activation_maps.append(attention(out))
 
         for sub_block in self.block2:
             out = sub_block(out)
-            activations.append(out)
+            activation_maps.append(attention(out))
 
         for sub_block in self.block3:
             out = sub_block(out)
-            activations.append(out)
+            activation_maps.append(attention(out))
 
         out = self.relu(self.bn1(out))
         out = F.avg_pool2d(out, 8)
         out = out.view(-1, self.nChannels)
-        return self.fc(out), activations
+        return self.fc(out), activation_maps
 
 
 class ResNet(nn.Module):
@@ -202,21 +204,44 @@ class ResNet(nn.Module):
         x = self.relu(x)
         x = self.maxpool(x)
         
-        intermediates = []
-        x = self.layer1(x)
-        intermediates.append(x)
-        x = self.layer2(x)
-        intermediates.append(x)
-        x = self.layer3(x)
-        intermediates.append(x)
-        x = self.layer4(x)
-        intermediates.append(x)
+        attention_maps = []
+        attention = lambda x: F.normalize(x.pow(2).mean(1).view(x.size(0), -1))
+        if self.train:
+            x = self.layer1(x)
+            #x = checkpoint(self.layer1, x)
+            #x = checkpoint_sequential(self.layer1, 1, x)
+        else:
+            x = self.layer1(x)
+        attention_maps.append(attention(x))
+        if self.train:
+            x = self.layer2(x)
+            #x = checkpoint(self.layer2, x)
+            #x = checkpoint_sequential(self.layer2, 1, x)
+        else:
+            x = self.layer2(x)
+        attention_maps.append(attention(x))
+        if self.train:
+            x = self.layer3(x)
+            #x = checkpoint(self.layer3, x)
+            #x = checkpoint_sequential(self.layer3, 1, x)
+        else:
+            x = self.layer3(x)
+        
+        attention_maps.append(attention(x))
+        if self.train:
+            x = self.layer4(x)
+            #x = checkpoint(self.layer4, x)
+            #x = checkpoint_sequential(self.layer4, 1, x)
+        else:
+            x = self.layer4(x)
+        
+        attention_maps.append(attention(x))
 
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
         x = self.fc(x)
 
-        return x, intermediates
+        return x, attention_maps
 
 
 def WRN_50_2(Conv, Block=None):
