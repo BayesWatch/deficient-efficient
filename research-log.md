@@ -1437,3 +1437,12 @@ additional AT loss or from the extra memory of running a teacher model to
 get the attention map.
 
 Checking that this is true.
+
+As luck would have it, I decided to run these tests on the P100 machines I
+initially ran experiments on when starting to debug these imagenet
+problems. It looks like the 16G per GPU rather than 12G is now enough; ie
+the changes I made to calculate statistics on each GPU rather than
+afterwards is enough that we are able to train student models. Although
+they take approximately 1s per minibatch, so probably around 5 or 6 days to
+train. But, that's still practical, and after so long trying different
+things to fix this problem, it's good enough for me.
