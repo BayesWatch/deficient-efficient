@@ -1162,3 +1162,278 @@ layers is large. To hit the high parameter budgets we ought to be using at
 least 100 layers, and the limit for our WRN-28-10 experiments is somewhere
 just above 64.
 
+7th January 2019
+================
+
+Sanity Check ImageNet
+---------------------
+
+We've not yet run a distillation experiment using an imagenet model with
+this code base. Running the following command to see if it will work, and
+how long it'll take to run.
+
+First thing I'm trying is:
+
+```
+python main.py imagenet student --GPU 0,1,2,3,4 --conv SepHashedDecimate --teacher_checkpoint wrn_50_2.imagenet.modelzoo --student_checkpoint wrn_50_2.hashed_0.1.Jan7 --imagenet_loc /disk/scratch/datasets/imagenet --network WRN_50_2
+```
+
+Which involves a separable hashed network. There are immediately problems
+with memory usage. Even spread over 5 GPUs with 16GB of memory each, we hit
+a CUDA OOM error.
+
+To check if this is because the teacher model is using too much GPU memory,
+I initialised only the teacher model and looked at the GPU memory usage: it
+was 1GB.
+
+The issue, I think, is that imagenet models typically fill GPU memory, so
+having any additional memory overhead is going to be too much. On CIFAR-10
+models, there's no benefit to using so much GPU memory, so we could get
+away with using several times more.
+
+To check if this is definitely the problem, I'll run the student model as a
+clone of the teacher:
+
+```
+python main.py imagenet student --GPU 0,1,2,3,4 --conv Conv --teacher_checkpoint wrn_50_2.imagenet.modelzoo --student_checkpoint wrn_50_2.student.Jan7 --imagenet_loc /disk/scratch/datasets/imagenet --network WRN_50_2
+```
+
+Oh no, it looks like one big reason for these errors is that we're not
+actually parallelising the model, because the code to run DataParallel got
+removed a long time ago. Looks like Elliot ran the ImageNet experiments
+from the original moonshine paper in a different place and didn't link it.
+
+Having fixed that and enabled `DataParallel` in the code, the error we hit
+now is OOM on the backward pass. Doesn't appear to be anything special in
+the code in the PyTorch ImageNet example for this problem.
+
+I could be an issue with the distillation, so I'll try training a teacher
+model from scratch with the same architecture and see if we get the same
+problem.
+
+```
+python main.py imagenet teacher --GPU 0,1,2,3,4 --conv Conv --teacher_checkpoint wrn_50_2.sanity --imagenet_loc /disk/scratch/datasets/imagenet --network WRN_50_2
+```
+
+That runs, using approximately 10GB on 5 GPUs. Each minibatch is taking
+around 0.8s; so at 256 size minibatches it should take about 100 hours to
+complete 90 epochs. A ResNet18 I trained on another machine took 73 hours,
+so this isn't outside the ballpark (although these are faster GPUs).
+
+Talked to Elliot and he found that this server could run some ImageNet
+experiments with smaller models in less than 48 hours. Hopefully, this
+doesn't mean there is some time overhead in the script that's affecting
+speed too much, and we can just explain the difference by the size of the
+model: the WRN_50_2 is larger.
+
+It might be possible to speed this up a little using FastAI's tricks for
+training imagenet models, but that would require quite a bit of
+reengineering that would itself take a long time.
+
+Probably the most important thing is to start these imagenet experiments as
+soon as possible. Specifically, the experiments to verify the sanity of the
+standard and distillation experiments. The standard experiments is already
+running, now we just have to find a way to run the distillation experiment
+sanity check.
+
+Running with much reduced batch size of 16 over 4 GPUs. Before the backward
+pass:
+
+```
+0: 2089
+1: 1955
+2: 1955
+3: 1955
+```
+
+After:
+
+```
+0: 2265
+1: 1955
+2: 1955
+3: 1955
+```
+
+So the backward pass causes a 10% rise in memory usage on the root process.
+Interesting to note that the increase in memory usage from the larger batch
+size is not linear.
+
+Also, the memory increase only occurs when we try to calculate the AT part
+of the loss. It still works with everything else. Something about comparing
+the intermediate activations with the teacher model causes a 10% increase
+in memory in the backward pass and that's too much.
+
+I thought maybe I could work around this problem by using a smaller model,
+so I tried using Separable convolutions instead of full convolutions in the
+model. Unfortunately, that doesn't seem to decrease memory enough to avoid
+this problem. It does reduce parameters a lot but now we're storing the
+intermediate activations, which is expensive.
+
+9th January 2018
+================
+
+ImageNet AT OOM
+---------------
+
+Looking again at this problem. With reduced batch size, before the call to
+`.backward()`:
+
+```
+0: 1349
+1: 1327
+2: 1327
+3: 1327
+```
+
+After:
+
+```
+0: 1755
+1: 1327
+2: 1327
+3: 1327
+```
+
+The only thing I can think of would be the calculation of statistics from
+the intermediate outputs of the teacher model. Moving that inside the
+`torch.no_grad()` env and the before/after for the first GPU becomes:
+`1349 -> 1755`, ie it stays the same.
+
+As a sanity check, went back and looked again at what happens when we
+simply remove the AT loss. I found the memory usage actually stays the
+same, with this reduced batch size, which is the opposite of what we saw
+before; where the model would decrease in size enough to run it.
+
+Switching out the loss function for just cross-entropy:
+
+```
+0: 1349 -> 1765
+1: 1327 -> 1327
+2: 1327 -> 1327
+3: 1327 -> 1327
+```
+
+That, again, isn't what we saw initially.
+
+Trying the same thing on a single GPU:
+
+```
+0: 1705 -> 1841
+```
+
+Interesting to note how little the memory increases over the multi-gpu
+case. Could be because a copy of the network's weights has to exist on each
+machine.
+
+Seems like we're always going to get some memory increase when we do the
+backward pass, and we're going to have to find a way to reduce memory
+usage. Two ways I can think of:
+
+1. Split the calculation of statistics and loss functions over GPUs.
+2. Using `checkpoint` in shortcut connections, where we basically multiply
+large activation maps.
+
+Trying `torch.cuda.max_memory_allocated(x)/1e6` to track memory usage on
+all 4 devices before and after (still reduced batch size):
+
+```
+[772.07808, 747.721216, 747.721216, 747.721216]
+[1168.579072, 747.721216, 747.721216, 747.721216]
+```
+
+Changed it to calculate the attention map statistics in the forward pass of
+the `DataParallel` object:
+
+```
+[772.07808, 747.721216, 747.721216, 747.721216]
+[1169.822208, 747.721216, 747.721216, 747.721216]
+```
+
+Now it uses *more* memory? But the calculation of attention maps should now
+be split over the GPUs? Something strange is going on here. Looking at
+`nvidia-smi` we see the same as before: `0: 1349 -> 1765`.
+
+Turns out this is because I edited the WideResNet class rather than the
+ResNet class, and WRN_50_2 is actually an instance of ResNet. After doing
+that:
+
+```
+[742.562816, 742.779904, 742.779904, 742.779904]
+[1120.018944, 742.779904, 742.779904, 742.779904] 
+```
+
+Some benefit to doing this then. Wasn't expecting it to help too much.
+
+Giving up that as a solution to reduce memory usage, going to try using
+`torch.utils.checkpoint.checkpoint`. Wrote a function to checkpoint the
+downsample and add the residual:
+
+```
+[759.0144, 759.232, 759.232, 759.232]
+[3311.105536, 1850.712064, 1844.55168, 1833.69728]
+```
+
+Looks like that causes much larger problems for the backward pass, while
+also increasing memory use in the forward pass.
+
+Being more aggressive with calls to `checkpoint`, wrapped all blocks of the
+ResNet:
+
+```
+[640.504832, 640.722432, 640.722432, 640.722432]
+[3100.165632, 1526.919168, 1517.023232, 1513.181184]
+```
+
+Aha, this might be because I changed it to call `max_memory_allocated`,
+rather than `memory_allocated`. Changing that, the checkpointing with 2
+chunks set on every block:
+
+```
+[624.28672, 347.3792, 347.3792, 347.3792]
+[830.062592, 277.752832, 277.752832, 277.752832]
+```
+
+Versus with no checkpointing:
+
+```
+[673.383424, 395.68896, 395.68896, 395.68896]
+[832.421888, 0.0, 0.0, 0.0]
+```
+
+Which is a small reduction. Although, the first GPU still has
+much higher memory allocated than any of the other machines. With chunks
+set to 1:
+
+```
+[673.383424, 395.68896, 395.68896, 395.68896]
+[832.421888, 0.0, 0.0, 0.0]
+```
+
+Huh? I thought that would use *less* memory?
+
+I also thought checkpointing the addition of residuals would use less
+memory:
+
+```
+[689.835008, 412.141056, 412.141056, 412.141056]
+[830.062592, 277.752832, 277.752832, 277.752832]
+```
+
+It doesn't?
+
+10th January 2019
+=================
+
+Checking to see the effect checkpointing has on the runtime of this
+imagenet model. When we're not doing distillation, training the model on
+its own takes around 0.8s per minibatch. If we checkpoint every block in
+the network, it'll fit on the GPU at the required minibatch size. But, now
+it takes 5s per minibatch.
+
+Wait a second, we can train a teacher model from scratch and it fits on the
+GPU, so the GPU memory being exhausted *must* come from either the
+additional AT loss or from the extra memory of running a teacher model to
+get the attention map.
+
+Checking that this is true.
