@@ -183,7 +183,7 @@ def train_student(net, teach):
         losses.update(loss.item(), inputs.size(0))
         top1.update(err1[0], inputs.size(0))
         top5.update(err5[0], inputs.size(0))
-        
+
         # compute gradient and do SGD step
         optimizer.zero_grad()
         loss.backward()
@@ -279,7 +279,7 @@ def validate(net, checkpoint=None):
 
         print('Saving..')
         state = {
-            'net': net.state_dict(),
+            'net': net.module.state_dict(),
             'epoch': epoch,
             'args': sys.argv,
             'width': args.wrn_width,
@@ -367,10 +367,9 @@ if __name__ == '__main__':
     print(vars(args))
     parallelise = None
     if args.GPU is not None:
-        os.environ['CUDA_VISIBLE_DEVICES'] = args.GPU
         if args.GPU[0] != '[':
             args.GPU = '[' + args.GPU + ']'
-        args.GPU = json.loads(args.GPU)
+        args.GPU = [i for i, _ in enumerate(json.loads(args.GPU))]
         if len(args.GPU) > 1:
             def parallelise(model):
                 model = torch.nn.DataParallel(model, device_ids=args.GPU)
