@@ -1446,3 +1446,15 @@ afterwards is enough that we are able to train student models. Although
 they take approximately 1s per minibatch, so probably around 5 or 6 days to
 train. But, that's still practical, and after so long trying different
 things to fix this problem, it's good enough for me.
+
+Graphing WRN-28-10 Results
+--------------------------
+
+Graphs of the range of values run training CIFAR-10 with these different
+methods and settings are
+[here](https://gist.github.com/gngdb/f622422a2633daf496b7acca3be28934).
+
+Looks like the separable HashedNet is working the best of the proposed
+methods. Some methods, like Tucker, fell apart. At low parameter counts
+ACDC worked well, but it didn't work at higher settings, which was
+expected.
