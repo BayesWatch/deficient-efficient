@@ -1162,6 +1162,24 @@ layers is large. To hit the high parameter budgets we ought to be using at
 least 100 layers, and the limit for our WRN-28-10 experiments is somewhere
 just above 64.
 
+6th January 2018
+================
+
+Experiment Progress
+-------------------
+
+Ran the WRN experiment schedule on 10 GPUs and it seems to be finished as
+of now. Appears there were some problems with NaNs in some experiments.
+Haven't checked, but I susepect it will be those with the ACDC layers
+involved.
+
+DARTS Experiments Schedule
+--------------------------
+
+Generated a schedule of DARTS experiments to run in `darts_experiments.py`.
+Notebook generating it is
+[here](git@gist.github.com:0a48cb4ffe769208cd2d64049170c13c.git).
+
 7th January 2019
 ================
 
@@ -1458,3 +1476,11 @@ Looks like the separable HashedNet is working the best of the proposed
 methods. Some methods, like Tucker, fell apart. At low parameter counts
 ACDC worked well, but it didn't work at higher settings, which was
 expected.
+
+Copying ImageNet to AFS
+-----------------------
+
+Tried copying ImageNet to AFS. My notebook running the commands is
+[here](https://gist.github.com/gngdb/362cb801e4fe073bcb3396b60cf6a2f9). Not
+sure it worked, because the AWS console reports only 6K bytes on EFS.
+
