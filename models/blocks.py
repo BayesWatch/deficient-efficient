@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from torch.autograd import Variable
+from torch.utils.checkpoint import checkpoint, checkpoint_sequential
 
 if __name__ == 'blocks' or __name__ == '__main__':
     from hashed import HashedConv2d, HalfHashedSeparable, HashedSeparable
@@ -292,17 +293,23 @@ class Bottleneck(nn.Module):
                 bias=False)
         self.conv1 = pointwise(inplanes, planes)
         self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = ConvClass(planes, planes, kernel_size=3, stride=stride, bias=False)
+        self.conv2 = ConvClass(planes, planes, kernel_size=3, stride=stride,
+                padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
         self.conv3 = pointwise(planes, planes * self.expansion)
         self.bn3 = nn.BatchNorm2d(planes * self.expansion)
         self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
         self.stride = stride
+    
+    def add_residual(self, x, out):
+        if self.downsample is not None:
+            residual = self.downsample(x)
+        else:
+            residual = x
+        return out + residual
 
     def forward(self, x):
-        residual = x
-
         out = self.conv1(x)
         out = self.bn1(out)
         out = self.relu(out)
@@ -314,10 +321,8 @@ class Bottleneck(nn.Module):
         out = self.conv3(out)
         out = self.bn3(out)
 
-        if self.downsample is not None:
-            residual = self.downsample(x)
-
-        out += residual
+        #out = checkpoint(self.add_residual, x, out)
+        out = self.add_residual(x, out)
         out = self.relu(out)
 
         return out

@@ -49,15 +49,16 @@ def compression(model_class, kwargs):
     # assume there is a kwarg "conv", which is the convolution we've chosen
     compressed_params = sum([p.numel() for p in
         model_class(**kwargs).parameters()])
-    kwargs['conv'] = Conv
+    kwargs['ConvClass'] = Conv
     uncompressed_params = sum([p.numel() for p in
         model_class(**kwargs).parameters()])
     return float(compressed_params)/float(uncompressed_params)
 
+
 class WideResNet(nn.Module):
-    def __init__(self, depth, widen_factor, conv, block, num_classes=10, dropRate=0.0, s = 1):
+    def __init__(self, depth, widen_factor, ConvClass, block, num_classes=10, dropRate=0.0, s = 1):
         super(WideResNet, self).__init__()
-        self.kwargs = dict(depth=depth, widen_factor=widen_factor, conv=conv,
+        self.kwargs = dict(depth=depth, widen_factor=widen_factor, ConvClass=ConvClass,
                 block=block, num_classes=num_classes, dropRate=dropRate, s=s)
         nChannels = [16, 16 * widen_factor, 32 * widen_factor, 64 * widen_factor]
         nChannels = [int(a) for a in nChannels]
@@ -73,17 +74,17 @@ class WideResNet(nn.Module):
         self.block1 = torch.nn.ModuleList()
         for i in range(s):
             self.block1.append(NetworkBlock(int(n//s), nChannels[0] if i == 0 else nChannels[1],
-                                            nChannels[1], block, 1, dropRate, conv))
+                                            nChannels[1], block, 1, dropRate, ConvClass))
         # 2nd block
         self.block2 = torch.nn.ModuleList()
         for i in range(s):
             self.block2.append(NetworkBlock(int(n//s), nChannels[1] if i == 0 else nChannels[2],
-                                            nChannels[2], block, 2 if i == 0 else 1, dropRate, conv))
+                                            nChannels[2], block, 2 if i == 0 else 1, dropRate, ConvClass))
         # 3rd block
         self.block3 = torch.nn.ModuleList()
         for i in range(s):
             self.block3.append(NetworkBlock(int(n//s), nChannels[2] if i == 0 else nChannels[3],
-                                            nChannels[3], block, 2 if i == 0 else 1, dropRate, conv))
+                                            nChannels[3], block, 2 if i == 0 else 1, dropRate, ConvClass))
         # global average pooling and classifier
         self.bn1 = nn.BatchNorm2d(nChannels[3])
         self.relu = nn.ReLU(inplace=True)
@@ -114,32 +115,36 @@ class WideResNet(nn.Module):
                 self.compression_ratio())
 
     def forward(self, x):
-        activations = []
+        activation_maps = []
         out = self.conv1(x)
         #activations.append(out)
+        attention = lambda x: F.normalize(x.pow(2).mean(1).view(x.size(0), -1))
 
         for sub_block in self.block1:
             out = sub_block(out)
-            activations.append(out)
+            activation_maps.append(attention(out))
 
         for sub_block in self.block2:
             out = sub_block(out)
-            activations.append(out)
+            activation_maps.append(attention(out))
 
         for sub_block in self.block3:
             out = sub_block(out)
-            activations.append(out)
+            activation_maps.append(attention(out))
 
         out = self.relu(self.bn1(out))
         out = F.avg_pool2d(out, 8)
         out = out.view(-1, self.nChannels)
-        return self.fc(out), activations
+        return self.fc(out), activation_maps
 
 
 class ResNet(nn.Module):
 
     def __init__(self, ConvClass, layers, block=Bottleneck, widen=1,
             num_classes=1000, expansion=4):
+        self.kwargs = dict(layers=layers, expansion=expansion,
+                ConvClass=ConvClass, widen=widen, num_classes=num_classes,
+                block=block)
         self.expansion = expansion
         super(ResNet, self).__init__()
         self.Conv = ConvClass
@@ -157,12 +162,16 @@ class ResNet(nn.Module):
         self.fc = nn.Linear(512*widen * self.expansion, num_classes)
 
         for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                w = m.weight if hasattr(m, 'weight') else m.hashed_weight
-                nn.init.kaiming_normal_(w, mode='fan_out', nonlinearity='relu')
-            elif isinstance(m, nn.BatchNorm2d):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
+            try:
+                if isinstance(m, nn.Conv2d) and not isinstance(m, HashedConv2d):
+                    w = m.weight if hasattr(m, 'weight') else m.hashed_weight
+                    nn.init.kaiming_normal_(w, mode='fan_out', nonlinearity='relu')
+                elif isinstance(m, nn.BatchNorm2d):
+                    nn.init.constant_(m.weight, 1)
+                    nn.init.constant_(m.bias, 0)
+            except ValueError:
+                import ipdb
+                ipdb.set_trace()
 
     def _make_layer(self, block, planes, blocks, stride=1):
         downsample = None
@@ -181,10 +190,13 @@ class ResNet(nn.Module):
 
         return nn.Sequential(*layers)
 
+    def compression_ratio(self):
+        return compression(self.__class__, self.kwargs)
 
-    def grouped_parameters(self):
+    def grouped_parameters(self, weight_decay):
         # iterate over parameters and separate those in ACDC layers
-        return group_lowrank(self.named_parameters())
+        return group_lowrank(self.named_parameters(), weight_decay,
+                self.compression_ratio())
 
     def forward(self, x):
         x = self.conv1(x)
@@ -192,21 +204,44 @@ class ResNet(nn.Module):
         x = self.relu(x)
         x = self.maxpool(x)
         
-        intermediates = []
-        x = self.layer1(x)
-        intermediates.append(x)
-        x = self.layer2(x)
-        intermediates.append(x)
-        x = self.layer3(x)
-        intermediates.append(x)
-        x = self.layer4(x)
-        intermediates.append(x)
+        attention_maps = []
+        attention = lambda x: F.normalize(x.pow(2).mean(1).view(x.size(0), -1))
+        if self.train:
+            x = self.layer1(x)
+            #x = checkpoint(self.layer1, x)
+            #x = checkpoint_sequential(self.layer1, 1, x)
+        else:
+            x = self.layer1(x)
+        attention_maps.append(attention(x))
+        if self.train:
+            x = self.layer2(x)
+            #x = checkpoint(self.layer2, x)
+            #x = checkpoint_sequential(self.layer2, 1, x)
+        else:
+            x = self.layer2(x)
+        attention_maps.append(attention(x))
+        if self.train:
+            x = self.layer3(x)
+            #x = checkpoint(self.layer3, x)
+            #x = checkpoint_sequential(self.layer3, 1, x)
+        else:
+            x = self.layer3(x)
+        
+        attention_maps.append(attention(x))
+        if self.train:
+            x = self.layer4(x)
+            #x = checkpoint(self.layer4, x)
+            #x = checkpoint_sequential(self.layer4, 1, x)
+        else:
+            x = self.layer4(x)
+        
+        attention_maps.append(attention(x))
 
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
         x = self.fc(x)
 
-        return x, intermediates
+        return x, attention_maps
 
 
 def WRN_50_2(Conv, Block=None):
