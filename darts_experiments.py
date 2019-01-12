@@ -21,7 +21,7 @@ for s in settings:
 # and to train WideResNets with a teacher
 for s in settings:
     experiment = ["python", "main.py", "cifar10", "student", "--conv", s, "-t", "darts.teacher",
-                  "-s", "darts.%s.student"%(s.lower(), monthday), "--network", "DARTS",
+                  "-s", "darts.%s.student.%s"%(s.lower(), monthday), "--network", "DARTS",
                   "--alpha", "0.", "--beta", "1e3"]
     experiments.append(experiment)
 

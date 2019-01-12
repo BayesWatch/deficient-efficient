@@ -49,7 +49,12 @@ def compression(model_class, kwargs):
     # assume there is a kwarg "conv", which is the convolution we've chosen
     compressed_params = sum([p.numel() for p in
         model_class(**kwargs).parameters()])
-    kwargs['ConvClass'] = Conv
+    if 'genotype' in list(kwargs.keys()):
+        # standard conv with DARTS is DepthwiseSep
+        kwargs['ConvClass'] = DepthwiseSep
+    else:
+        # everything else it's Conv
+        kwargs['ConvClass'] = Conv
     uncompressed_params = sum([p.numel() for p in
         model_class(**kwargs).parameters()])
     return float(compressed_params)/float(uncompressed_params)
