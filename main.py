@@ -77,6 +77,31 @@ if append > 0:
     logdir = logdir+".%i"%append
 writer = SummaryWriter(logdir)
 
+def record_oom(train_func):
+    def wrapper(*args):
+        try:
+            _ = train_func(*args)
+            result = (True, "Success")
+        except RuntimeError as e:
+            result = (False, str(e))
+        except AssertionError as e:
+            result = (True, "Success")
+        except Exception as e:
+            # something else that's not a memory error going wrong
+            result = (False, str(e))
+
+        logfile = "oom_checks.json"
+        if os.path.exists(logfile):
+            with open(logfile, 'r') as f:
+                logs = json.load(f)
+        else:
+            logs = []
+        logs.append((sys.argv, result))
+        with open(logfile, 'w') as f:
+            f.write(json.dumps(logs))
+        assert False, "recorded"
+    return wrapper
+
 def train_teacher(net):
 
     batch_time = AverageMeter()
@@ -138,7 +163,6 @@ def train_teacher(net):
     train_losses.append(losses.avg)
     train_errors.append(top1.avg)
 
-
 def train_student(net, teach):
 
     batch_time = AverageMeter()
@@ -157,8 +181,8 @@ def train_student(net, teach):
         targets = targets.cuda(non_blocking=True)
 
         if isinstance(net, DARTS):
-            outputs_student, ints_student, aux = net(inputs)
-            outputs = torch.cat([outputs, aux], 0)
+            outputs_student, student_AMs, aux = net(inputs)
+            outputs = torch.cat([outputs_student, aux], 0)
             targets = torch.cat([targets, targets], 0)
             assert False, "not updated to output attention maps"
         else:
@@ -494,6 +518,7 @@ if __name__ == '__main__':
         SavedConv, SavedBlock = what_conv_block(net_checkpoint['conv'],
                 net_checkpoint['blocktype'], net_checkpoint['module'])
         net = build_network(SavedConv, SavedBlock).cuda()
+        torch.save(net.state_dict(), "checkpoints/darts.template.t7")
         net.load_state_dict(net_checkpoint['net'])
         return net, start_epoch
 
@@ -508,7 +533,6 @@ if __name__ == '__main__':
         if parallelise is not None:
             teach = parallelise(teach)
 
-        get_no_params(teach)
         optimizer = optim.SGD(teach.grouped_parameters(args.weight_decay),
                 lr=args.lr, momentum=args.momentum,
                 weight_decay=args.weight_decay)
