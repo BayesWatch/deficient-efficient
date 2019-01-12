@@ -1525,3 +1525,5 @@ python main.py cifar10 teacher --conv ACDC_22 -t darts.acdc_22.Jan12 --network D
 Surprising not more problems with memory. Seems mostly to be problems with
 the Generic class. Not sure what that is, so I'll have to investigate.
 
+Fixed that problem by ensuring the stride and dilation args still get
+passed when the kernel size is 1.
