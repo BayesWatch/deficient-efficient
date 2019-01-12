@@ -1465,9 +1465,22 @@ they take approximately 1s per minibatch, so probably around 5 or 6 days to
 train. But, that's still practical, and after so long trying different
 things to fix this problem, it's good enough for me.
 
+Graphing WRN-28-10 Results
+--------------------------
+
+Graphs of the range of values run training CIFAR-10 with these different
+methods and settings are
+[here](https://gist.github.com/gngdb/f622422a2633daf496b7acca3be28934).
+
+Looks like the separable HashedNet is working the best of the proposed
+methods. Some methods, like Tucker, fell apart. At low parameter counts
+ACDC worked well, but it didn't work at higher settings, which was
+expected.
+
 Copying ImageNet to AFS
 -----------------------
 
 Tried copying ImageNet to AFS. My notebook running the commands is
 [here](https://gist.github.com/gngdb/362cb801e4fe073bcb3396b60cf6a2f9). Not
 sure it worked, because the AWS console reports only 6K bytes on EFS.
+
