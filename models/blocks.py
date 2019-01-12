@@ -66,10 +66,14 @@ class GenericLowRank(nn.Module):
             self.grouped = nn.Conv2d(in_channels, in_channels, kernel_size,
                     stride=stride, padding=padding, dilation=dilation,
                     groups=in_channels, bias=False)
+            self.contract = nn.Conv2d(in_channels, rank, 1, bias=False)
+            self.expand = nn.Conv2d(rank, out_channels, 1, bias=bias)
         else:
             self.grouped = None
-        self.contract = nn.Conv2d(in_channels, rank, 1, bias=False)
-        self.expand = nn.Conv2d(rank, out_channels, 1, bias=bias)
+            self.contract = nn.Conv2d(in_channels, rank, 1, stride=stride,
+                    dilation=dilation, bias=False)
+            self.expand = nn.Conv2d(rank, out_channels, 1, bias=bias)
+
     def forward(self, x):
         if self.grouped is not None:
             x = self.grouped(x)
