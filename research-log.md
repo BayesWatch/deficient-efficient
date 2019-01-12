@@ -1527,3 +1527,7 @@ the Generic class. Not sure what that is, so I'll have to investigate.
 
 Fixed that problem by ensuring the stride and dilation args still get
 passed when the kernel size is 1.
+
+To fix the ACDC problem, I'll just remove that experiment. It's unlikely to
+perform well, looking at the results of WRN-28-10, and will probably also
+take too long to run.
