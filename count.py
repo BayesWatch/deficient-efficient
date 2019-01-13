@@ -241,7 +241,7 @@ if __name__ == '__main__':
         num_classes = 100
     elif args.dataset == 'imagenet':
         h,w = 224, 224
-        num_classes = 100
+        num_classes = 1000
     else:
         raise ValueError(args.dataset)
 
