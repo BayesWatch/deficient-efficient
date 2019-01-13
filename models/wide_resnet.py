@@ -168,9 +168,10 @@ class ResNet(nn.Module):
 
         for m in self.modules():
             try:
-                if isinstance(m, nn.Conv2d) and not isinstance(m, HashedConv2d):
-                    w = m.weight if hasattr(m, 'weight') else m.hashed_weight
-                    nn.init.kaiming_normal_(w, mode='fan_out', nonlinearity='relu')
+                if isinstance(m, nn.Conv2d):
+                    if hasattr(m, 'weight'):
+                        w = m.weight 
+                        nn.init.kaiming_normal_(w, mode='fan_out', nonlinearity='relu')
                 elif isinstance(m, nn.BatchNorm2d):
                     nn.init.constant_(m.weight, 1)
                     nn.init.constant_(m.bias, 0)
@@ -199,7 +200,7 @@ class ResNet(nn.Module):
         return compression(self.__class__, self.kwargs)
 
     def grouped_parameters(self, weight_decay):
-        # iterate over parameters and separate those in ACDC layers
+        # iterate over parameters and separate those in other layer types
         return group_lowrank(self.named_parameters(), weight_decay,
                 self.compression_ratio())
 
@@ -239,7 +240,7 @@ class ResNet(nn.Module):
             #x = checkpoint_sequential(self.layer4, 1, x)
         else:
             x = self.layer4(x)
-        
+
         attention_maps.append(attention(x))
 
         x = self.avgpool(x)
