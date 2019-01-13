@@ -2,12 +2,14 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torchvision.transforms as transforms
 from torch.utils.checkpoint import checkpoint
 
 from collections import namedtuple
 
 from .blocks import DepthwiseSep
+from .wide_resnet import group_lowrank, compression
 
 #############################
 # Training utils start here # 
@@ -265,8 +267,11 @@ def drop_path(x, drop_prob):
 
 
 class DARTS(nn.Module):
-  def __init__(self, Conv=DepthwiseSep, C=36, num_classes=10, layers=20, auxiliary=True,
+  def __init__(self, ConvClass=DepthwiseSep, C=36, num_classes=10, layers=20, auxiliary=True,
           genotype=DARTS_V2, drop_path_prob=0.2):
+    self.kwargs = dict(ConvClass=ConvClass, C=C, num_classes=num_classes,
+            layers=layers, auxiliary=auxiliary, genotype=genotype,
+            drop_path_prob=drop_path_prob)
     super(DARTS, self).__init__()
     self.drop_path_prob = drop_path_prob
     self._layers = layers
@@ -288,7 +293,7 @@ class DARTS(nn.Module):
         reduction = True
       else:
         reduction = False
-      cell = Cell(genotype, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, Conv)
+      cell = Cell(genotype, C_prev_prev, C_prev, C_curr, reduction, reduction_prev, ConvClass)
       reduction_prev = reduction
       self.cells += [cell]
       C_prev_prev, C_prev = C_prev, cell.multiplier*C_curr
@@ -300,36 +305,29 @@ class DARTS(nn.Module):
     self.global_pooling = nn.AdaptiveAvgPool2d(1)
     self.classifier = nn.Linear(C_prev, num_classes)
 
-  def grouped_parameters(self):
-    # iterate over parameters and separate those in ACDC layers
-    lowrank_params, other_params = [], []
-    for n,p in self.named_parameters():
-        if 'A' in n or 'D' in n:
-            lowrank_params.append(p)
-        elif 'grouped' in n:
-            lowrank_params.append(p)
-        elif 'hashed' in n:
-            lowrank_params.append(p)
-        else:
-            other_params.append(p)
-    return [{'params': lowrank_params, 'weight_decay': 8.8e-6},
-            {'params': other_params}] 
+  def compression_ratio(self):
+    return compression(self.__class__, self.kwargs)
+
+  def grouped_parameters(self, weight_decay):
+    return group_lowrank(self.named_parameters(), weight_decay,
+        self.compression_ratio())
 
   def forward(self, input):
     logits_aux = None
     s0 = s1 = self.stem(input)
-    cells_out = []
+    cell_AMs = []
+    attention = lambda x: F.normalize(x.pow(2).mean(1).view(x.size(0), -1))
     layers = len(self.cells)
     for i, cell in enumerate(self.cells):
       s0, s1 = s1, cell(s0, s1, self.drop_path_prob)
       if i in [layers//3, 2*layers//3]:
-        cells_out.append(s0)
+        cell_AMs.append(attention(s0))
       if i == 2*self._layers//3:
         if self._auxiliary and self.training:
           logits_aux = self.auxiliary_head(s1)
     out = self.global_pooling(s1)
     logits = self.classifier(out.view(out.size(0),-1))
-    return logits, cells_out, logits_aux
+    return logits, cell_AMs, logits_aux
 
 
 if __name__ == '__main__':

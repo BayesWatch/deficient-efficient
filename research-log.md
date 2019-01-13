@@ -1465,9 +1465,82 @@ they take approximately 1s per minibatch, so probably around 5 or 6 days to
 train. But, that's still practical, and after so long trying different
 things to fix this problem, it's good enough for me.
 
+Graphing WRN-28-10 Results
+--------------------------
+
+Graphs of the range of values run training CIFAR-10 with these different
+methods and settings are
+[here](https://gist.github.com/gngdb/f622422a2633daf496b7acca3be28934).
+
+Looks like the separable HashedNet is working the best of the proposed
+methods. Some methods, like Tucker, fell apart. At low parameter counts
+ACDC worked well, but it didn't work at higher settings, which was
+expected.
+
 Copying ImageNet to AFS
 -----------------------
 
 Tried copying ImageNet to AFS. My notebook running the commands is
 [here](https://gist.github.com/gngdb/362cb801e4fe073bcb3396b60cf6a2f9). Not
 sure it worked, because the AWS console reports only 6K bytes on EFS.
+
+12th January 2019
+=================
+
+Checking DARTS Memory Usage
+---------------------------
+
+We have already had some problems with memory usage trying to run DARTS
+models. Before we just start all the experiments using them, it would be
+worth checking which will hit errors first, and dealing with those
+problems. We should be able to use checkpointing to deal with these
+problems, as the memory consumption in every case can be reduced to
+reparameterizing the weight matrix, which can be abstracted and
+checkpointed.
+
+Running all the planned experiments with a modified experiment script that
+just tries to instance the model to train and run a single minibatch,
+catching OOM errors and writing to a file if one is hit.
+
+Used the decorator `record_oom` and added `assert False` inside training
+functions so it would run fast.
+
+```
+python main.py cifar10 student --conv Generic_0.12 -t darts.teacher -s darts.generic_0.12.student.Jan12 --network DARTS --alpha 0. --beta 1e3
+  invalid argument 0: Sizes of tensors must match except in dimension 1. Got 31 and 32 in dimension 2 at /opt/conda/conda-bld/pytorch_1533672544752/work/aten/src/THC/generic/THCTensorMath.cu:87
+python main.py cifar10 student --conv Generic_0.06 -t darts.teacher -s darts.generic_0.06.student.Jan12 --network DARTS --alpha 0. --beta 1e3
+  invalid argument 0: Sizes of tensors must match except in dimension 1. Got 31 and 32 in dimension 2 at /opt/conda/conda-bld/pytorch_1533672544752/work/aten/src/THC/generic/THCTensorMath.cu:87
+python main.py cifar10 student --conv Generic_0.03 -t darts.teacher -s darts.generic_0.03.student.Jan12 --network DARTS --alpha 0. --beta 1e3
+  invalid argument 0: Sizes of tensors must match except in dimension 1. Got 31 and 32 in dimension 2 at /opt/conda/conda-bld/pytorch_1533672544752/work/aten/src/THC/generic/THCTensorMath.cu:87
+python main.py cifar10 teacher --conv Generic_0.12 -t darts.generic_0.12.Jan12 --network DARTS
+  invalid argument 0: Sizes of tensors must match except in dimension 1. Got 31 and 32 in dimension 2 at /opt/conda/conda-bld/pytorch_1533672544752/work/aten/src/THC/generic/THCTensorMath.cu:87
+python main.py cifar10 teacher --conv Generic_0.06 -t darts.generic_0.06.Jan12 --network DARTS
+  invalid argument 0: Sizes of tensors must match except in dimension 1. Got 31 and 32 in dimension 2 at /opt/conda/conda-bld/pytorch_1533672544752/work/aten/src/THC/generic/THCTensorMath.cu:87
+python main.py cifar10 teacher --conv Generic_0.03 -t darts.generic_0.03.Jan12 --network DARTS
+  invalid argument 0: Sizes of tensors must match except in dimension 1. Got 31 and 32 in dimension 2 at /opt/conda/conda-bld/pytorch_1533672544752/work/aten/src/THC/generic/THCTensorMath.cu:87
+python main.py cifar10 teacher --conv ACDC_22 -t darts.acdc_22.Jan12 --network DARTS
+  CUDA error: out of memory
+```
+
+Surprising not more problems with memory. Seems mostly to be problems with
+the Generic class. Not sure what that is, so I'll have to investigate.
+
+Fixed that problem by ensuring the stride and dilation args still get
+passed when the kernel size is 1.
+
+To fix the ACDC problem, I'll just remove that experiment. It's unlikely to
+perform well, looking at the results of WRN-28-10, and will probably also
+take too long to run.
+
+13th January 2019
+=================
+
+Spent a while debugging problems training DARTS networks from small changes
+that have happened to the training script in the last month. This could
+probably have been avoided if the training script had any test coverage,
+but I didn't expect these experiments to become this complicated. Could be
+something worth thinking about next time.
+
+The arbitrary experiment I ran as a test was expected to run for 62 hours
+on a single GPU. The epochs are relatively fast, but it still requires
+running for 600 epochs.

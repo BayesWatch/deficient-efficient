@@ -77,6 +77,31 @@ if append > 0:
     logdir = logdir+".%i"%append
 writer = SummaryWriter(logdir)
 
+def record_oom(train_func):
+    def wrapper(*args):
+        try:
+            _ = train_func(*args)
+            result = (True, "Success")
+        except RuntimeError as e:
+            result = (False, str(e))
+        except AssertionError as e:
+            result = (True, "Success")
+        except Exception as e:
+            # something else that's not a memory error going wrong
+            result = (False, str(e))
+
+        logfile = "oom_checks.json"
+        if os.path.exists(logfile):
+            with open(logfile, 'r') as f:
+                logs = json.load(f)
+        else:
+            logs = []
+        logs.append((sys.argv, result))
+        with open(logfile, 'w') as f:
+            f.write(json.dumps(logs))
+        assert False, "recorded"
+    return wrapper
+
 def train_teacher(net):
 
     batch_time = AverageMeter()
@@ -138,7 +163,6 @@ def train_teacher(net):
     train_losses.append(losses.avg)
     train_errors.append(top1.avg)
 
-
 def train_student(net, teach):
 
     batch_time = AverageMeter()
@@ -157,17 +181,24 @@ def train_student(net, teach):
         targets = targets.cuda(non_blocking=True)
 
         if isinstance(net, DARTS):
-            outputs_student, ints_student, aux = net(inputs)
-            outputs = torch.cat([outputs, aux], 0)
-            targets = torch.cat([targets, targets], 0)
-            assert False, "not updated to output attention maps"
+            outputs, student_AMs, aux = net(inputs)
+            if aux is not None:
+                outputs_student = torch.cat([outputs, aux], 0)
+                targets_plus_aux = torch.cat([targets, targets], 0)
+            else:
+                outputs_student = outputs
+                targets_plus_aux = targets
+            with torch.no_grad():
+                outputs_teacher, teacher_AMs, _ = teach(inputs)
+                if aux is not None:
+                    outputs_teacher = torch.cat([outputs_teacher, outputs_teacher], 0)
         else:
             outputs_student, student_AMs = net(inputs)
-        with torch.no_grad():
-            outputs_teacher, teacher_AMs = teach(inputs)
+            with torch.no_grad():
+                outputs_teacher, teacher_AMs = teach(inputs)
 
         # If alpha is 0 then this loss is just a cross entropy.
-        loss = distillation(outputs_student, outputs_teacher, targets, args.temperature, args.alpha)
+        loss = distillation(outputs_student, outputs_teacher, targets_plus_aux, args.temperature, args.alpha)
 
         #Add an attention tranfer loss for each intermediate. Let's assume the default is three (as in the original
         #paper) and adjust the beta term accordingly.
@@ -177,7 +208,7 @@ def train_student(net, teach):
             loss += adjusted_beta * F.mse_loss(student_AMs[i], teacher_AMs[i])
 
         # measure accuracy and record loss
-        prec1, prec5 = accuracy(outputs_student.data, targets.data, topk=(1, 5))
+        prec1, prec5 = accuracy(outputs.data, targets.data, topk=(1, 5))
         err1 = 100. - prec1
         err5 = 100. - prec5
         losses.update(loss.item(), inputs.size(0))
@@ -277,9 +308,14 @@ def validate(net, checkpoint=None):
         val_losses.append(losses.avg)
         val_errors.append(top1.avg)
 
+        if isinstance(net, torch.nn.DataParallel):
+            state_dict = net.module.state_dict()
+        else:
+            state_dict = net.state_dict()
+
         print('Saving..')
         state = {
-            'net': net.module.state_dict(),
+            'net': state_dict,
             'epoch': epoch,
             'args': sys.argv,
             'width': args.wrn_width,
@@ -494,6 +530,7 @@ if __name__ == '__main__':
         SavedConv, SavedBlock = what_conv_block(net_checkpoint['conv'],
                 net_checkpoint['blocktype'], net_checkpoint['module'])
         net = build_network(SavedConv, SavedBlock).cuda()
+        torch.save(net.state_dict(), "checkpoints/darts.template.t7")
         net.load_state_dict(net_checkpoint['net'])
         return net, start_epoch
 
@@ -508,7 +545,6 @@ if __name__ == '__main__':
         if parallelise is not None:
             teach = parallelise(teach)
 
-        get_no_params(teach)
         optimizer = optim.SGD(teach.grouped_parameters(args.weight_decay),
                 lr=args.lr, momentum=args.momentum,
                 weight_decay=args.weight_decay)
