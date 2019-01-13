@@ -1558,3 +1558,22 @@ experiments. Decided to hold off running experiments in the middle region,
 only running experiments at the larger and smaller limits. If it looks like
 we'll have time, we can come back and run those. Script is called
 `imagenet_experiments.py`.
+
+Problems with ShuffleNet Student Models
+---------------------------------------
+
+I didn't notice when I was graphing the results, but in all runs involving
+ShuffleNet models, the student mode failed on WRN-28-10. I went back to
+check why some DARTS models were hitting unexpected errors and see if the
+same thing had happened with the WRN-28-10 models.
+
+Not sure what's gone wrong, but it explains why the ShuffleNet results are
+so poor in the distillation experiments.
+
+Specifically, the experiments that failed were:
+
+```
+main.py cifar10 student --conv Shuffle_1 -t wrn_28_10.patch -s wrn_28_10.shuffle_1.student.Jan5 --wrn_depth 28 --wrn_width 10 --alpha 0. --beta 1e3
+main.py cifar10 student --conv Shuffle_7 -t wrn_28_10.patch -s wrn_28_10.shuffle_7.student.Jan5 --wrn_depth 28 --wrn_width 10 --alpha 0. --beta 1e3
+main.py cifar10 student --conv Shuffle_3 -t wrn_28_10.patch -s wrn_28_10.shuffle_3.student.Jan5 --wrn_depth 28 --wrn_width 10 --alpha 0. --beta 1e3
+```
