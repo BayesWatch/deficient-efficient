@@ -1544,3 +1544,17 @@ something worth thinking about next time.
 The arbitrary experiment I ran as a test was expected to run for 62 hours
 on a single GPU. The epochs are relatively fast, but it still requires
 running for 600 epochs.
+
+ImageNet Experiment Settings
+----------------------------
+
+In the same way we decided settings for the experiments involving WRN-28-10
+and DARTS on cifar-10, made a notebook for ImageNet experiments with
+WRN-50-2. It is
+[here](https://gist.github.com/gngdb/920b58bc25d3fb84400d35fd635f7b39).
+
+In the notebook, wrote a script to generate the json file for running
+experiments. Decided to hold off running experiments in the middle region,
+only running experiments at the larger and smaller limits. If it looks like
+we'll have time, we can come back and run those. Script is called
+`imagenet_experiments.py`.
