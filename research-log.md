@@ -1531,3 +1531,16 @@ passed when the kernel size is 1.
 To fix the ACDC problem, I'll just remove that experiment. It's unlikely to
 perform well, looking at the results of WRN-28-10, and will probably also
 take too long to run.
+
+13th January 2019
+=================
+
+Spent a while debugging problems training DARTS networks from small changes
+that have happened to the training script in the last month. This could
+probably have been avoided if the training script had any test coverage,
+but I didn't expect these experiments to become this complicated. Could be
+something worth thinking about next time.
+
+The arbitrary experiment I ran as a test was expected to run for 62 hours
+on a single GPU. The epochs are relatively fast, but it still requires
+running for 600 epochs.

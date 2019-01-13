@@ -181,17 +181,24 @@ def train_student(net, teach):
         targets = targets.cuda(non_blocking=True)
 
         if isinstance(net, DARTS):
-            outputs_student, student_AMs, aux = net(inputs)
-            outputs = torch.cat([outputs_student, aux], 0)
-            targets = torch.cat([targets, targets], 0)
-            assert False, "not updated to output attention maps"
+            outputs, student_AMs, aux = net(inputs)
+            if aux is not None:
+                outputs_student = torch.cat([outputs, aux], 0)
+                targets_plus_aux = torch.cat([targets, targets], 0)
+            else:
+                outputs_student = outputs
+                targets_plus_aux = targets
+            with torch.no_grad():
+                outputs_teacher, teacher_AMs, _ = teach(inputs)
+                if aux is not None:
+                    outputs_teacher = torch.cat([outputs_teacher, outputs_teacher], 0)
         else:
             outputs_student, student_AMs = net(inputs)
-        with torch.no_grad():
-            outputs_teacher, teacher_AMs = teach(inputs)
+            with torch.no_grad():
+                outputs_teacher, teacher_AMs = teach(inputs)
 
         # If alpha is 0 then this loss is just a cross entropy.
-        loss = distillation(outputs_student, outputs_teacher, targets, args.temperature, args.alpha)
+        loss = distillation(outputs_student, outputs_teacher, targets_plus_aux, args.temperature, args.alpha)
 
         #Add an attention tranfer loss for each intermediate. Let's assume the default is three (as in the original
         #paper) and adjust the beta term accordingly.
@@ -201,7 +208,7 @@ def train_student(net, teach):
             loss += adjusted_beta * F.mse_loss(student_AMs[i], teacher_AMs[i])
 
         # measure accuracy and record loss
-        prec1, prec5 = accuracy(outputs_student.data, targets.data, topk=(1, 5))
+        prec1, prec5 = accuracy(outputs.data, targets.data, topk=(1, 5))
         err1 = 100. - prec1
         err5 = 100. - prec5
         losses.update(loss.item(), inputs.size(0))
@@ -301,9 +308,14 @@ def validate(net, checkpoint=None):
         val_losses.append(losses.avg)
         val_errors.append(top1.avg)
 
+        if isinstance(net, torch.nn.DataParallel):
+            state_dict = net.module.state_dict()
+        else:
+            state_dict = net.state_dict()
+
         print('Saving..')
         state = {
-            'net': net.module.state_dict(),
+            'net': state_dict,
             'epoch': epoch,
             'args': sys.argv,
             'width': args.wrn_width,
