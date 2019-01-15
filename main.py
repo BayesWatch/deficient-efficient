@@ -379,6 +379,7 @@ def imagenet_defaults(args):
     args.batch_size=256
     args.epochs = 90
     args.lr_decay_ratio = 0.1
+    args.weight_decay = 1e-4
     args.epoch_step = '[30,60]'
     args.workers = 16
     return args
