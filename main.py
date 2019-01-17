@@ -194,6 +194,8 @@ def train_student(net, teach):
                     outputs_teacher = torch.cat([outputs_teacher, outputs_teacher], 0)
         else:
             outputs_student, student_AMs = net(inputs)
+            outputs = outputs_student
+            targets_plus_aux = targets
             with torch.no_grad():
                 outputs_teacher, teacher_AMs = teach(inputs)
 
