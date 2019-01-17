@@ -1577,3 +1577,77 @@ main.py cifar10 student --conv Shuffle_1 -t wrn_28_10.patch -s wrn_28_10.shuffle
 main.py cifar10 student --conv Shuffle_7 -t wrn_28_10.patch -s wrn_28_10.shuffle_7.student.Jan5 --wrn_depth 28 --wrn_width 10 --alpha 0. --beta 1e3
 main.py cifar10 student --conv Shuffle_3 -t wrn_28_10.patch -s wrn_28_10.shuffle_3.student.Jan5 --wrn_depth 28 --wrn_width 10 --alpha 0. --beta 1e3
 ```
+
+14th January 2018
+=================
+
+EFS Write Problems
+------------------
+
+Turns out the EFS volume failed to mount, so ImageNet hasn't been copied to
+the EFS volume. Now copying it over with `cp`, but it's incredibly slow.
+Likely will take several days. Which doesn't make me confident about using
+this for fast read of images for training (although the stated I/O speed
+for EFS is 3GB/s, which should be fast enough).
+
+ImageNet Sanity Checks
+----------------------
+
+Training a WRN_50_2 with the settings we've got from scratch using this
+code converged to 26.0% top-1, 8.07% top-5. Unfortunately, the WRN-50-2 is
+supposed to converge 21.9%, 5.79%.
+
+The only difference in the standard ImageNet training routine that was not
+accounted for is the weight decay, which was set too high at 5e-4, and
+1e-4. Set that in the ImageNet settings, and restarted the sanity
+experiment. Unfortunately, it'll take another week.
+
+ImageNet on AWS
+---------------
+
+Configuring a single AWS instance to run ImageNet experiments, so it can be
+used as a template. One part to consider is which AMI to use. I could just
+use whatever the fast-ai one is, because that's probably a good start.
+Amazon produces a deep learning AMI, but it looks like it might cost extra,
+which doesn't sound good. Really, as long as the nvidia drivers are
+installed, it's not a problem to install PyTorch.
+
+That image failed to load. I don't really trust it now. It's probably
+easier to use a more standard AMI, and run the relatively short setup
+routine.
+
+After setting the Amazon Ubuntu Deep Learning image in the launch spec, I
+tried to launch spot instances. With the config from the fast-ai code, the
+spot request is never fulfilled. Tried using the web console, and those
+aren't fulfilled either. Not sure what's going wrong, but didn't expect it
+to be difficult to launch these spot instances.
+
+It looks like Spot Requests are not as easy to use as they were last time I
+worked with AWS (a few years ago). Now, AWS just kills spot requests based
+on the on-demand instances. Some details about it
+[here](https://serverfault.com/questions/593744/spot-instances-frequently-terminated-in-aws-auto-scaling-group-failing-system-h).
+
+This could be a problem, the ImageNet experiments can take 100 hours to
+run. At $7.12 per hour we're not going to be able to train many of these
+models. We can fit two ImageNet training routines on there, so it works out
+to $300 to finish training. We can only train 10 models at that price, with
+the $3000 Amazon gave us.
+
+Tried using all available availability zones in us-east in case that would
+find some available spot instance capacity. Still got the same error: that
+instance type is not available.
+
+After more research, it turns out that my limits were zero for all GPU
+instances. The errors never mentioned these limits, so I didn't know.
+
+17th January 2019
+=================
+
+ImageNet Limits Increased
+-------------------------
+
+After contacting support, it took two days for the limits for p2 instances
+that I had to be increased. To test this out, tried to start a spot request
+for a p2 instance. Couldn't get any of those accepted. So, I had to start
+an on-demand instance. Notes on this are
+[here](https://gist.github.com/gngdb/ecbdf8a7752ffeabbdac3dabe9da6422).
