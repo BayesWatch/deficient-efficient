@@ -21,7 +21,7 @@ for s in settings:
 # and to train WideResNets with a teacher
 for s in settings:
     experiment = ["python", "main.py", "imagenet", "student", "--conv", s, "-t", "wrn_50_2.imagenet.modelzoo",
-                  "-s", "wrn_50_2.%s.student"%(s.lower(), monthday), "--network", "WRN_50_2",
+                  "-s", "wrn_50_2.%s.student.%s"%(s.lower(), monthday), "--network", "WRN_50_2",
                   "--alpha", "0.", "--beta", "1e3"]
     experiments.append(experiment)
 
