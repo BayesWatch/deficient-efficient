@@ -4,7 +4,7 @@ settings = ['ACDC_%i'%n for n in [28, 128]] +\
            ['SepHashed_%.2f'%s for s in [0.08, 0.58]] +\
            ['Generic_%.2f'%s for s in [0.03, 0.21]] +\
            ['Tucker_%.2f'%s for s in [0.25, 0.73]] +\
-           ['TensorTrain.2f'%s for s in [0.27, 0.75]] +\
+           ['TensorTrain%.2f'%s for s in [0.27, 0.75]] +\
            ['Shuffle_%i'%n for n in [7, 1]]
 
 experiments = []
