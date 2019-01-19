@@ -1742,5 +1742,12 @@ following ranking:
 3. Generic Distillation, both sizes
 4. ACDC Distillation, only 28 layers
 
+Investigating DataParallel Issue
+--------------------------------
 
+Ran an isolated test with just two GPUs and found that Hashed and
+TensorTrain modules don't hit an error immediately when running the on
+multiple GPUs. So, the error that I hit running an imagenet model with
+TensorTrain modules is more complicated. Also, it may not happen when we
+run SepHashed ImageNet experiments.
 
