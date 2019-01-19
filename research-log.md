@@ -1651,3 +1651,96 @@ that I had to be increased. To test this out, tried to start a spot request
 for a p2 instance. Couldn't get any of those accepted. So, I had to start
 an on-demand instance. Notes on this are
 [here](https://gist.github.com/gngdb/ecbdf8a7752ffeabbdac3dabe9da6422).
+
+18th January 2019
+=================
+
+AWS Spot Instance Error
+-----------------------
+
+Got more information on why the spot requests wouldn't be fulfilled on AWS:
+
+```
+Linux/UNIX, us-east-1b while launching spot instance". It will not be
+retried for at least 13 minutes. Error message: We currently do not have
+sufficient p2.8xlarge capacity in the Availability Zone you requested
+(us-east-1b). Our system will be working on provisioning additional
+capacity. You can currently get p2.8xlarge capacity by not specifying an
+Availability Zone in your request or choosing us-east-1d, us-east-1e.
+(Service: AmazonEC2; Status Code: 500; Error Code:
+InsufficientInstanceCapacity)
+```
+
+With this information, it may be easier to get a spot request to start.
+Seeing as we will require several large GPU instances, this might still be
+worth investigating. Otherwise, we could easily run out of money before
+we've managed to run the AWS experiments.
+
+Tried starting spot requests in us-east-1d and us-east-1e and they also
+failed. Tried in the web console, using default settings everywhere, and it
+still failed.
+
+Testing p2.8xlarge ImageNet Training Speed
+------------------------------------------
+
+Seems that these experiments may be too slow on p2 instances. They're
+around 2.3s per minibach, which is around 3 times slower than the
+experiments on our P100 GPUs. This means the experiment may take 300 hours
+to complete, which is approximately 13 days, so two weeks.
+
+In addition to this being a really long time, it might make these
+experiments too expensive to run. Since we can't get spot instances, the
+cost to train one ImageNet model this way is aproximately:
+`300*7.2*0.5=$1080`. So, only really two experiments.
+
+This is clearly not practical. Looking into other options.
+
+ACDC ImageNet Experiments
+-------------------------
+
+Looking at the spec for the imagenet experiment with the larger ACDC model,
+it called for 128 layers. We already know that won't work, so forgoing it
+in favour of an experiment with 12 layers. That's given we have time,
+because it won't be of a comparable size to the other methods tested.
+
+19th January 2019
+=================
+
+Prioritizing ImageNet Experiments
+---------------------------------
+
+It's now looking like it will be difficult to run all of the planned
+ImageNet experiments. The experiments with DARTS are also continuing, and
+may take a long time, but we appear to be around halfway there using 8
+GPUs. At this rate, they should finish in time.
+
+Looking at the results on WRN-28-10, we can probably conclude that the
+Tucker decomposition is not worth running in an ImageNet experiment.
+TensorTrain, however, as we might expect from it's place in the Deep
+Learning literature, performed a lot better. Unfortunately, the first
+TensorTrain experiment we've run so far failed immediately because the
+parameterisation hit an error being spread over multiple GPUs. It's not
+clear how we'll be able to deal with this. Also, it may be a problem that
+will also affect the SepHashed and ACDC experiments.
+
+It seems wise to prioritize the distillation experiments, because we want
+to show primarily the performance these networks can achieve if trained in
+the best possible way.
+
+Also, we want to focus on the experiments that were the best performing on
+WRN-28-10. These were the SepHashed, TensorTrain, ShuffleNet and ACDC at
+low parameter counts.
+
+It may also be interesting to focus on the Generic parameterisation, as it
+is so simple. Finding that it is just as good as more complicated methods
+on ImageNet would be interesting. I expect that the same thing we have seen
+on WRN-28-10 would be repeated, but it is important. I propose the
+following ranking:
+
+1. ShuffleNet Distillation, both sizes
+2. SepHashed Distillation, both sizes
+3. Generic Distillation, both sizes
+4. ACDC Distillation, only 28 layers
+
+
+

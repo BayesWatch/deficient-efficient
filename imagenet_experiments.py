@@ -1,6 +1,6 @@
 import json
 
-settings = ['ACDC_%i'%n for n in [28, 128]] +\
+settings = ['ACDC_%i'%n for n in [12, 28]] +\
            ['SepHashed_%.2f'%s for s in [0.08, 0.58]] +\
            ['Generic_%.2f'%s for s in [0.03, 0.21]] +\
            ['Tucker_%.2f'%s for s in [0.25, 0.73]] +\
