@@ -1751,3 +1751,50 @@ multiple GPUs. So, the error that I hit running an imagenet model with
 TensorTrain modules is more complicated. Also, it may not happen when we
 run SepHashed ImageNet experiments.
 
+24th January 2019
+=================
+
+The experiments running DARTS models on CIFAR-10 and WRN-50-2 ImageNet
+experiments have been progressing.
+
+p3 Instances
+------------
+
+I've now got my limits on EC2 increased from zero on p3 instances. After
+this, I was able to start two spot request instances. However, I started
+them with the wrong AMI, and, thinking that this wouldn't be difficult, I
+terminated the instance and sent a new request. Since then, all the spot
+requests I've submitted have been cancelled.
+
+I'm not sure how anyone uses spot requests on AWS. I've submitted a
+question about this on the AWS forums
+[here](https://forums.aws.amazon.com/message.jspa?messageID=885332#885332).
+Since that has received no response, I'm going to try contacting support.
+Making these spot requests run is actually important. I won't be able to
+run enough experiments using the on-demand pricing.
+
+OK, it turns out AWS support is paid-for, and I can't pay for it. Guess
+that leaves us no recourse.
+
+25th January 2019
+=================
+
+ImageNet Ablation
+-----------------
+
+I'm still a little suspicious that attention transfer works on ImageNet
+problems. If I'm suspicious, then maybe a reviewer will also be, so it may
+be worth adding an ablation experiment where we train whichever of these
+student networks that performs the best without the teacher model.
+
+Appropriate Weight Decay Ablation
+---------------------------------
+
+Another ablation experiment that may be worthwhile would be to repeat an
+experiment with competitive results on WRN-28-10 with the appropriate
+weight decay disabled. Just to show that it's required for good
+performance. Or, even to test greater/lesser weight decay than appropriate
+as well. Slightly nervous, because if it turns out to harm performance then
+all our experiments are flawed.
+
+
