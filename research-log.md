@@ -1797,4 +1797,44 @@ performance. Or, even to test greater/lesser weight decay than appropriate
 as well. Slightly nervous, because if it turns out to harm performance then
 all our experiments are flawed.
 
+ImageNet ACDC Experiment
+------------------------
 
+Tried to find a way to run an ACDC experiment on ImageNet. Running on a
+p3.8xlarge instance, this seemed like it might be possible. Unfortunately,
+I immediately hit OOM errors.
+
+I tried rewriting the ACDC code to use checkpointing when building the
+kernel matrix from the many smaller matrices. This runs, but it's about
+twice as slow on the tests in the pytorch-acdc repo. And, when put into a
+network is much too slow to actually get any results. Running it on four
+V100s it's taking 5s per minibatch. This works out to around 700 hours to
+run a full ImageNet experiment; so around a month. This is impractical, so
+I don't think I'll be able to run this experiment.
+
+28th January 2018
+=================
+
+Final ImageNet and DARTS experiments that were originally planned are now
+running. Both will be done soon. Unfortunately:
+
+Missing Appropriate Weight Decay
+--------------------------------
+
+A large number of the experiments we've run so far have not used
+appropriate weight decay, specifically for the following methods:
+
+* Generic low-rank
+* Tucker
+* Tensor Train
+* ShuffleNet
+
+One upside of this is that we've effectively already now done ablation
+experiments of disabling the appropriate weight decay. Seems that some of
+these methods still even trained OK. So, we may yet find this whole
+appropriate weight decay thing is pointless.
+
+In any case, we now need to do a large number of experiments that are
+missing. Comitting the fix to the code so that appropriate weight decay is
+enabled by default *now*. All experiments coming before today were flawed
+(except those on ACDC and HashedNet models).
