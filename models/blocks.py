@@ -66,19 +66,19 @@ class GenericLowRank(nn.Module):
             self.grouped = nn.Conv2d(in_channels, in_channels, kernel_size,
                     stride=stride, padding=padding, dilation=dilation,
                     groups=in_channels, bias=False)
-            self.contract = nn.Conv2d(in_channels, rank, 1, bias=False)
-            self.expand = nn.Conv2d(rank, out_channels, 1, bias=bias)
+            self.lowrank_contract = nn.Conv2d(in_channels, rank, 1, bias=False)
+            self.lowrank_expand = nn.Conv2d(rank, out_channels, 1, bias=bias)
         else:
             self.grouped = None
-            self.contract = nn.Conv2d(in_channels, rank, 1, stride=stride,
+            self.lowrank_contract = nn.Conv2d(in_channels, rank, 1, stride=stride,
                     dilation=dilation, bias=False)
-            self.expand = nn.Conv2d(rank, out_channels, 1, bias=bias)
+            self.lowrank_expand = nn.Conv2d(rank, out_channels, 1, bias=bias)
 
     def forward(self, x):
         if self.grouped is not None:
             x = self.grouped(x)
-        x = self.contract(x)
-        return self.expand(x)
+        x = self.lowrank_contract(x)
+        return self.lowrank_expand(x)
 
 
 # from: https://github.com/kuangliu/pytorch-cifar/blob/master/models/shufflenet.py#L10-L19
@@ -105,19 +105,20 @@ class LinearShuffleNet(nn.Module):
         super(LinearShuffleNet, self).__init__()
         # why 4? https://github.com/jaxony/ShuffleNet/blob/master/model.py#L67
         bottleneck_channels = out_channels // 4
-        self.gconv1 = nn.Conv2d(in_channels, bottleneck_channels, 1,
+        self.shuffle_gconv1 = nn.Conv2d(in_channels, bottleneck_channels, 1,
                 groups=shuffle_groups, bias=False)
         self.shuffle = ShuffleBlock(shuffle_groups)
-        self.dwconv = nn.Conv2d(bottleneck_channels, bottleneck_channels,
+        self.shuffle_dwconv = nn.Conv2d(bottleneck_channels, bottleneck_channels,
                 kernel_size, stride=stride, padding=padding, dilation=dilation,
                 groups=bottleneck_channels, bias=False)
-        self.gconv2 = nn.Conv2d(bottleneck_channels, out_channels, 1,
+        self.shuffle_gconv2 = nn.Conv2d(bottleneck_channels, out_channels, 1,
                 groups=shuffle_groups, bias=bias)
+
     def forward(self, x):
-        x = self.gconv1(x)
+        x = self.shuffle_gconv1(x)
         x = self.shuffle(x)
-        x = self.dwconv(x)
-        return self.gconv2(x)
+        x = self.shuffle_dwconv(x)
+        return self.shuffle_gconv2(x)
 
 
 def cant_be_shuffled(shuffle_groups, in_channels, out_channels):
