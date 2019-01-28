@@ -35,9 +35,13 @@ def group_lowrank(named_parameters, weight_decay, compression_ratio):
     for n,p in named_parameters:
         if 'A' in n or 'D' in n:
             lowrank_params.append(p)
-        #elif 'grouped' in n:
-        #    lowrank_params.append(p)
+        elif 'shuffle' in n:
+            lowrank_params.append(p)
         elif 'hashed' in n:
+            lowrank_params.append(p)
+        elif 'weight_core' in n or 'weight_u' in n:
+            lowrank_params.append(p)
+        elif 'lowrank' in n:
             lowrank_params.append(p)
         else:
             other_params.append(p)
