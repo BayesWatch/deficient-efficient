@@ -1838,3 +1838,22 @@ In any case, we now need to do a large number of experiments that are
 missing. Comitting the fix to the code so that appropriate weight decay is
 enabled by default *now*. All experiments coming before today were flawed
 (except those on ACDC and HashedNet models).
+
+30th January 2018
+=================
+
+Mistake in Experiment Config
+----------------------------
+
+Although the WRN-28-10 experiments were repeated without any problems,
+after the problems with appropriate weight decay not being enabled, the
+file generating the experiment schedule json had a mistake in it. The
+settings used for the DARTS experiments had been erroneously copied into.
+Not sure how I made this mistake, but it means we're now missing the
+settings we were actually interested in.
+
+Obviously, we'll keep the old experiment results, because it only adds more
+points to the graph (although not for all model types). But, now we have
+another 24 WRN-28-10 experiments to run. Good to know they can be completed
+in only a couple of days, I suppose, but it's a little annoying to deal
+with.

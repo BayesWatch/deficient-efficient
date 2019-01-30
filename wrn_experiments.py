@@ -1,11 +1,11 @@
 import json
 
-#settings = ['ACDC_%i'%n for n in [6, 12, 22]] +\
-           #['SepHashed_%.2f'%s for s in [0.09, 0.20, 0.38]] +\
-settings = ['Generic_%.2f'%s for s in [0.03, 0.06, 0.12]] +\
-           ['Tucker_%.2f'%s for s in [0.24, 0.37, 0.54]] +\
-           ['TensorTrain_%.2f'%s for s in [0.27, 0.41, 0.59]] +\
-           ['Shuffle_%i'%n for n in [1, 2, 4]]
+#settings = ['ACDC_%i'%n for n in [15, 48, 64]] +\
+#           ['SepHashed_%.2f'%s for s in [0.05, 0.2, 0.5]] +\
+settings = ['Generic_%.2f'%s for s in [0.03, 0.1, 0.24]] +\
+           ['Tucker_%.2f'%s for s in [0.21, 0.41, 0.67]] +\
+           ['TensorTrain_%.2f'%s for s in [0.23, 0.44, 0.7]] +\
+           ['Shuffle_%i'%n for n in [1, 3, 7]]
 
 experiments = []
 
