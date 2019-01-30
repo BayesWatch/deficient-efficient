@@ -1857,3 +1857,7 @@ points to the graph (although not for all model types). But, now we have
 another 24 WRN-28-10 experiments to run. Good to know they can be completed
 in only a couple of days, I suppose, but it's a little annoying to deal
 with.
+
+Checked the darts and imagenet scripts for generating experiments and they
+match what was planned in the notebooks where we came up with these
+settings.
