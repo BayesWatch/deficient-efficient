@@ -253,6 +253,9 @@ if __name__ == '__main__':
         elif args.network == 'WRN_50_2':
             return WRN_50_2(Conv)
         elif args.network == 'DARTS':
+            assert not args.conv == 'Conv', 'The base network here used' \
+            ' separable convolutions, so you probably did not mean to set this' \
+            ' option.'
             return DARTS(Conv, num_classes=num_classes, drop_path_prob=0., auxiliary=False)
     model = build_network(Conv, Block)
 
