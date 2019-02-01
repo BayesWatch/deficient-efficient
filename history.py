@@ -16,6 +16,6 @@ if __name__ == '__main__':
         try:
             ckpt = torch.load("checkpoints/"+p)
             if 'args' in ckpt.keys():
-                print(p + " (%.2f) "%ckpt['val_errors'][-1] + ":  " + " ".join(ckpt['args']))
+                print(p + " (%i-%.2f) "%(ckpt['epoch'], ckpt['val_errors'][-1]) + ":  " + " ".join(ckpt['args']))
         except:
             pass
