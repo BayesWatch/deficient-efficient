@@ -22,7 +22,6 @@ parser.add_argument('--conv', default=None, type=str, help='Conv type')
 
 args = parser.parse_args()
 
-count_ops, count_params = 0, 0
 ignored_modules = []
 
 
@@ -34,163 +33,164 @@ def get_layer_info(layer):
 def get_layer_param(model):
     return sum([p.numel() for p in model.parameters()])
 
-def measure_layer(layer, x):
-    global count_ops, count_params
-    delta_ops = 0
-    delta_params = 0
-    multi_add = 1
-    type_name = get_layer_info(layer)
-    x = x[0]
+class OpCounter(object):
+    def __init__(self):
+        self.count_ops = 0
+        self.count_params = 0
 
-    ### ops_conv
-    if type_name in ['Conv2d']:
-        out_h = int((x.size()[2] + 2 * layer.padding[0] - layer.kernel_size[0]) /
-                    layer.stride[0] + 1)
-        out_w = int((x.size()[3] + 2 * layer.padding[1] - layer.kernel_size[1]) /
-                    layer.stride[1] + 1)
-        delta_ops = layer.in_channels * layer.out_channels * layer.kernel_size[0] *  \
-                layer.kernel_size[1] * out_h * out_w / layer.groups * multi_add
-        delta_params = get_layer_param(layer)
+    def measure_layer(self, layer, x):
+        delta_ops = 0
+        delta_params = 0
+        multi_add = 1
+        type_name = get_layer_info(layer)
+        x = x[0]
 
-    ### ops_nonlinearity
-    elif type_name in ['ReLU']:
-        delta_ops = x.numel()
-        delta_params = get_layer_param(layer)
+        ### ops_conv
+        if type_name in ['Conv2d']:
+            out_h = int((x.size()[2] + 2 * layer.padding[0] - layer.kernel_size[0]) /
+                        layer.stride[0] + 1)
+            out_w = int((x.size()[3] + 2 * layer.padding[1] - layer.kernel_size[1]) /
+                        layer.stride[1] + 1)
+            delta_ops = layer.in_channels * layer.out_channels * layer.kernel_size[0] *  \
+                    layer.kernel_size[1] * out_h * out_w / layer.groups * multi_add
+            delta_params = get_layer_param(layer)
 
-    ### ops_pooling
-    elif type_name in ['AvgPool2d','MaxPool2d']:
-        in_w = x.size()[2]
-        kernel_ops = layer.kernel_size * layer.kernel_size
-        out_w = int((in_w + 2 * layer.padding - layer.kernel_size) / layer.stride + 1)
-        out_h = int((in_w + 2 * layer.padding - layer.kernel_size) / layer.stride + 1)
-        delta_ops = x.size()[0] * x.size()[1] * out_w * out_h * kernel_ops
-        delta_params = get_layer_param(layer)
+        ### ops_nonlinearity
+        elif type_name in ['ReLU']:
+            delta_ops = x.numel()
+            delta_params = get_layer_param(layer)
 
-    ### ops_linear
-    elif type_name in ['Linear']:
-        weight_ops = layer.weight.numel() * multi_add
-        bias_ops = layer.bias.numel()
-        delta_ops = x.size()[0] * (weight_ops + bias_ops)
-        delta_params = get_layer_param(layer)
+        ### ops_pooling
+        elif type_name in ['AvgPool2d','MaxPool2d']:
+            in_w = x.size()[2]
+            kernel_ops = layer.kernel_size * layer.kernel_size
+            out_w = int((in_w + 2 * layer.padding - layer.kernel_size) / layer.stride + 1)
+            out_h = int((in_w + 2 * layer.padding - layer.kernel_size) / layer.stride + 1)
+            delta_ops = x.size()[0] * x.size()[1] * out_w * out_h * kernel_ops
+            delta_params = get_layer_param(layer)
 
-    ### ops_nothing
-    elif type_name in ['BatchNorm2d', 'Dropout2d', 'DropChannel', 'Dropout']:
-        delta_params = get_layer_param(layer)
+        ### ops_linear
+        elif type_name in ['Linear']:
+            weight_ops = layer.weight.numel() * multi_add
+            bias_ops = layer.bias.numel()
+            delta_ops = x.size()[0] * (weight_ops + bias_ops)
+            delta_params = get_layer_param(layer)
 
-    ### sequential takes no extra time
-    elif type_name in ['Sequential']:
-        pass
-    
-    ### riffle shuffle
-    elif type_name in ['Riffle']:
-        # technically no floating point operations
-        pass
+        ### ops_nothing
+        elif type_name in ['BatchNorm2d', 'Dropout2d', 'DropChannel', 'Dropout']:
+            delta_params = get_layer_param(layer)
 
-    ### channel expansion
-    elif type_name in ['ChannelExpand']:
-        # assume concatentation doesn't take extra FLOPs
-        pass
+        ### sequential takes no extra time
+        elif type_name in ['Sequential']:
+            pass
+        
+        ### riffle shuffle
+        elif type_name in ['Riffle']:
+            # technically no floating point operations
+            pass
 
-    ### channel contraction
-    elif type_name in ['ChannelCollapse']:
-        # do as many additions as we have channels
-        delta_ops += x.size(1)
+        ### channel expansion
+        elif type_name in ['ChannelExpand']:
+            # assume concatentation doesn't take extra FLOPs
+            pass
 
-    ### ACDC Convolution
-    elif type_name in ['FastStackedConvACDC']:
-        out_h = int((x.size()[2] + 2 * layer.padding[0] - layer.kernel_size[0]) /
-                    layer.stride[0] + 1)
-        out_w = int((x.size()[3] + 2 * layer.padding[1] - layer.kernel_size[1]) /
-                    layer.stride[1] + 1)       
-        assert layer.groups == 1
-        # pretend we're actually passing through the ACDC layers within
-        N = max(layer.out_channels, layer.in_channels) # size of ACDC layers
-        acdc_ops = 0
-        for l in layer.layers:
-            acdc_ops += 4*N + 5*N*math.log(N,2)
+        ### channel contraction
+        elif type_name in ['ChannelCollapse']:
+            # do as many additions as we have channels
+            delta_ops += x.size(1)
+
+        ### ACDC Convolution
+        elif type_name in ['FastStackedConvACDC']:
+            out_h = int((x.size()[2] + 2 * layer.padding[0] - layer.kernel_size[0]) /
+                        layer.stride[0] + 1)
+            out_w = int((x.size()[3] + 2 * layer.padding[1] - layer.kernel_size[1]) /
+                        layer.stride[1] + 1)       
+            assert layer.groups == 1
+            # pretend we're actually passing through the ACDC layers within
+            N = max(layer.out_channels, layer.in_channels) # size of ACDC layers
+            acdc_ops = 0
+            for l in layer.layers:
+                acdc_ops += 4*N + 5*N*math.log(N,2)
+                delta_params += 2*N
+            conv_ops = N * N * layer.kernel_size[0] *  \
+                       layer.kernel_size[1]
+            ops = min(acdc_ops, conv_ops)
+            delta_ops += ops*out_h*out_w
+
+
+        ### Grouped ACDC Convolution
+        elif type_name in ['GroupedConvACDC']:
+            assert False
+            out_h = int((x.size()[2] + 2 * layer.padding[0] - layer.kernel_size[0]) /
+                        layer.stride[0] + 1)
+            out_w = int((x.size()[3] + 2 * layer.padding[1] - layer.kernel_size[1]) /
+                        layer.stride[1] + 1)       
+            # pretend we're actually passing through the ACDC layers within
+            N = layer.kernel_size[0]
+            acdc_ops = layer.groups*(4*N + 5*N*math.log(N,2))
+            conv_ops = layer.in_channels * layer.out_channels * layer.kernel_size[0] *  \
+                       layer.kernel_size[1]  / layer.groups
+            ops = min(acdc_ops, conv_ops)
+            delta_ops += ops*out_h*out_w
             delta_params += 2*N
-        conv_ops = N * N * layer.kernel_size[0] *  \
-                   layer.kernel_size[1]
-        ops = min(acdc_ops, conv_ops)
-        delta_ops += ops*out_h*out_w
+
+        ### HashedNet Convolution
+        elif type_name in ['HashedConv2d']:
+            # same number of ops as convolution
+            out_h = int((x.size()[2] + 2 * layer.padding[0] - layer.kernel_size[0]) /
+                        layer.stride[0] + 1)
+            out_w = int((x.size()[3] + 2 * layer.padding[1] - layer.kernel_size[1]) /
+                        layer.stride[1] + 1)
+            delta_ops = layer.in_channels * layer.out_channels * layer.kernel_size[0] *  \
+                    layer.kernel_size[1] * out_h * out_w / layer.groups * multi_add
+            delta_params = get_layer_param(layer)
+
+        elif type_name in ['TensorTrain']:
+            # number of cores
+            n_cores = 0
+            while hasattr(layer, 'weight_core_%i'%n_cores):
+                core = getattr(layer, 'weight_core_%i'%n_cores)
+                n_cores += 1
+                import ipdb
+                ipdb.set_trace()
+            # number of Us
+            n_us = 0
+            while hasattr(layer, 'weight_u_%i'%n_us):
+                u = getattr(layer, 'weight_u_%i'%n_us)
+                n_us += 1
+            if type_name == 'TensorTrain':
+                # From "Tensorizing Neural Networks"
+                #   For the case of the TT-matrix-by-explicit-vector product c = Wb,
+                #   the computational complexity is O(d r^2 m max(M,N)), where d is
+                #   the number of cores of the TT-matrix W, m is the max_k m_k, r is
+                #   the maximal rank and N = \prod_k=1^d n_k is the length of the
+                #   vector b.
+                #
+                # Seems like, naively, the mult-adds can be estimated as those used
+                # by an independent matrix multiply for each core, with the result
+                # then summed. Reading this from Section 4.
+                d = n_cores
+                r = layer.rank
+                N = x.size(1)
 
 
-    ### Grouped ACDC Convolution
-    elif type_name in ['GroupedConvACDC']:
-        assert False
-        out_h = int((x.size()[2] + 2 * layer.padding[0] - layer.kernel_size[0]) /
-                    layer.stride[0] + 1)
-        out_w = int((x.size()[3] + 2 * layer.padding[1] - layer.kernel_size[1]) /
-                    layer.stride[1] + 1)       
-        # pretend we're actually passing through the ACDC layers within
-        N = layer.kernel_size[0]
-        acdc_ops = layer.groups*(4*N + 5*N*math.log(N,2))
-        conv_ops = layer.in_channels * layer.out_channels * layer.kernel_size[0] *  \
-                   layer.kernel_size[1]  / layer.groups
-        ops = min(acdc_ops, conv_ops)
-        delta_ops += ops*out_h*out_w
-        delta_params += 2*N
+            # plus the ops of the grouped convolution? or does that get caught anyway?
+            #assert False
+            # this would double count the grouped
+            #delta_params = get_layer_param(layer) 
 
-    ### HashedNet Convolution
-    elif type_name in ['HashedConv2d']:
-        # same number of ops as convolution
-        out_h = int((x.size()[2] + 2 * layer.padding[0] - layer.kernel_size[0]) /
-                    layer.stride[0] + 1)
-        out_w = int((x.size()[3] + 2 * layer.padding[1] - layer.kernel_size[1]) /
-                    layer.stride[1] + 1)
-        delta_ops = layer.in_channels * layer.out_channels * layer.kernel_size[0] *  \
-                layer.kernel_size[1] * out_h * out_w / layer.groups * multi_add
-        delta_params = get_layer_param(layer)
+        ### unknown layer type
+        else:
+            if type_name not in ignored_modules:
+                ignored_modules.append(type_name)
+            #raise TypeError('unknown layer type: %s' % type_name)
 
-    #elif type_name in ['TensorTrain']:
-    elif False:
-        # number of cores
-        n_cores = 0
-        while hasattr(layer, 'weight_core_%i'%n_cores):
-            core = getattr(layer, 'weight_core_%i'%n_cores)
-            n_cores += 1
-            import ipdb
-            ipdb.set_trace()
-        # number of Us
-        n_us = 0
-        while hasattr(layer, 'weight_u_%i'%n_us):
-            u = getattr(layer, 'weight_u_%i'%n_us)
-            n_us += 1
-        if type_name == 'TensorTrain':
-            # From "Tensorizing Neural Networks"
-            #   For the case of the TT-matrix-by-explicit-vector product c = Wb,
-            #   the computational complexity is O(d r^2 m max(M,N)), where d is
-            #   the number of cores of the TT-matrix W, m is the max_k m_k, r is
-            #   the maximal rank and N = \prod_k=1^d n_k is the length of the
-            #   vector b.
-            #
-            # Seems like, naively, the mult-adds can be estimated as those used
-            # by an independent matrix multiply for each core, with the result
-            # then summed. Reading this from Section 4.
-            d = n_cores
-            r = layer.rank
-            N = x.size(1)
-
-
-        # plus the ops of the grouped convolution? or does that get caught anyway?
-        #assert False
-        # this would double count the grouped
-        #delta_params = get_layer_param(layer) 
-
-    ### unknown layer type
-    else:
-        if type_name not in ignored_modules:
-            ignored_modules.append(type_name)
-        #raise TypeError('unknown layer type: %s' % type_name)
-
-    count_ops += delta_ops
-    count_params += delta_params
-    return None
+        self.count_ops += delta_ops
+        self.count_params += delta_params
+        return None
 
 def measure_model(model, H, W):
-    global count_ops, count_params
-    count_ops = 0
-    count_params = 0
+    opcount = OpCounter()
     data = Variable(torch.zeros(1, 3, H, W))
 
     def should_measure(x):
@@ -201,7 +201,7 @@ def measure_model(model, H, W):
             #if should_measure(child):
             def new_forward(m):
                 def lambda_forward(*x):
-                    measure_layer(m, x)
+                    opcount.measure_layer(m, x)
                     try:
                         return m.old_forward(*x)
                     except NotImplementedError as e:
@@ -225,8 +225,7 @@ def measure_model(model, H, W):
     model.forward(data)
     #restore_forward(model)
 
-    return count_ops, count_params
-
+    return opcount.count_ops, opcount.count_params
 
 
 if __name__ == '__main__':
