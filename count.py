@@ -51,6 +51,9 @@ class OpCounter(object):
                         layer.stride[0] + 1)
             out_w = int((x.size()[3] + 2 * layer.padding[1] - layer.kernel_size[1]) /
                         layer.stride[1] + 1)
+            out = layer.old_forward(x)
+            assert out.size(2) == out_h
+            assert out.size(3) == out_w
             delta_ops = layer.in_channels * layer.out_channels * layer.kernel_size[0] *  \
                     layer.kernel_size[1] * out_h * out_w / layer.groups * multi_add
             delta_params = get_layer_param(layer)
@@ -145,14 +148,37 @@ class OpCounter(object):
                     layer.kernel_size[1] * out_h * out_w / layer.groups * multi_add
             delta_params = get_layer_param(layer)
 
-        elif type_name in ['TensorTrain']:
+        elif type_name in ['DepthwiseSep']:
+            # wrapper for Conv2Ds, that are counted above
+            pass
+
+        elif type_name in ['TensorTrain', 'Tucker']:
+            out = layer.grouped.old_forward(x)
+            out_h = out.size(2)
+            out_w = out.size(3)
+            delta_ops = layer.in_channels * layer.out_channels * layer.kernel_size[0] *  \
+                    layer.kernel_size[1] * out_h * out_w / layer.groups * multi_add
+            delta_params = sum([p.numel() for k,p in layer._parameters.items() if p is not None])
+
+        #elif type_name in ['TensorTrain']:
+        elif False:
             # number of cores
-            n_cores = 0
-            while hasattr(layer, 'weight_core_%i'%n_cores):
-                core = getattr(layer, 'weight_core_%i'%n_cores)
-                n_cores += 1
-                import ipdb
-                ipdb.set_trace()
+            d = 0
+            while hasattr(layer, 'weight_core_%i'%d):
+                core = getattr(layer, 'weight_core_%i'%d)
+                d += 1
+            d += 1
+            # max dimension
+            m = max(layer.tn_weight.torch().size())
+            # maximal rank
+            r = max(layer.tn_weight.ranks_tt)
+            # max dim of kernel matrix
+            maxMN = max(layer.in_channels, layer.out_channels)
+            # complexity
+            c = d*r*r*m*maxMN + d*r*r*r*m
+            print(layer.in_channels*layer.out_channels, c)
+            import ipdb
+            ipdb.set_trace()
             # number of Us
             n_us = 0
             while hasattr(layer, 'weight_u_%i'%n_us):
@@ -193,12 +219,8 @@ def measure_model(model, H, W):
     opcount = OpCounter()
     data = Variable(torch.zeros(1, 3, H, W))
 
-    def should_measure(x):
-        return is_leaf(x) or is_pruned(x) or is_acdc(x)
-
     def modify_forward(model):
         for child in model.modules():
-            #if should_measure(child):
             def new_forward(m):
                 def lambda_forward(*x):
                     opcount.measure_layer(m, x)

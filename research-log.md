@@ -1861,3 +1861,73 @@ with.
 Checked the darts and imagenet scripts for generating experiments and they
 match what was planned in the notebooks where we came up with these
 settings.
+
+1st February 2019
+=================
+
+Refactoring Mult-Add Counting
+-----------------------------
+
+Need to be able to call mult-add counting in a notebook, but the `count.py`
+script is incredibly brittle. For example, because it uses global
+variables. I need to be able to call it from other scripts to plot the
+relationship between mult-add use and other variables.
+
+Before refactoring, this is the result we get for DARTS on cifar-10 (which
+is the same as the parameter count reported in the original paper for
+cifar-10):
+
+```
+Mult-Adds: 5.38201E+08
+Params: 3.34934E+06
+```
+
+And after:
+
+```
+Mult-Adds: 5.38201E+08
+Params: 3.34934E+06
+```
+
+Tensor-Train Approximate Mult-Adds
+----------------------------------
+
+Amos advised that we have an estimate for Mult-Adds, even if it is flawed.
+So, we're going to use the computational complexity quoted in the
+"Tensorizing Neural Networks" paper and see what we end up with. This will
+be illustrated with emphasized caveats in the paper.
+
+5th February 2019
+=================
+
+Updated WRN-28-10 Results
+-------------------------
+
+Plotted the results of the WRN-28-10 experiments. Plots can be found in the
+same place,
+[here](https://gist.github.com/gngdb/f622422a2633daf496b7acca3be28934).
+Still pending a Mult-Add comparison graph.
+
+Found the adjustText library, and it works better than my own effort at
+solving this problem.
+
+The results are now a little closer to what I was expecting to see, except
+that there is no real winner. All of them perform quite similarly. It's a
+shame that ACDC falls apart at larger sizes. Interesting to note that
+*without* AT it actually works better. With 48 or 64 layers of ACDC in each
+layer and no AT, it is able to achieve less than 10% error, instead of
+compeletely failing to optimise.
+
+It's also a shame that the smallest ShuffleNet experiment is larger than
+the others.
+
+It is maybe also worth noting that the largest model here is still more
+than 10 times smaller than the teacher model. So all of them achieve better
+than 90% model compression.
+
+Counting TensorTrain and Tucker
+-------------------------------
+
+Have set this to be simply equal to a depthwise separable layer.
+Unfortunate that we can't have a good estimate of how much more efficient a
+TensorTrain network could be.
