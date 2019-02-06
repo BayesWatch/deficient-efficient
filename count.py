@@ -160,6 +160,14 @@ class OpCounter(object):
                     layer.kernel_size[1] * out_h * out_w / layer.groups * multi_add
             delta_params = sum([p.numel() for k,p in layer._parameters.items() if p is not None])
 
+        elif type_name in ['LinearShuffleNet', 'ShuffleBlock']:
+            # all operations implemented by internal conv2d, so this can be ignored
+            pass
+
+        elif type_name in ['GenericLowRank']:
+            # all operations implemented by internal conv2d
+            pass
+
         #elif type_name in ['TensorTrain']:
         elif False:
             # number of cores
