@@ -35,13 +35,9 @@ class OpCounter(object):
 
         ### ops_conv
         if type_name in ['Conv2d']:
-            out_h = int((x.size()[2] + 2 * layer.padding[0] - layer.kernel_size[0]) /
-                        layer.stride[0] + 1)
-            out_w = int((x.size()[3] + 2 * layer.padding[1] - layer.kernel_size[1]) /
-                        layer.stride[1] + 1)
             out = layer.old_forward(x)
-            assert out.size(2) == out_h
-            assert out.size(3) == out_w
+            out_h = out.size(2)
+            out_w = out.size(3)
             delta_ops = layer.in_channels * layer.out_channels * layer.kernel_size[0] *  \
                     layer.kernel_size[1] * out_h * out_w / layer.groups * multi_add
             delta_params = get_layer_param(layer)
@@ -138,9 +134,14 @@ class OpCounter(object):
             pass
 
         elif type_name in ['TensorTrain', 'Tucker']:
-            out = layer.grouped.old_forward(x)
-            out_h = out.size(2)
-            out_w = out.size(3)
+            if hasattr(layer, 'grouped'):
+                out = layer.grouped.old_forward(x)
+                out_h = out.size(2)
+                out_w = out.size(3)
+            else:
+                out = layer.old_forward(x)
+                out_h = out.size(2)
+                out_w = out.size(3)
             delta_ops = layer.in_channels * layer.out_channels * layer.kernel_size[0] *  \
                     layer.kernel_size[1] * out_h * out_w / layer.groups * multi_add
             delta_params = sum([p.numel() for k,p in layer._parameters.items() if p is not None])
