@@ -1969,3 +1969,14 @@ It's interesting that in this case, we do see a big difference between
 ShuffleNet and the Generic linear bottleneck, which seemed to be fairly
 matched in the previous experiments. Particularly for Mult-Adds, the linear
 ShuffleNet works well.
+
+ImageNet Results Illustrated
+----------------------------
+
+Results on ImageNet are actually a little worse than I was expecting. It
+looks like in terms of parameter count, at least we don't outperform NASNet
+and related methods. By that I mean that we haven't extended the Pareto
+boundary in that region. And, we see broadly the same results for the
+Mult-Adds. Which is a little disappointing, but at least the results aren't
+terrible. Notebook is
+[here](https://gist.github.com/gngdb/1edda287ec277cbf73cd80dff01dedb8).
