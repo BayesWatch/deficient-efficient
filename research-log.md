@@ -1954,4 +1954,5 @@ convolutional layer and didn't compare it to just substituting a
 depthwise-separable layer. Then, it's obvious there's not much benefit to
 using an ACDC substitution to save mult-adds.
 
-
+Full details in the newest iteration of the Graph of results for WRN-28-10,
+[here](https://gist.github.com/gngdb/f622422a2633daf496b7acca3be28934).
