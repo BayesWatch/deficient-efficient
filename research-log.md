@@ -1947,3 +1947,11 @@ random matrix until we reach around 600 channels. In WRN-28-10, this is
 only for the final few layers.
 
 ![](images/acdc_mult_adds.png)
+
+*Why didn't we notice this while writing the Structured Efficient
+Convolutional Layers paper?* Well, we were comparing it to the full
+convolutional layer and didn't compare it to just substituting a
+depthwise-separable layer. Then, it's obvious there's not much benefit to
+using an ACDC substitution to save mult-adds.
+
+
