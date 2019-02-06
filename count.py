@@ -9,18 +9,6 @@ from models.darts import DARTS
 
 from funcs import what_conv_block
 
-parser = argparse.ArgumentParser(description='WRN parameter/flop usage')
-parser.add_argument('dataset', type=str, choices=['cifar10', 'cifar100', 'imagenet'], help='Choose between Cifar10/100/imagenet.')
-
-#network stuff
-parser.add_argument('--network', default='WideResNet', type=str, help='network to use')
-parser.add_argument('--wrn_depth', default=40, type=int, help='depth for WRN')
-parser.add_argument('--wrn_width', default=2, type=float, help='width for WRN')
-parser.add_argument('--module', default=None, type=str, help='path to file containing custom Conv and maybe Block module definitions')
-parser.add_argument('--blocktype', default='Basic',type=str, help='blocktype used if specify a --conv')
-parser.add_argument('--conv', default=None, type=str, help='Conv type')
-
-args = parser.parse_args()
 
 ignored_modules = []
 
@@ -115,10 +103,7 @@ class OpCounter(object):
             for l in layer.layers:
                 acdc_ops += 4*N + 5*N*math.log(N,2)
                 delta_params += 2*N
-            conv_ops = N * N * layer.kernel_size[0] *  \
-                       layer.kernel_size[1]
-            ops = min(acdc_ops, conv_ops)
-            delta_ops += ops*out_h*out_w
+            delta_ops += acdc_ops*out_h*out_w
 
 
         ### Grouped ACDC Convolution
@@ -259,6 +244,19 @@ def measure_model(model, H, W):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='WRN parameter/flop usage')
+    parser.add_argument('dataset', type=str, choices=['cifar10', 'cifar100', 'imagenet'], help='Choose between Cifar10/100/imagenet.')
+
+    #network stuff
+    parser.add_argument('--network', default='WideResNet', type=str, help='network to use')
+    parser.add_argument('--wrn_depth', default=40, type=int, help='depth for WRN')
+    parser.add_argument('--wrn_width', default=2, type=float, help='width for WRN')
+    parser.add_argument('--module', default=None, type=str, help='path to file containing custom Conv and maybe Block module definitions')
+    parser.add_argument('--blocktype', default='Basic',type=str, help='blocktype used if specify a --conv')
+    parser.add_argument('--conv', default=None, type=str, help='Conv type')
+
+    args = parser.parse_args()
+
     # Stuff happens from here:
     Conv, Block = what_conv_block(args.conv, args.blocktype, args.module)
 
@@ -289,11 +287,12 @@ if __name__ == '__main__':
     model = build_network(Conv, Block)
 
     # count how many parameters are in it
-    flops, params = measure_model(model, 32, 32)
+    flops, params = measure_model(model, h, w)
     print("Mult-Adds: %.5E"%flops)
     print("Params: %.5E"%params)
     sanity = sum([p.numel() for p in model.parameters()])
     assert sanity == params, "Sanity check, parameters: %.5E =/= %.5E \n %s"%(sanity, params, str(ignored_modules))
+    print(ignored_modules)
     #import time
     #for m in model.modules():
     #    time.sleep(0.2)

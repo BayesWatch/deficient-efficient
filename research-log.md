@@ -1931,3 +1931,19 @@ Counting TensorTrain and Tucker
 Have set this to be simply equal to a depthwise separable layer.
 Unfortunate that we can't have a good estimate of how much more efficient a
 TensorTrain network could be.
+
+6th February 2019
+=================
+
+ACDC Mult-Add Flaw
+------------------
+
+Discovered a large flaw in the ACDC work this work is based on. ACDC layers
+*don't* give much reduction in the number of mult-add operations used by a
+network. Due to a combination of low numbers of channels, and requiring
+square matrices. We typically use 12 ACDC layers, and in this graph we can
+see that there's no benefit to using 12 ACDC layers in place of a dense
+random matrix until we reach around 600 channels. In WRN-28-10, this is
+only for the final few layers.
+
+![](images/acdc_mult_adds.png)

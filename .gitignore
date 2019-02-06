@@ -14,3 +14,4 @@ logs
 runs
 .ipynbs
 *.ipynb
+*.json
