@@ -1956,3 +1956,16 @@ using an ACDC substitution to save mult-adds.
 
 Full details in the newest iteration of the Graph of results for WRN-28-10,
 [here](https://gist.github.com/gngdb/f622422a2633daf496b7acca3be28934).
+
+DARTS Results Illustrated
+-------------------------
+
+Using most of the same plotting code, we have the plots of performance
+against mult-adds and parameters count for the DARTS experiments. The
+notebook is
+[here](https://gist.github.com/gngdb/8ae5e7526d4450e79a85856479ad22e3).
+
+It's interesting that in this case, we do see a big difference between
+ShuffleNet and the Generic linear bottleneck, which seemed to be fairly
+matched in the previous experiments. Particularly for Mult-Adds, the linear
+ShuffleNet works well.
