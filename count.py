@@ -50,9 +50,16 @@ class OpCounter(object):
         ### ops_pooling
         elif type_name in ['AvgPool2d','MaxPool2d']:
             in_w = x.size()[2]
-            kernel_ops = layer.kernel_size * layer.kernel_size
-            out_w = int((in_w + 2 * layer.padding - layer.kernel_size) / layer.stride + 1)
-            out_h = int((in_w + 2 * layer.padding - layer.kernel_size) / layer.stride + 1)
+            if type(layer.kernel_size) is tuple:
+                k = layer.kernel_size[0]
+            else:
+                k = layer.kernel_size
+            kernel_ops = k * k
+            out_w = int((in_w + 2 * layer.padding - k) / layer.stride + 1)
+            out_h = int((in_w + 2 * layer.padding - k) / layer.stride + 1)
+            out = layer.old_forward(x)
+            assert out_h == out.size(2)
+            assert out_w == out.size(3)
             delta_ops = x.size()[0] * x.size()[1] * out_w * out_h * kernel_ops
             delta_params = get_layer_param(layer)
 
