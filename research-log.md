@@ -2007,3 +2007,11 @@ converge. For the other four methods it had a consistent positive effect.
 It may be worth investigating the learning curves for the methods that
 failed to converge versus the HashedNet, with and without the CRS weight
 decay, to see if we can explain why this happened.
+
+10th February 2019
+==================
+
+Made a small notebook illustrating how the shuffle in ShuffleNet composed a
+dense matrix from block diagonal matrices in [this
+notebook](https://gist.github.com/gngdb/4c6374821a0bbf254e259ac49f0acde2).
+
