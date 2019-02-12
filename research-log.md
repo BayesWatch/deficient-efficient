@@ -2015,3 +2015,16 @@ Made a small notebook illustrating how the shuffle in ShuffleNet composed a
 dense matrix from block diagonal matrices in [this
 notebook](https://gist.github.com/gngdb/4c6374821a0bbf254e259ac49f0acde2).
 
+12th February 2019
+==================
+
+Showed Amos the results today and he mentioned it would be interesting to
+see what results a Generic layer might get if the weights in the second of
+the two pointwise convolutions were tied to be the transpose of the first.
+Would immediately halve the parameter cost of a network of the same size,
+and be a cleaner way to implement a controlled rank.
+
+If I have some spare time today after writing the experiments section in
+this chapter, I might implement such a layer, just to see what might
+happen.
+
