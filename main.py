@@ -62,6 +62,7 @@ parser.add_argument('--print_freq', default=10, type=int, help="print stats freq
 parser.add_argument('--batch_size', default=128, type=int,
                     help='minibatch size')
 parser.add_argument('--weight_decay', default=0.0005, type=float)
+parser.add_argument('--nocrswd', action='store_true', help='Disable compression ratio scaled weight decay.')
 parser.add_argument('--clip_grad', default=None, type=float)
 
 args = parser.parse_args()
@@ -548,7 +549,8 @@ if __name__ == '__main__':
         if parallelise is not None:
             teach = parallelise(teach)
 
-        optimizer = optim.SGD(teach.grouped_parameters(args.weight_decay),
+        parameters = teach.grouped_parameters(args.weight_decay) if not args.nocrswd else teach.parameters()
+        optimizer = optim.SGD(parameters,
                 lr=args.lr, momentum=args.momentum,
                 weight_decay=args.weight_decay)
         scheduler = get_scheduler(optimizer, epoch_step, args)
@@ -589,7 +591,8 @@ if __name__ == '__main__':
         if parallelise is not None:
             student = parallelise(student)
 
-        optimizer = optim.SGD(student.grouped_parameters(args.weight_decay),
+        parameters = student.grouped_parameters(args.weight_decay) if not args.nocrswd else student.parameters()
+        optimizer = optim.SGD(parameters,
                 lr=args.lr, momentum=args.momentum,
                 weight_decay=args.weight_decay)
         scheduler = get_scheduler(optimizer, epoch_step, args)
