@@ -1980,3 +1980,51 @@ boundary in that region. And, we see broadly the same results for the
 Mult-Adds. Which is a little disappointing, but at least the results aren't
 terrible. Notebook is
 [here](https://gist.github.com/gngdb/1edda287ec277cbf73cd80dff01dedb8).
+
+9th February 2019
+=================
+
+Unfinished Ablation Results
+---------------------------
+
+Pushed an unfinished version of the ablation of compression ratio scaled
+weight decay, from the experiments started yesterday. Many of the ACDC
+experiments were still running, but I wanted to see what what results we
+were getting at this point. These results are
+[here](https://gist.github.com/gngdb/18d860344a890ac32bd97d5b8e4e72a9),
+although they will be updated to the full results once all of the ACDC
+experiments finish.
+
+One very important thing to learn from these experiments: CSR weight decay
+*does not* help when training separable HashedNet substitute blocks.
+Without it, the network performs consistently better. Not by much, between
+0.4% and 0.1%, but for all the settings we tested it's true.
+
+At the same time, it was absolutely critical for the Linear ShuffleNet
+block results. Without it, many of the results completely failed to
+converge. For the other four methods it had a consistent positive effect.
+
+It may be worth investigating the learning curves for the methods that
+failed to converge versus the HashedNet, with and without the CRS weight
+decay, to see if we can explain why this happened.
+
+10th February 2019
+==================
+
+Made a small notebook illustrating how the shuffle in ShuffleNet composed a
+dense matrix from block diagonal matrices in [this
+notebook](https://gist.github.com/gngdb/4c6374821a0bbf254e259ac49f0acde2).
+
+12th February 2019
+==================
+
+Showed Amos the results today and he mentioned it would be interesting to
+see what results a Generic layer might get if the weights in the second of
+the two pointwise convolutions were tied to be the transpose of the first.
+Would immediately halve the parameter cost of a network of the same size,
+and be a cleaner way to implement a controlled rank.
+
+If I have some spare time today after writing the experiments section in
+this chapter, I might implement such a layer, just to see what might
+happen.
+

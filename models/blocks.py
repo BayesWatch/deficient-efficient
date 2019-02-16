@@ -81,6 +81,40 @@ class GenericLowRank(nn.Module):
         return self.lowrank_expand(x)
 
 
+class LowRank(nn.Module):
+    """A generic low rank layer implemented with a linear bottleneck, using two
+    Conv2ds in sequence. Preceded by a depthwise grouped convolution in keeping
+    with the other low-rank layers here."""
+    def __init__(self, in_channels, out_channels, kernel_size, rank, stride=1,
+        padding=0, dilation=1, groups=1, bias=False):
+        assert groups == 1
+        assert out_channels%in_channels == 0
+        self.upsample = out_channels//in_channels
+        super(LowRank, self).__init__()
+        if kernel_size > 1:
+            self.grouped = nn.Conv2d(in_channels, in_channels, kernel_size,
+                    stride=stride, padding=padding, dilation=dilation,
+                    groups=in_channels, bias=False)
+            self.lowrank = nn.Conv2d(self.upsample*in_channels, rank, 1,
+                    bias=bias)
+        else:
+            self.grouped = None
+            self.lowrank = nn.Conv2d(self.upsample*in_channels, rank, 1,
+                    stride=stride, dilation=dilation, bias=bias)
+
+    def forward(self, x):
+        if self.grouped is not None:
+            x = self.grouped(x)
+        if self.upsample > 1:
+            x = x.repeat(1,self.upsample,1,1)
+        x = F.conv2d(x, self.lowrank.weight, None, self.lowrank.stride,
+                self.lowrank.padding, self.lowrank.dilation,
+                self.lowrank.groups)
+        return F.conv2d(x, self.lowrank.weight.permute(1,0,2,3),
+                self.lowrank.bias)
+
+
+
 # from: https://github.com/kuangliu/pytorch-cifar/blob/master/models/shufflenet.py#L10-L19
 class ShuffleBlock(nn.Module):
     def __init__(self, groups):
@@ -209,6 +243,15 @@ def conv_function(convtype):
                 full_rank = max(in_channels,out_channels)
                 rank = int(rank_scale*full_rank)
                 return GenericLowRank(in_channels, out_channels, kernel_size,
+                        rank, stride=stride, padding=padding,
+                        dilation=dilation, groups=groups, bias=bias)
+        elif convtype == 'LR':
+            rank_scale = float(hyperparam)
+            def conv(in_channels, out_channels, kernel_size, stride=1,
+                    padding=0, dilation=1, groups=1, bias=False):
+                full_rank = max(in_channels,out_channels)
+                rank = int(rank_scale*full_rank)
+                return LowRank(in_channels, out_channels, kernel_size,
                         rank, stride=stride, padding=padding,
                         dilation=dilation, groups=groups, bias=bias)
         elif convtype == 'TensorTrain':
@@ -346,23 +389,29 @@ class NetworkBlock(nn.Module):
         return self.layer(x)
 
 if __name__ == '__main__':
-    X = torch.randn(5,3,32,32)
+    X = torch.randn(5,16,32,32)
     # sanity of generic low-rank layer
-    generic = GenericLowRank(3, 32, 3, 1)
-    for p in generic.parameters():
-        print(p.size())
+    generic = GenericLowRank(16, 32, 3, 2)
+    for n,p in generic.named_parameters():
+        print(n, p.size(), p.numel())
     out = generic(X)
     print(out.size())
+    low = LowRank(16, 32, 3, 2)
+    for n, p in low.named_parameters():
+        print(n, p.size(), p.numel())
+    out = low(X)
+    print(out.size())
+    assert False
     # check we don't initialise a grouped conv when not required
-    layers_to_test = [GenericLowRank(3,32,1,1), HalfHashedSeparable(3,32,1,10),
-            TensorTrain(3,32,1,0.5), Tucker(3,32,1,0.5), CP(3,32,1,0.5),
-            ACDC(3,32,1)]
+    layers_to_test = [LowRank(3,32,1,1), GenericLowRank(3,32,1,1),
+            HalfHashedSeparable(3,32,1,10), TensorTrain(3,32,1,0.5,3),
+            Tucker(3,32,1,0.5,3), CP(3,32,1,0.5,3), ACDC(3,32,1)]
     for layer in layers_to_test:
         assert getattr(layer, 'grouped', None) is None
     # and we *do* when it is required
-    layers_to_test = [GenericLowRank(3,32,3,1), HalfHashedSeparable(3,32,3,100),
-            TensorTrain(3,32,3,0.5), Tucker(3,32,3,0.5), CP(3,32,3,0.5),
-            ACDC(3,32,3)]
+    layers_to_test = [LowRank(3,32,3,1), GenericLowRank(3,32,3,1),
+            HalfHashedSeparable(3,32,3,100), TensorTrain(3,32,3,0.5,3),
+            Tucker(3,32,3,0.5,3), CP(3,32,3,0.5,3), ACDC(3,32,3)]
     for layer in layers_to_test:
         assert getattr(layer, 'grouped', None) is not None, layer
     # sanity of LinearShuffleNet

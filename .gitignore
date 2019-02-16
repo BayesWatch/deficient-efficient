@@ -17,3 +17,5 @@ runs
 *.json
 collate
 cooperate_*
+*.pdf
+*.png
