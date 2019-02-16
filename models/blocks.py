@@ -245,6 +245,15 @@ def conv_function(convtype):
                 return GenericLowRank(in_channels, out_channels, kernel_size,
                         rank, stride=stride, padding=padding,
                         dilation=dilation, groups=groups, bias=bias)
+        elif convtype == 'LR':
+            rank_scale = float(hyperparam)
+            def conv(in_channels, out_channels, kernel_size, stride=1,
+                    padding=0, dilation=1, groups=1, bias=False):
+                full_rank = max(in_channels,out_channels)
+                rank = int(rank_scale*full_rank)
+                return LowRank(in_channels, out_channels, kernel_size,
+                        rank, stride=stride, padding=padding,
+                        dilation=dilation, groups=groups, bias=bias)
         elif convtype == 'TensorTrain':
             rank_scale = float(hyperparam)
             def conv(in_channels, out_channels, kernel_size, stride=1,
