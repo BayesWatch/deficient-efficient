@@ -4,7 +4,7 @@ import math
 import torch
 import argparse
 from torch.autograd import Variable
-from models.wide_resnet import WideResNet
+from models.wide_resnet import WideResNet, WRN_50_2
 from models.darts import DARTS
 
 from funcs import what_conv_block
