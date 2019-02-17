@@ -2028,3 +2028,20 @@ If I have some spare time today after writing the experiments section in
 this chapter, I might implement such a layer, just to see what might
 happen.
 
+16th February 2019
+==================
+
+Low-rank transpose bottleneck
+-----------------------------
+
+Implemented Amos' request today, and started experiments using it. Had to
+decide how to deal with cases where the input dim is not equal to the
+output; it has to be square. The solution I decided to use is to just
+repeat the input whenever the output is larger. In WRN-28-10 this is fine
+because we only have to deal with cases when the output dimensionality is
+some multiple of the input.
+
+Started experiments of matching sizes on WRN-28-10. Notebook comparing
+parameter counts is
+[here](https://gist.github.com/gngdb/7788cf98a1a7cdd4f5daebc771f53bd3).
+
