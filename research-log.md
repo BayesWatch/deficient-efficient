@@ -2045,3 +2045,13 @@ Started experiments of matching sizes on WRN-28-10. Notebook comparing
 parameter counts is
 [here](https://gist.github.com/gngdb/7788cf98a1a7cdd4f5daebc771f53bd3).
 
+17th February 2019
+==================
+
+Wrote up the results of running yesterday's experiment. The weight
+transpose low-rank layer performs close to, but a little worse than the
+linear bottleneck. It also has a slightly worse relationship between model
+size and the number of Mult-Adds that are used, due to the requirement to
+be square. Results are in the WRN-28-10 [results
+notebook](https://gist.github.com/gngdb/f622422a2633daf496b7acca3be28934).
+
