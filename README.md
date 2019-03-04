@@ -3,7 +3,7 @@
 Substitute compressed linear transforms for deep learning. Substitute
 convolutions into an existing WideResNet or DARTS network and train as
 normal. Details of the research provided in the [research
-log](./research_log.md).
+log](./research-log.md).
 
 ## Acknowledgements
 
