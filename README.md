@@ -7,8 +7,8 @@ log](./research-log.md).
 
 # tl;dr
 
-In a deep neural network, you can replace the matrix multiply with a weight
-matrix (a *linear transform*) with an alternative that uses fewer
+In a deep neural network, you can replace the matrix multiply using a
+weight matrix (a *linear transform*) with an alternative that uses fewer
 parameters or mult-adds or both. Such as:
 
 * [HashedNet](./models/hashed.py)
@@ -33,7 +33,29 @@ ratio](https://github.com/BayesWatch/deficient-efficient/blob/master/models/wide
 
 ![](./images/imagenet-params-context.png)
 
-## Acknowledgements
+# Citations
+
+If you would like to cite this work, please cite our paper using the
+following bibtex entry:
+
+```
+@article{gray2019separable,
+  author    = {Gavin Gray and
+               Elliot J. Crowley and
+               Amos Storkey},
+  title     = {Separable Layers Enable Structured Efficient Linear
+Substitutions},
+  journal   = {CoRR},
+  %volume    = {abs/???}, pending
+  year      = {2019},
+  %url       = {http://arxiv.org/abs/???},
+  archivePrefix = {arXiv}
+  %eprint    = {???}
+}
+
+```
+
+# Acknowledgements
 
 Based on: `https://github.com/BayesWatch/pytorch-moonshine`
 
