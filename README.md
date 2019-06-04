@@ -46,11 +46,11 @@ following bibtex entry:
   title     = {Separable Layers Enable Structured Efficient Linear
 Substitutions},
   journal   = {CoRR},
-  %volume    = {abs/???}, pending
+  volume    = {abs/1906.00859}, pending
   year      = {2019},
-  %url       = {http://arxiv.org/abs/???},
+  url       = {https://arxiv.org/abs/1906.00859},
   archivePrefix = {arXiv}
-  %eprint    = {???}
+  eprint    = {1906.00859}
 }
 
 ```
