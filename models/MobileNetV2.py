@@ -125,7 +125,7 @@ class MobileNetV2(nn.Module):
                 if block.stride > 1:
                     attention_maps.append(attention(y))
         
-        #error = torch.abs(y-y_orig).mean() 
+        #error = torch.abs(y-y_orig).max() 
         #assert error < 1e-2, f"Error {error} above 0.01"
         x = y
         x = x.mean(3).mean(2)
