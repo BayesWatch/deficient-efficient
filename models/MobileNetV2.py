@@ -181,7 +181,7 @@ def test():
     if os.path.exists("reference_output_mobilenet.torch"):
         ref_output = torch.load("reference_output_mobilenet.torch")
         error = torch.abs(ref_output - y).max()
-        print(f"Error: {error}")
+        print(f"Error: {error}, Max logit: {y.max()}/{ref_output.max()}, Min logit: {y.min()}/{ref_output.min()}")
 
 if __name__ == '__main__':
     test()
