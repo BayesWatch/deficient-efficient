@@ -7,6 +7,7 @@ if __name__ == '__main__':
 else:
     from .blocks import *
 
+# only used in the first convolution, which we do not substitute by convention
 def conv_bn(inp, oup, stride):
     return nn.Sequential(
         nn.Conv2d(inp, oup, 3, stride, 1, bias=False),
@@ -14,19 +15,20 @@ def conv_bn(inp, oup, stride):
         nn.ReLU6(inplace=True)
     )
 
-
-def conv_1x1_bn(inp, oup):
+# only used for final fully connectec layers
+def conv_1x1_bn(inp, oup, ConvClass):
     return nn.Sequential(
-        nn.Conv2d(inp, oup, 1, 1, 0, bias=False),
+        ConvClass(inp, oup, 1, 1, 0, bias=False),
         nn.BatchNorm2d(oup),
         nn.ReLU6(inplace=True)
     )
 
 
 class InvertedResidual(nn.Module):
-    def __init__(self, inp, oup, stride, expand_ratio):
+    def __init__(self, inp, oup, stride, expand_ratio, ConvClass):
         super(InvertedResidual, self).__init__()
         self.stride = stride
+        self.Conv = ConvClass
         assert stride in [1, 2]
 
         hidden_dim = round(inp * expand_ratio)
@@ -39,13 +41,13 @@ class InvertedResidual(nn.Module):
                 nn.BatchNorm2d(hidden_dim),
                 nn.ReLU6(inplace=True),
                 # pw-linear
-                nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias=False),
+                self.Conv(hidden_dim, oup, 1, 1, 0, bias=False),
                 nn.BatchNorm2d(oup),
             )
         else:
             self.conv = nn.Sequential(
                 # pw
-                nn.Conv2d(inp, hidden_dim, 1, 1, 0, bias=False),
+                self.Conv(inp, hidden_dim, 1, 1, 0, bias=False),
                 nn.BatchNorm2d(hidden_dim),
                 nn.ReLU6(inplace=True),
                 # dw
@@ -53,7 +55,7 @@ class InvertedResidual(nn.Module):
                 nn.BatchNorm2d(hidden_dim),
                 nn.ReLU6(inplace=True),
                 # pw-linear
-                nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias=False),
+                self.Conv(hidden_dim, oup, 1, 1, 0, bias=False),
                 nn.BatchNorm2d(oup),
             )
 
@@ -69,6 +71,7 @@ class MobileNetV2(nn.Module):
             input_size=224, width_mult=1.):
         super(MobileNetV2, self).__init__()
         block = InvertedResidual
+        self.Conv = ConvClass
         input_channel = 32
         last_channel = 1280
         interverted_residual_setting = [
@@ -92,12 +95,12 @@ class MobileNetV2(nn.Module):
             output_channel = int(c * width_mult)
             for i in range(n):
                 if i == 0:
-                    self.features.append(block(input_channel, output_channel, s, expand_ratio=t))
+                    self.features.append(block(input_channel, output_channel, s, expand_ratio=t, ConvClass=self.Conv))
                 else:
-                    self.features.append(block(input_channel, output_channel, 1, expand_ratio=t))
+                    self.features.append(block(input_channel, output_channel, 1, expand_ratio=t, ConvClass=self.Conv))
                 input_channel = output_channel
         # building last several layers
-        self.features.append(conv_1x1_bn(input_channel, self.last_channel))
+        self.features.append(conv_1x1_bn(input_channel, self.last_channel, self.Conv))
         # make it nn.Sequential
         self.features = nn.Sequential(*self.features)
 
@@ -144,10 +147,18 @@ class MobileNetV2(nn.Module):
                 m.bias.data.zero_()
 
 def test():
+    import os
     net = MobileNetV2(Conv)
+    if os.path.exists("reference_state_mobilenet.torch"):
+        state = torch.load("reference_state_mobilenet.torch")
+        net.load_state_dict(state)
+        net.eval()
     x = torch.randn(1,3,224,224).float()
     y, _ = net(Variable(x))
     print(y.size())
+    # check if these match the test weights
+    if os.path.exists("reference_output_mobilenet.torch"):
+        ref_output = torch.load("reference_output_mobilenet.torch")
 
 if __name__ == '__main__':
     test()
