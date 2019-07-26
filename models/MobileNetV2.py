@@ -1,6 +1,11 @@
 import torch.nn as nn
 import math
 
+# wildcard import for legacy reasons
+if __name__ == '__main__':
+    from blocks import *
+else:
+    from .blocks import *
 
 def conv_bn(inp, oup, stride):
     return nn.Sequential(
@@ -60,7 +65,8 @@ class InvertedResidual(nn.Module):
 
 
 class MobileNetV2(nn.Module):
-    def __init__(self, n_class=1000, input_size=224, width_mult=1.):
+    def __init__(self, ConvClass, block=None, n_class=1000,
+            input_size=224, width_mult=1.):
         super(MobileNetV2, self).__init__()
         block = InvertedResidual
         input_channel = 32
@@ -104,10 +110,23 @@ class MobileNetV2(nn.Module):
         self._initialize_weights()
 
     def forward(self, x):
-        x = self.features(x)
+        #y_orig = self.features(x)
+        attention_maps = []
+        attention = lambda x: F.normalize(x.pow(2).mean(1).view(x.size(0), -1))
+
+        y = x 
+        for block in self.features:
+            y = block(y)
+            if isinstance(block, InvertedResidual):
+                if block.stride > 1:
+                    attention_maps.append(attention(y))
+        
+        #error = torch.abs(y-y_orig).mean() 
+        #assert error < 1e-2, f"Error {error} above 0.01"
+        x = y
         x = x.mean(3).mean(2)
         x = self.classifier(x)
-        return x
+        return x, attention_maps
 
     def _initialize_weights(self):
         for m in self.modules():
@@ -123,3 +142,12 @@ class MobileNetV2(nn.Module):
                 n = m.weight.size(1)
                 m.weight.data.normal_(0, 0.01)
                 m.bias.data.zero_()
+
+def test():
+    net = MobileNetV2(Conv)
+    x = torch.randn(1,3,224,224).float()
+    y, _ = net(Variable(x))
+    print(y.size())
+
+if __name__ == '__main__':
+    test()
