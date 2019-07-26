@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import math
 
@@ -146,19 +147,41 @@ class MobileNetV2(nn.Module):
                 m.weight.data.normal_(0, 0.01)
                 m.bias.data.zero_()
 
+def save_reference():
+    net = MobileNetV2()
+    net.eval()
+    x = torch.randn(1,3,224,224).float()
+    y = net(x)
+    print(y.size())
+    torch.save(x, "reference_input_mobilenet.torch")
+    torch.save(y, "reference_output_mobilenet.torch")
+    torch.save(net.state_dict(), "reference_state_mobilenet.torch")
+
+def match_keys(net, state):
+    nstate = net.state_dict()
+    old_keys = [k for k in state]
+    for i, k in enumerate(nstate):
+        nstate[k] = state[old_keys[i]]
+    return nstate
+
 def test():
     import os
     net = MobileNetV2(Conv)
     if os.path.exists("reference_state_mobilenet.torch"):
         state = torch.load("reference_state_mobilenet.torch")
+        state = match_keys(net, state)
         net.load_state_dict(state)
         net.eval()
-    x = torch.randn(1,3,224,224).float()
+        x = torch.load("reference_input_mobilenet.torch")
+    else:
+        x = torch.randn(1,3,224,224).float()
     y, _ = net(Variable(x))
     print(y.size())
     # check if these match the test weights
     if os.path.exists("reference_output_mobilenet.torch"):
         ref_output = torch.load("reference_output_mobilenet.torch")
+        error = torch.abs(ref_output - y).max()
+        print(f"Error: {error}")
 
 if __name__ == '__main__':
     test()
