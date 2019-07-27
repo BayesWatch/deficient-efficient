@@ -182,6 +182,21 @@ def test():
         ref_output = torch.load("reference_output_mobilenet.torch")
         error = torch.abs(ref_output - y).max()
         print(f"Error: {error}, Max logit: {y.max()}/{ref_output.max()}, Min logit: {y.min()}/{ref_output.min()}")
+    state = {
+        'net': net.state_dict(),
+        'epoch': 150,
+        'args': None,
+        'width': None,
+        'depth': None,
+        'conv': 'Conv',
+        'blocktype': None,
+        'module': None,
+        'train_losses': None,
+        'train_errors': None,
+        'val_losses': None,
+        'val_errors': [28.2],
+    }
+    torch.save(state, "mobilenetv2.tonylins.t7")
 
 if __name__ == '__main__':
     test()
