@@ -61,7 +61,10 @@ def compression(model_class, kwargs):
         kwargs['ConvClass'] = Conv
     uncompressed_params = sum([p.numel() for p in
         model_class(**kwargs).parameters()])
-    return float(compressed_params)/float(uncompressed_params)
+    ratio = float(compressed_params)/float(uncompressed_params)
+    print("Compression: %i to %i, ratio %.2f"%(uncompressed_params,
+        compressed_params, ratio))
+    return ratio
 
 
 class WideResNet(nn.Module):

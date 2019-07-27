@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import math
 
+from .wide_resnet import compression, group_lowrank
+
 # wildcard import for legacy reasons
 if __name__ == '__main__':
     from blocks import *
@@ -71,6 +73,8 @@ class MobileNetV2(nn.Module):
     def __init__(self, ConvClass, block=None, n_class=1000,
             input_size=224, width_mult=1.):
         super(MobileNetV2, self).__init__()
+        self.kwargs = dict(ConvClass=ConvClass, block=block, n_class=n_class,
+                input_size=input_size, width_mult=width_mult)
         block = InvertedResidual
         self.Conv = ConvClass
         input_channel = 32
@@ -131,6 +135,13 @@ class MobileNetV2(nn.Module):
         x = x.mean(3).mean(2)
         x = self.classifier(x)
         return x, attention_maps
+
+    def compression_ratio(self):
+        return compression(self.__class__, self.kwargs)
+
+    def grouped_parameters(self, weight_decay):
+        return group_lowrank(self.named_parameters(), weight_decay,
+                self.compression_ratio())
 
     def _initialize_weights(self):
         for m in self.modules():
