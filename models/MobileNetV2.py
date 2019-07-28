@@ -180,7 +180,12 @@ def match_keys(net, state):
     nstate = net.state_dict()
     old_keys = [k for k in state]
     for i, k in enumerate(nstate):
-        nstate[k] = state[old_keys[i]]
+        p = state[old_keys[i]]
+        if i == (len(old_keys)-2):
+            n,m = p.size() 
+            nstate[k] = p.view(n,m,1,1)
+        else:
+            nstate[k] = p
     return nstate
 
 def test():
