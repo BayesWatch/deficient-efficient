@@ -22,6 +22,7 @@ from tensorboardX import SummaryWriter
 from funcs import *
 from models.wide_resnet import WideResNet, WRN_50_2
 from models.darts import DARTS, Cutout, _data_transforms_cifar10 as darts_transforms
+from models.MobileNetV2 import MobileNetV2
 
 os.mkdir('checkpoints/') if not os.path.isdir('checkpoints/') else None
 
@@ -386,11 +387,19 @@ def imagenet_defaults(args):
     args.workers = 16
     return args
 
+def mobilenetv2_defaults(args):
+    args.batch_size=256
+    args.epochs = 150
+    args.lr = 0.05
+    args.weight_decay = 4e-5
+    args.workers = 16
+    return args
+
 def get_scheduler(optimizer, epoch_step, args):
     if args.network == 'WideResNet' or args.network == 'WRN_50_2':
         scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=epoch_step,
                 gamma=args.lr_decay_ratio)
-    elif args.network == 'DARTS':
+    elif args.network == 'DARTS' or args.network == 'MobileNetV2':
         scheduler = lr_scheduler.CosineAnnealingLR(optimizer, float(args.epochs))
     return scheduler
 
@@ -404,6 +413,8 @@ if __name__ == '__main__':
         args = darts_defaults(args) # different training hyperparameters
     elif args.network == 'WRN_50_2':
         args = imagenet_defaults(args)
+    elif args.network == 'MobileNetV2':
+        args = mobilenetv2_defaults(args)
 
     print(vars(args))
     parallelise = None
@@ -514,6 +525,8 @@ if __name__ == '__main__':
                     num_classes=num_classes, dropRate=0, s=args.AT_split)
         elif args.network == 'WRN_50_2':
             return WRN_50_2(Conv)
+        elif args.network == 'MobileNetV2':
+            return MobileNetV2(Conv)
         elif args.network == 'DARTS':
             return DARTS(Conv, num_classes=num_classes)
 

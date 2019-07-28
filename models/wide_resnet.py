@@ -61,7 +61,10 @@ def compression(model_class, kwargs):
         kwargs['ConvClass'] = Conv
     uncompressed_params = sum([p.numel() for p in
         model_class(**kwargs).parameters()])
-    return float(compressed_params)/float(uncompressed_params)
+    ratio = float(compressed_params)/float(uncompressed_params)
+    print("Compression: %i to %i, ratio %.2f"%(uncompressed_params,
+        compressed_params, ratio))
+    return ratio
 
 
 class WideResNet(nn.Module):
@@ -172,17 +175,14 @@ class ResNet(nn.Module):
         #self.fc = self.Conv(512*widen * self.expansion, num_classes, kernel_size=1, bias=True)
 
         for m in self.modules():
-            try:
-                if isinstance(m, nn.Conv2d):
-                    if hasattr(m, 'weight'):
-                        w = m.weight 
-                        nn.init.kaiming_normal_(w, mode='fan_out', nonlinearity='relu')
-                elif isinstance(m, nn.BatchNorm2d):
-                    nn.init.constant_(m.weight, 1)
-                    nn.init.constant_(m.bias, 0)
-            except ValueError:
-                import ipdb
-                ipdb.set_trace()
+            if isinstance(m, nn.Conv2d):
+                if hasattr(m, 'weight'):
+                    w = m.weight 
+                    nn.init.kaiming_normal_(w, mode='fan_out', nonlinearity='relu')
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+
 
     def _make_layer(self, block, planes, blocks, stride=1):
         downsample = None
