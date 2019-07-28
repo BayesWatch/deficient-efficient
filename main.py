@@ -14,7 +14,6 @@ import torch.nn.functional as F
 import torchvision
 import torchvision.transforms as transforms
 from torch.autograd import Variable
-from scipy.optimize import minimize_scalar
 from functools import reduce
 
 from tqdm import tqdm
@@ -363,6 +362,8 @@ def set_for_budget(eval_network_size, conv_type, budget):
         raise ValueError("Don't know: "+conv_type)
     def obj(h):
         return abs(budget-eval_network_size(h))
+
+    from scipy.optimize import minimize_scalar
     minimizer = minimize_scalar(obj, bounds=bounds, method='bounded')
     return post_process(minimizer.x)
 
