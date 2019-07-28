@@ -169,6 +169,7 @@ class ResNet(nn.Module):
         self.layer4 = self._make_layer(block, 512*widen, layers[3], stride=2)
         self.avgpool = nn.AvgPool2d((7, 7), 1, 0)
         self.fc = nn.Linear(512*widen * self.expansion, num_classes)
+        #self.fc = self.Conv(512*widen * self.expansion, num_classes, kernel_size=1, bias=True)
 
         for m in self.modules():
             try:
@@ -250,6 +251,7 @@ class ResNet(nn.Module):
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
         x = self.fc(x)
+        #x = x.view(x.size(0), -1)
 
         return x, attention_maps
 
@@ -259,7 +261,19 @@ def WRN_50_2(Conv, Block=None):
     return ResNet(Conv, [3, 4, 6, 3], widen=2, expansion=2)
 
 def test():
-    net = WRN_50_2(Conv)
+    net = WideResNet(28, 10, conv_function("Shuffle_7"), BasicBlock)
+    params = net.grouped_parameters(5e-4)
+    params = [d['params'] for d in params]
+    print("Low-rank:  ", sum([p.numel() for p in params[0]]))
+    print("Full-rank: ", sum([p.numel() for p in params[1]]))
+    print("FC:        ", sum([p.numel() for p in net.fc.parameters()]))
+
+    net = WRN_50_2(conv_function("Shuffle_7"))
+    params = net.grouped_parameters(5e-4)
+    params = [d['params'] for d in params]
+    print("Low-rank:  ", sum([p.numel() for p in params[0]]))
+    print("Full-rank: ", sum([p.numel() for p in params[1]]))
+    print("FC:        ", sum([p.numel() for p in net.fc.parameters()]))
     x = torch.randn(1,3,224,224).float()
     y, _ = net(Variable(x))
     print(y.size())
