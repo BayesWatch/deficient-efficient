@@ -6,6 +6,7 @@ import argparse
 from torch.autograd import Variable
 from models.wide_resnet import WideResNet, WRN_50_2
 from models.darts import DARTS
+from models.MobileNetV2 import MobileNetV2
 
 from funcs import what_conv_block
 
@@ -306,6 +307,8 @@ if __name__ == '__main__':
             ' separable convolutions, so you probably did not mean to set this' \
             ' option.'
             return DARTS(Conv, num_classes=num_classes, drop_path_prob=0., auxiliary=False)
+        elif args.network == 'MobileNetV2':
+            return MobileNetV2(Conv)
     model = build_network(Conv, Block)
 
     # count how many parameters are in it

@@ -2055,3 +2055,38 @@ size and the number of Mult-Adds that are used, due to the requirement to
 be square. Results are in the WRN-28-10 [results
 notebook](https://gist.github.com/gngdb/f622422a2633daf496b7acca3be28934).
 
+29th July 2019
+==============
+
+In response to NeurIPS reviews, it seems like an experiment involving a
+state of the art efficient CNN on ImageNet would be desirable. Designed an
+experiment involving MobileNetV2. It is currently running, and I'll
+describe it in more detail when I report the results in two days.
+
+Noting now that the count for Mult-Adds and parameters appears to be
+correct:
+
+```
+> python count.py --network MobileNetV2 --conv Conv imagenet
+Mult-Adds: 3.00774E+08
+Params: 3.50487E+06
+```
+
+Only one small concern: the number of parameters reported in the paper for
+this network is 3.4M, while here is 3.5M. I'm not sure why that is, but I'm
+happy that the Mult-Add count is 300M, which matches the paper.
+
+The experiment is running with the linear ShuffleNet with 4 groups:
+
+```
+> python count.py --network MobileNetV2 --conv Shuffle_4 imagenet 
+Mult-Adds: 1.05372E+08
+Params: 9.19442E+05
+```
+
+So the network has fewer than 1M parameters, and there are very few
+succesful efficient networks on ImageNet with so few parameters. At the
+same time, it uses 1/3 the number of Mult-Adds.
+
+It would have been worthwhile to also start an experiment with HashedNet
+substitutions, but I only had 4 GPUs available.
