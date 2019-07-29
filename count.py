@@ -161,6 +161,20 @@ class OpCounter(object):
             # all operations implemented by internal conv2d
             pass
 
+        elif type_name in ['LowRank']:
+            if hasattr(layer, 'grouped'):
+                x = layer.grouped.old_forward(x)
+            if layer.upsample > 1:
+                x = x.repeat(1,layer.upsample,1,1)
+            out = layer.lowrank.old_forward(x)
+            out_h = out.size(2)
+            out_w = out.size(3)
+            delta_ops = 2 * layer.lowrank.in_channels * \
+                layer.lowrank.out_channels * layer.lowrank.kernel_size[0] * \
+                layer.lowrank.kernel_size[1] * out_h * out_w / layer.lowrank.groups \
+                * multi_add
+            delta_params = get_layer_param(layer.lowrank)
+
         #elif type_name in ['TensorTrain']:
         elif False:
             # number of cores
