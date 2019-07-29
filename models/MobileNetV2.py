@@ -2,13 +2,13 @@ import torch
 import torch.nn as nn
 import math
 
-from .wide_resnet import compression, group_lowrank
 
 # wildcard import for legacy reasons
 if __name__ == '__main__':
-    from blocks import *
-else:
-    from .blocks import *
+    import sys
+    sys.path.append("..")
+from models.blocks import *
+from models.wide_resnet import compression, group_lowrank
 
 # only used in the first convolution, which we do not substitute by convention
 def conv_bn(inp, oup, stride):
@@ -110,12 +110,19 @@ class MobileNetV2(nn.Module):
         self.features = nn.Sequential(*self.features)
 
         # building classifier
-        self.classifier = nn.Sequential(
-            nn.Dropout(0.2),
-            nn.Linear(self.last_channel, n_class),
-        )
+        self.classifier_conv = self.Conv(self.last_channel, n_class, 1, 1, 0, bias=True)
+        #self.classifier = \
+            #nn.Dropout(0.2), remove dropout for training according to github
+        #    nn.(self.last_channel, n_class),
+        #)
 
         self._initialize_weights()
+
+    def classifier(self, x):
+        n, c = x.size()
+        x = self.classifier_conv(x.view(n,c,1,1))
+        n, c, _, _ = x.size()
+        return x.view(n,c)
 
     def forward(self, x):
         #y_orig = self.features(x)
@@ -147,7 +154,8 @@ class MobileNetV2(nn.Module):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                m.weight.data.normal_(0, math.sqrt(2. / n))
+                if hasattr(m, 'weight'):
+                    m.weight.data.normal_(0, math.sqrt(2. / n))
                 if m.bias is not None:
                     m.bias.data.zero_()
             elif isinstance(m, nn.BatchNorm2d):
@@ -209,5 +217,22 @@ def test():
     }
     torch.save(state, "mobilenetv2.tonylins.t7")
 
+def test_compression():
+    net = MobileNetV2(Conv)
+    #net = MobileNetV2(conv_function('Hashed_0.1'))
+    nparams = lambda x: sum([p.numel() for p in x.parameters()])
+    for block in net.features:
+        print(nparams(block))
+    for x in block:
+        print(x)
+        print(nparams(x))
+    #CompressedConv = conv_function("Hashed_0.1")
+    for conv in ['Shuffle_%i'%i for i in [4,8,16,32]]+['Hashed_0.01']:
+        print(conv)
+        CompressedConv = conv_function(conv)
+        net = MobileNetV2(CompressedConv)
+        print("  ", net.compression_ratio())
+
 if __name__ == '__main__':
     test()
+    #test_compression()
