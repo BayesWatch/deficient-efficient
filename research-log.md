@@ -2090,3 +2090,20 @@ same time, it uses 1/3 the number of Mult-Adds.
 
 It would have been worthwhile to also start an experiment with HashedNet
 substitutions, but I only had 4 GPUs available.
+
+21st Auguset 2019
+=================
+
+While reviewing the thesis write up of this work, came across a comment by
+Charles Sutton:
+
+> How would we tell in practice if the parameters/accuracy tradeoff is
+> worth it?
+
+One answer that might work experimentally would be to compare to networks
+with the same teacher structure, but where we have scaled the number of
+channels throughout the network (as is common with ResNet derivative
+networks). Then, we could compare the performance of these networks to our
+own and even train such networks in the same way with attention transfer.
+If we can outperform that benchmark, then this is a reasonable way to deal
+with the accuracy/parameter benchmark.
