@@ -2091,7 +2091,7 @@ same time, it uses 1/3 the number of Mult-Adds.
 It would have been worthwhile to also start an experiment with HashedNet
 substitutions, but I only had 4 GPUs available.
 
-21st Auguset 2019
+21st August 2019
 =================
 
 While reviewing the thesis write up of this work, came across a comment by
